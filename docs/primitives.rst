@@ -55,3 +55,8 @@ Updated in the same commit that adds or changes a primitive.
      - piecewise
      - `Laakso et al. (1996) <https://doi.org/10.1109/79.482137>`__ (linear-interpolation fractional delay)
      - none (see module docstring; consistency-checked against ``delay_embedding``)
+
+   * - :doc:`hard_fnn <generated/torchnlts.embedding.fnn.hard_fnn>`
+     - none
+     - `Kennel, Brown & Abarbanel (1992) <https://doi.org/10.1103/PhysRevA.45.3403>`__
+     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``delay_fnn``)
