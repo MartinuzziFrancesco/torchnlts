@@ -50,3 +50,8 @@ Updated in the same commit that adds or changes a primitive.
      - exact
      - Takens (1981), *Detecting Strange Attractors in Turbulence*
      - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``embed``)
+
+   * - :doc:`fractional_delay_embedding <generated/torchnlts.embedding.fractional_delay.fractional_delay_embedding>`
+     - piecewise
+     - `Laakso et al. (1996) <https://doi.org/10.1109/79.482137>`__ (linear-interpolation fractional delay)
+     - none (see module docstring; consistency-checked against ``delay_embedding``)
