@@ -60,3 +60,13 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Kennel, Brown & Abarbanel (1992) <https://doi.org/10.1103/PhysRevA.45.3403>`__
      - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``delay_fnn``)
+
+   * - :doc:`cao_e1 <generated/torchnlts.embedding.cao.cao_e1>`
+     - none
+     - `Cao (1997) <https://doi.org/10.1016/S0167-2789(97)00118-8>`__, eq. 1-3
+     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``delay_afnn``)
+
+   * - :doc:`cao_e2 <generated/torchnlts.embedding.cao.cao_e2>`
+     - none
+     - `Cao (1997) <https://doi.org/10.1016/S0167-2789(97)00118-8>`__, eq. 5
+     - none (see module docstring: ``stochastic_indicator`` has indexing quirks that don't match eq. 5 cleanly)
