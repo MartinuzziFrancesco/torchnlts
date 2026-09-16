@@ -21,7 +21,7 @@ JULIA_PROJECT = "juliaenv"
 def test_knn_search_hand_derived():
     # Points on a line: 0, 1, 2, 3.5, 10, 10.2, 20. Theiler window w=1.
     x = torch.tensor([0.0, 1.0, 2.0, 3.5, 10.0, 10.2, 20.0])
-    dist, idx = knn_search(x, k=2, theiler=1)
+    dist, idx = knn_search(x, num_neighbors=2, theiler_window=1)
     # Point 0 (value 0.0): neighbors at index 2 (d=2.0) then index 3 (d=3.5),
     # index 1 excluded by the Theiler window.
     assert idx[0].tolist() == [2, 3]
@@ -34,7 +34,7 @@ def test_knn_search_hand_derived():
 
 def test_knn_search_k_exceeds_available_points():
     x = torch.tensor([0.0, 1.0, 2.0])
-    dist, idx = knn_search(x, k=4, theiler=0)
+    dist, idx = knn_search(x, num_neighbors=4, theiler_window=0)
     assert dist.shape == (3, 4)
     # 3 points, theiler=0 excludes only self, so each point has 2 real
     # candidates; the 4th requested neighbor pads with inf / -1.
@@ -47,21 +47,21 @@ def test_knn_search_theiler_exhausts_candidates():
     # T=3, theiler window w=1 excludes every other point for the middle
     # index (|1-0|<=1 and |1-2|<=1), leaving zero valid candidates.
     x = torch.tensor([0.0, 1.0, 2.0])
-    dist, idx = knn_search(x, k=1, theiler=1)
+    dist, idx = knn_search(x, num_neighbors=1, theiler_window=1)
     assert torch.isinf(dist[1]).all()
     assert (idx[1] == -1).all()
 
 
 def test_knn_search_shapes():
     x = torch.randn(2, 20, 3)
-    dist, idx = knn_search(x, k=4, theiler=1)
+    dist, idx = knn_search(x, num_neighbors=4, theiler_window=1)
     assert dist.shape == (2, 20, 4)
     assert idx.shape == (2, 20, 4)
 
 
 def test_knn_search_sorted_ascending():
     x = torch.randn(30)
-    dist, _ = knn_search(x, k=5, theiler=0)
+    dist, _ = knn_search(x, num_neighbors=5, theiler_window=0)
     assert torch.all(dist[:, :-1] <= dist[:, 1:])
 
 
@@ -72,7 +72,7 @@ def test_knn_search_gradcheck():
     x = torch.randn(8, 2, dtype=torch.float64, requires_grad=True)
 
     def f(x):
-        dist, _ = knn_search(x, k=2, theiler=1)
+        dist, _ = knn_search(x, num_neighbors=2, theiler_window=1)
         return dist
 
     assert torch.autograd.gradcheck(f, (x,))
@@ -82,7 +82,7 @@ def test_knn_search_matches_neighborhood_jl():
     torch.manual_seed(1)
     x = torch.randn(15, 2, dtype=torch.float64)
     k, w = 3, 1
-    dist, idx = knn_search(x, k=k, theiler=w)
+    dist, idx = knn_search(x, num_neighbors=k, theiler_window=w)
 
     rows = ";".join(" ".join(f"{v:.17g}" for v in row) for row in x.numpy())
     julia_code = f"""

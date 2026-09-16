@@ -18,7 +18,7 @@ JULIA_PROJECT = "juliaenv"
 
 def test_delay_embedding_hand_derived():
     x = torch.arange(10.0)
-    y = delay_embedding(x, m=3, tau=2)
+    y = delay_embedding(x, embedding_dim=3, delay=2)
     expected = torch.tensor(
         [
             [0.0, 2.0, 4.0],
@@ -34,13 +34,13 @@ def test_delay_embedding_hand_derived():
 
 def test_delay_embedding_tau1_m1_is_identity():
     x = torch.randn(10)
-    y = delay_embedding(x, m=1, tau=1)
+    y = delay_embedding(x, embedding_dim=1, delay=1)
     assert torch.equal(y.squeeze(-1), x)
 
 
 def test_delay_embedding_multivariate_and_batched():
     x = torch.randn(2, 20, 3)
-    y = delay_embedding(x, m=4, tau=2)
+    y = delay_embedding(x, embedding_dim=4, delay=2)
     assert y.shape == (2, 20 - 3 * 2, 4 * 3)
     # Spot-check one row against a manual concatenation.
     expected_row0 = torch.cat([x[0, 0], x[0, 2], x[0, 4], x[0, 6]])
@@ -49,7 +49,7 @@ def test_delay_embedding_multivariate_and_batched():
 
 def test_delay_embedding_too_short_raises():
     try:
-        delay_embedding(torch.randn(5), m=4, tau=2)
+        delay_embedding(torch.randn(5), embedding_dim=4, delay=2)
     except ValueError:
         return
     raise AssertionError("expected ValueError for a too-short trajectory")
@@ -57,14 +57,14 @@ def test_delay_embedding_too_short_raises():
 
 def test_delay_embedding_gradcheck():
     x = torch.randn(10, 2, dtype=torch.float64, requires_grad=True)
-    assert torch.autograd.gradcheck(lambda x: delay_embedding(x, m=3, tau=2), (x,))
+    assert torch.autograd.gradcheck(lambda x: delay_embedding(x, embedding_dim=3, delay=2), (x,))
 
 
 def test_delay_embedding_matches_delayembeddings_jl():
     torch.manual_seed(3)
     x = torch.randn(15, dtype=torch.float64)
     m, tau = 4, 3
-    y = delay_embedding(x, m=m, tau=tau)
+    y = delay_embedding(x, embedding_dim=m, delay=tau)
 
     values = ", ".join(f"{v:.17g}" for v in x.numpy())
     julia_code = f"""

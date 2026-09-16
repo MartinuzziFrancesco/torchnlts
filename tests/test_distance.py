@@ -57,7 +57,7 @@ def test_pairwise_distance_cross():
 
 def test_pairwise_distance_chebyshev():
     x = torch.tensor([[0.0, 0.0], [3.0, 4.0]])
-    d = pairwise_distance(x, p=float("inf"))
+    d = pairwise_distance(x, norm_order=float("inf"))
     assert torch.allclose(d, torch.tensor([[0.0, 4.0], [4.0, 0.0]]))
 
 
