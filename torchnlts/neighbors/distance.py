@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import ensure_batched, restore_batch
+from torchnlts._shape import _ensure_batched, _restore_batch
 
 
 def pairwise_distance(
@@ -28,9 +28,9 @@ def pairwise_distance(
     Returns:
         Distance matrix of shape ``[T, T']`` or ``[B, T, T']``.
     """
-    batched, ndim = ensure_batched(trajectory)
-    other_batched = batched if other is None else ensure_batched(other)[0]
+    batched, ndim = _ensure_batched(trajectory)
+    other_batched = batched if other is None else _ensure_batched(other)[0]
     # compute_mode forced: torch.cdist's default matmul path for p=2
     # loses precision in float32 for points sharing a large offset.
     distance = torch.cdist(batched, other_batched, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")
-    return restore_batch(distance, ndim)
+    return _restore_batch(distance, ndim)

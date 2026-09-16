@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 
-def ensure_batched(tensor: torch.Tensor) -> tuple[torch.Tensor, int]:
+def _ensure_batched(tensor: torch.Tensor) -> tuple[torch.Tensor, int]:
     """Normalize ``[T]`` / ``[T, D]`` / ``[B, T, D]`` to ``[B, T, D]``.
 
     Returns:
@@ -20,8 +20,8 @@ def ensure_batched(tensor: torch.Tensor) -> tuple[torch.Tensor, int]:
     raise ValueError(f"expected a tensor of shape [T], [T, D], or [B, T, D], got {tuple(tensor.shape)}")
 
 
-def restore_batch(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
-    """Undo :func:`ensure_batched` on a result that kept the batch dim."""
+def _restore_batch(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
+    """Undo :func:`_ensure_batched` on a result that kept the batch dim."""
     if ndim == 3:
         return tensor
     if ndim in (1, 2):
