@@ -17,7 +17,8 @@ def delay_embedding(trajectory: torch.Tensor, embedding_dim: int, delay: int = 1
     """Takens delay embedding of a trajectory.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
+            numpy array, or pandas Series/DataFrame.
         embedding_dim: Number of delayed copies per point.
         delay: Lag, in time steps.
 

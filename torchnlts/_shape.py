@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import torch
 
+from torchnlts.convert import as_tensor
 
-def _ensure_batched(tensor: torch.Tensor) -> tuple[torch.Tensor, int]:
+
+def _ensure_batched(tensor) -> tuple[torch.Tensor, int]:
     """Normalize ``[T]`` / ``[T, D]`` / ``[B, T, D]`` to ``[B, T, D]``.
+
+    ``tensor`` may be a torch.Tensor, numpy array, or pandas
+    Series/DataFrame (converted via :func:`torchnlts.convert.as_tensor`).
 
     Returns:
         The normalized tensor and its original number of dimensions.
     """
+    tensor = as_tensor(tensor)
     if tensor.dim() == 1:
         return tensor.view(1, -1, 1), 1
     if tensor.dim() == 2:

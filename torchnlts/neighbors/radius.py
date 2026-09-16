@@ -24,7 +24,8 @@ def radius_neighbors(
     """Boolean neighbor mask for points within ``radius``.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
+            numpy array, or pandas Series/DataFrame.
         radius: Inclusion radius, ``<=`` (inclusive).
         theiler_window: Theiler window, applied only for the self-search
             case (``other is None``).

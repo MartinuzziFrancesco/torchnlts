@@ -9,3 +9,4 @@ Full API reference, one page per subpackage.
    neighbors
    embedding
    systems
+   convert

@@ -19,7 +19,8 @@ def pairwise_distance(
     """Pairwise Minkowski distance between points of a trajectory.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
+            numpy array, or pandas Series/DataFrame.
         other: Optional second trajectory, same convention as ``trajectory``.
             Defaults to ``trajectory`` (self-distance matrix).
         norm_order: Minkowski norm order (``2`` = Euclidean, ``1`` =

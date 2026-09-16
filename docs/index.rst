@@ -18,6 +18,9 @@ Highlights
   it's exact, a smooth relaxation, piecewise, or analysis-only
 - **PyTorch-native interface**: ``[T]``, ``[T, D]``, or ``[B, T, D]``
   tensors in, CPU/CUDA/float32/float64 throughout
+- **numpy/pandas interop**: every function also accepts numpy arrays and
+  pandas Series/DataFrame; see :mod:`torchnlts.convert` for converting
+  results back out
 
 Installation
 ------------

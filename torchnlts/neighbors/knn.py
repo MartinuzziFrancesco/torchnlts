@@ -24,7 +24,8 @@ def knn_search(
     """k nearest neighbors of every point in a trajectory.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
+            numpy array, or pandas Series/DataFrame.
         num_neighbors: Number of neighbors to return per point.
         theiler_window: Theiler window, applied only for the self-search
             case (``other is None``).

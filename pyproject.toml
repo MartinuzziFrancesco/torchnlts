@@ -9,13 +9,15 @@ description = "Differentiable nonlinear time series analysis on PyTorch"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.2",
+    "numpy",
     "dysts",
     "torchdiffeq",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "numpy"]
+dev = ["pytest"]
 sde = ["torchsde"]
+pandas = ["pandas"]
 
 [tool.setuptools.packages.find]
 include = ["torchnlts*"]
