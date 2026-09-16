@@ -9,3 +9,4 @@ that adds or changes the function.
 | `torchnlts.neighbors.theiler.theiler_window_mask` | exact | Boolean, index-only; no gradient to speak of. |
 | `torchnlts.neighbors.theiler.apply_theiler_window` | exact | Mask depends only on time indices, never on data, so no data-dependent boundary; gradcheck in `tests/test_theiler.py`. |
 | `torchnlts.neighbors.knn.knn_search` | piecewise | `torch.topk` gradients route correctly to selected distances, but which points are selected is discrete: a tie at the k-th/(k+1)-th neighbor boundary is a non-differentiable jump. Gradcheck in `tests/test_knn.py` uses well-separated points to avoid that boundary. |
+| `torchnlts.neighbors.radius.radius_neighbors` | none | Hard Heaviside inclusion test (bool output, no gradient). Differentiable relaxation belongs in a separately-named function built on the future `TrajectoryKernel`, not a hidden hard/soft swap. |
