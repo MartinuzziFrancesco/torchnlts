@@ -47,17 +47,36 @@ def fractional_delay_embedding(trajectory, delays) -> torch.Tensor:
     batched, ndim = _ensure_batched(trajectory)
     batch_size, num_points, dim = batched.shape
     delays = as_tensor(delays)
+    if delays.dim() != 1:
+        raise ValueError(f"delays must be 1D, got shape {tuple(delays.shape)}")
+    if delays.numel() < 1:
+        raise ValueError("delays must have at least one lag")
     # Interpolation needs a floating dtype regardless of what batched or
     # delays came in as: casting delays to an integer trajectory's dtype
     # would silently truncate fractional lags (and drop their gradient).
-    if not delays.is_floating_point():
-        delays = delays.to(torch.get_default_dtype())
-    delays = delays.to(device=batched.device)
-    if delays.dim() != 1:
-        raise ValueError(f"delays must be 1D, got shape {tuple(delays.shape)}")
+    # Promote across delays' own dtype (if already floating), the
+    # trajectory's dtype (if floating), and the global default, so
+    # neither a float64 trajectory nor a float64 delays tensor ever
+    # loses precision to a lower-precision partner, and `starts`'s
+    # arange (dtype-matched to delays below) never lands in a dtype too
+    # coarse to represent consecutive integers, corrupting indices.
+    # torch.promote_types (not a bit-width comparison) correctly sends a
+    # float16/bfloat16 mix to float32 rather than picking one of them.
+    target_dtype = torch.get_default_dtype()
+    if delays.is_floating_point():
+        target_dtype = torch.promote_types(target_dtype, delays.dtype)
+    if batched.is_floating_point():
+        target_dtype = torch.promote_types(target_dtype, batched.dtype)
+    delays = delays.to(device=batched.device, dtype=target_dtype)
     if torch.any(delays < 0):
         raise ValueError("delays must be non-negative")
 
+    # Limitation: max_delay's .item() forces a host sync and bakes
+    # num_embedded into the trace as a Python int, so torch.compile
+    # recompiles whenever delays' value changes and vmap can't batch over
+    # per-sample delays. Fixed-size output (a max-lag bound plus
+    # padding/masking) would remove this ceiling; not built since nothing
+    # here yet needs compile/vmap over a *batch of different* delays.
     max_delay = delays.detach().max().item()
     num_embedded = math.floor((num_points - 1) - max_delay) + 1
     if num_embedded < 1:

@@ -8,7 +8,7 @@ minimum embedding dimension of a scalar time series", Physica D 110,
 near 1 once the embedding dimension is large enough (find the smallest
 ``embedding_dim`` where it stops changing); ``cao_e2`` distinguishes a
 deterministic signal from noise (which stays away from 1 far longer,
-as ``embedding_dim`` grows, for noise -- it does *not`` sit near 1 at
+as ``embedding_dim`` grows, for noise -- it does *not* sit near 1 at
 small ``embedding_dim`` even for pure noise, an easy-to-misread finite-
 sample property of eq. 5 itself, not a bug).
 
@@ -35,7 +35,7 @@ import torch
 
 from torchnlts._shape import _ensure_batched
 from torchnlts.embedding.delay import delay_embedding
-from torchnlts.neighbors.knn import knn_search
+from torchnlts.neighbors.knn import _gather_neighbors, knn_search
 
 
 def _cao_step(
@@ -66,11 +66,9 @@ def _cao_step(
     neighbor_index = torch.where(use_second, indices[..., 1], indices[..., 0])
     low_distance = torch.where(use_second, distances[..., 1], distances[..., 0])
     valid = (neighbor_index != -1) & (low_distance > 0)
-    safe_index = torch.where(valid, neighbor_index, torch.zeros_like(neighbor_index))
 
     target = embedded_high[..., -dim:] if new_coordinate_only else embedded_high
-    index_expanded = safe_index.unsqueeze(-1).expand(*safe_index.shape, target.shape[-1])
-    neighbor_target = torch.gather(target, dim=-2, index=index_expanded)
+    neighbor_target = _gather_neighbors(target, neighbor_index, valid)
     high_distance = torch.linalg.vector_norm(target - neighbor_target, ord=norm_order, dim=-1)
 
     safe_low = torch.where(valid, low_distance, torch.ones_like(low_distance))

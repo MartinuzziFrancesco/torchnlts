@@ -1,4 +1,4 @@
-"""Hard false-nearest-neighbors (FNN) count at a given embedding dimension.
+"""Hard false-nearest-neighbors (FNN) fraction at a given embedding dimension.
 
 Gradient class: none (hard threshold comparisons, boolean output).
 A differentiable relaxation would be a separately-named ``soft_fnn``
@@ -13,9 +13,11 @@ reformulated here as ``high**2 > low**2 * (1 + distance_tol**2)``,
 algebraically equivalent to Kennel's ``sqrt(high**2-low**2)/low >
 distance_tol`` but division-free, so ``low == 0`` needs no special
 case), or it's already large relative to the attractor's overall size
-(eq. 5). Defaults (``distance_tol=10, attractor_tol=2``) and the
-"count, not fraction" return convention match DelayEmbeddings.jl's
-``delay_fnn``, validated against it directly.
+(eq. 5). Defaults (``distance_tol=10, attractor_tol=2``) match
+DelayEmbeddings.jl's ``delay_fnn``, validated against it directly. Its
+own docstring says "number of" false neighbors, but it actually
+normalizes by the point count -- this function returns that same
+fraction, not a raw count.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ import torch
 from torchnlts._shape import _ensure_batched
 from torchnlts.convert import as_tensor
 from torchnlts.embedding.delay import delay_embedding
-from torchnlts.neighbors.knn import knn_search
+from torchnlts.neighbors.knn import _gather_neighbors, knn_search
 
 
 def hard_fnn(
@@ -72,14 +74,18 @@ def hard_fnn(
     low_distance = low_distance[..., 0]
     neighbor_index = neighbor_index[..., 0]
     valid = neighbor_index != -1
-    safe_index = torch.where(valid, neighbor_index, torch.zeros_like(neighbor_index))
 
-    index_expanded = safe_index.unsqueeze(-1).expand(*safe_index.shape, embedded_high.shape[-1])
-    neighbor_points = torch.gather(embedded_high, dim=-2, index=index_expanded)
+    neighbor_points = _gather_neighbors(embedded_high, neighbor_index, valid)
     high_distance = torch.linalg.vector_norm(embedded_high - neighbor_points, ord=norm_order, dim=-1)
 
     batched_trajectory, ndim = _ensure_batched(trajectory)
-    attractor_size = batched_trajectory.reshape(batched_trajectory.shape[0], -1).std(dim=-1, correction=0)
+    # Per-channel std, then combined via an L2 norm across channels --
+    # not the neighbor-search norm_order, since Kennel's R_A is a
+    # sum-of-squares attractor size regardless of the neighbor-search
+    # norm. Computing std on data flattened across time *and* channel
+    # would mix each channel's mean into every other channel's spread.
+    per_channel_std = batched_trajectory.std(dim=1, correction=0)
+    attractor_size = torch.linalg.vector_norm(per_channel_std, dim=-1)
     attractor_size = attractor_size.unsqueeze(-1) if ndim == 3 else attractor_size.squeeze(0)
 
     exceeds_relative_growth = high_distance**2 > low_distance**2 * (1 + distance_tol**2)

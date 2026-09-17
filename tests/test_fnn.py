@@ -79,6 +79,21 @@ def test_hard_fnn_theiler_exhausts_candidates_no_crash():
     assert torch.isnan(result)
 
 
+def test_hard_fnn_multichannel_attractor_size_not_mixed_across_channels():
+    # Regression: attractor_size used to flatten time and channel together
+    # before taking std, so a channel offset by a huge constant (no
+    # variance of its own) inflated attractor_size for every channel.
+    # Appending that channel must not change the result.
+    torch.manual_seed(4)
+    base = torch.randn(60, dtype=torch.float64)
+    baseline = hard_fnn(base.unsqueeze(-1), embedding_dim=2, delay=1, theiler_window=1)
+
+    shifted_channel = torch.full((60,), 1e6, dtype=torch.float64)
+    two_channel = torch.stack([base, shifted_channel], dim=-1)
+    actual = hard_fnn(two_channel, embedding_dim=2, delay=1, theiler_window=1)
+    assert math.isclose(actual.item(), baseline.item())
+
+
 def test_hard_fnn_decreases_toward_true_dimension():
     # Classic use: FNN should be high below the true embedding dimension
     # and drop once it's reached, for a trajectory from a known

@@ -57,6 +57,62 @@ def test_fractional_delay_embedding_rejects_negative_delays():
     raise AssertionError("expected ValueError for a negative delay")
 
 
+def test_fractional_delay_embedding_rejects_empty_delays():
+    try:
+        fractional_delay_embedding(torch.randn(10), delays=torch.tensor([]))
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for empty delays")
+
+
+def test_fractional_delay_embedding_float64_trajectory_integer_delays_full_precision():
+    # Regression: integer delays were cast to the global default dtype
+    # (float32) instead of a float64 trajectory's own dtype, losing
+    # precision through an unnecessary float32 round-trip.
+    trajectory = torch.arange(10, dtype=torch.float64) ** 3 + 1 / 3
+    embedded = fractional_delay_embedding(trajectory, delays=torch.tensor([0, 2]))
+    exact = delay_embedding(trajectory, embedding_dim=2, delay=2)
+    assert torch.equal(embedded, exact)
+
+
+def test_fractional_delay_embedding_low_precision_trajectory_no_index_corruption():
+    # Regression: preferring the trajectory's own dtype for integer delays
+    # (to fix the float64 case above) also applied to bfloat16/float16
+    # trajectories, where `starts`'s arange stops representing consecutive
+    # integers past a few hundred/thousand, corrupting indices out of bounds.
+    trajectory = torch.arange(2000, dtype=torch.bfloat16)
+    embedded = fractional_delay_embedding(trajectory, delays=torch.tensor([0, 300]))
+    assert embedded.shape == (1700, 2)
+
+
+def test_fractional_delay_embedding_float32_delays_float64_trajectory_full_precision():
+    # Regression: the dtype-precision fix only triggered for integer
+    # delays; already-floating delays (the common case for genuinely
+    # fractional lags) skipped it entirely, so float32 delays paired with
+    # a float64 trajectory still lost precision to an intermediate
+    # float32 round-trip.
+    trajectory = torch.arange(17_000_500, dtype=torch.float64)
+    out32 = fractional_delay_embedding(trajectory, delays=torch.tensor([0.5], dtype=torch.float32))
+    out64 = fractional_delay_embedding(trajectory, delays=torch.tensor([0.5], dtype=torch.float64))
+    assert torch.equal(out32, out64)
+
+
+def test_fractional_delay_embedding_bfloat16_default_dtype_no_index_corruption():
+    # Regression: comparing dtypes by bit width picked bfloat16 (same 16
+    # bits as float16 but a much coarser mantissa) as "precise enough"
+    # when it was the global default, corrupting indices exactly like the
+    # low_precision_trajectory regression above, triggered from the
+    # opposite direction (default dtype low-precision, not the trajectory).
+    previous_default = torch.get_default_dtype()
+    torch.set_default_dtype(torch.bfloat16)
+    try:
+        trajectory = torch.arange(2000, dtype=torch.float16)
+        embedded = fractional_delay_embedding(trajectory, delays=torch.tensor([0, 300]))
+        assert embedded.shape == (1700, 2)
+    finally:
+        torch.set_default_dtype(previous_default)
+
+
 def test_fractional_delay_embedding_too_short_raises():
     try:
         fractional_delay_embedding(torch.randn(5), delays=torch.tensor([0.0, 10.0]))

@@ -48,3 +48,21 @@ def knn_search(
     values, indices = torch.topk(distance, num_neighbors, dim=-1, largest=False, sorted=True)
     indices = torch.where(torch.isfinite(values), indices, torch.full_like(indices, -1))
     return values, indices
+
+
+def _gather_neighbors(target: torch.Tensor, index: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
+    """Gather each point's neighbor row from ``target`` by index.
+
+    Args:
+        target: Shape ``[..., T, D]`` to gather rows from.
+        index: Shape ``[..., T]`` row indices into ``target``'s ``T`` axis.
+        valid: Bool mask, shape ``[..., T]``. Where ``False`` (e.g.
+            ``knn_search``'s ``-1`` sentinel), ``index`` is ignored and
+            row 0 is gathered instead, so callers must mask the result
+            themselves rather than trust it at invalid slots.
+
+    Returns:
+        Shape ``[..., T, D]``.
+    """
+    safe_index = torch.where(valid, index, torch.zeros_like(index))
+    return torch.take_along_dim(target, safe_index.unsqueeze(-1), dim=-2)
