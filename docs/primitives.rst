@@ -70,3 +70,13 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Cao (1997) <https://doi.org/10.1016/S0167-2789(97)00118-8>`__, eq. 5
      - none (see module docstring: ``stochastic_indicator`` has indexing quirks that don't match eq. 5 cleanly)
+
+   * - :doc:`hard_recurrence_matrix <generated/torchnlts.recurrence.matrix.hard_recurrence_matrix>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 1
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``RecurrenceMatrix``)
+
+   * - :doc:`soft_recurrence_matrix <generated/torchnlts.recurrence.matrix.soft_recurrence_matrix>`
+     - smooth
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 1 (kernel-relaxed via ``trajectory_kernel``)
+     - none (see module docstring; consistency-checked against ``hard_recurrence_matrix``'s epsilon=0 limit)
