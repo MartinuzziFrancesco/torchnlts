@@ -100,3 +100,58 @@ def soft_correlation_sum(
     weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     return torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()
+
+
+def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -> torch.Tensor:
+    """Correlation dimension D2: ordinary-least-squares slope of log C(r) vs log r.
+
+    Gradient class: exact (closed-form OLS slope; ordinary autodiff
+    through whatever produced ``correlation_sum`` -- it inherits
+    :func:`correlation_sum`'s ``none`` or :func:`soft_correlation_sum`'s
+    ``smooth`` from there).
+
+    This is a plain regression over every ``(radius, correlation_sum)``
+    pair given, with no automatic scaling-region detection -- the
+    caller picks the radii, matching FractalDimensions.jl's
+    ``slopefit(x, y, LinearRegression(); ignore_saturation=false)``
+    (``ignore_saturation`` defaults to ``true`` there even under
+    ``LinearRegression`` and can silently drop endpoints, so it must be
+    turned off to reproduce this function's all-point fit) rather than
+    ``slopefit``'s own default, ``LargestLinearRegion``. Matches
+    :func:`torchnlts.dimension.correlation.soft_correlation_sum`'s note
+    that ``temperature`` plays the role of ``radius``'s smooth analogue:
+    pass the temperature sweep here for the soft variant's dimension
+    estimate.
+
+    Reference: Grassberger & Procaccia (1983), eq. 1 and surrounding
+    discussion (D2 as the log-log slope of the correlation sum).
+
+    Args:
+        radius: Shape ``[R]``, the sweep the correlation sum was
+            evaluated at (or the matching temperature sweep for the
+            soft variant).
+        correlation_sum: Shape ``[R]`` (unbatched trajectory) or
+            ``[R, B]`` (batched trajectory), as returned by
+            :func:`correlation_sum` / :func:`soft_correlation_sum` for
+            the same sweep.
+
+    Returns:
+        Slope estimate(s), shape ``[]`` for an unbatched
+        ``correlation_sum`` or ``[B]`` for a batched one. ``NaN`` if
+        ``radius`` has a single value, or repeated values whose
+        ``log`` is exactly representable (e.g. all ``1.0``), leaving
+        an exactly-zero denominator. Repeated values that aren't
+        exactly representable (e.g. all ``0.1``) instead give an
+        ill-conditioned, not reliably ``NaN`` result, since
+        floating-point rounding in the centering step can leave a
+        near-zero-but-nonzero denominator -- pass a genuinely varied
+        radius sweep. ``NaN`` also if any ``correlation_sum`` entry is
+        non-positive (``log`` of it is ``-inf``/``NaN``, e.g. a fully
+        Theiler-excluded radius).
+    """
+    log_radius = torch.log(torch.as_tensor(radius, dtype=correlation_sum.dtype, device=correlation_sum.device))
+    log_radius = log_radius.view((-1,) + (1,) * (correlation_sum.dim() - 1))
+    log_sum = torch.log(correlation_sum)
+    x = log_radius - log_radius.mean(dim=0, keepdim=True)
+    y = log_sum - log_sum.mean(dim=0, keepdim=True)
+    return (x * y).sum(dim=0) / (x * x).sum(dim=0)

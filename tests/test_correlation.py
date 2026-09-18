@@ -14,7 +14,7 @@ import subprocess
 
 import torch
 
-from torchnlts.dimension.correlation import correlation_sum, soft_correlation_sum
+from torchnlts.dimension.correlation import correlation_dimension, correlation_sum, soft_correlation_sum
 
 JULIA_PROJECT = "juliaenv"
 
@@ -166,3 +166,101 @@ def test_soft_correlation_sum_gradcheck_temperature():
         return soft_correlation_sum(trajectory, temperature=t)
 
     assert torch.autograd.gradcheck(cs, (temperature,))
+
+
+def test_correlation_dimension_hand_derived_exact_power_law():
+    # C(r) = r^2 exactly -> log C = 2 log r -> slope 2, exact regression fit.
+    radius = torch.tensor([1.0, 2.0, 4.0, 8.0], dtype=torch.float64)
+    correlation_sum_values = radius**2
+    assert torch.isclose(correlation_dimension(radius, correlation_sum_values), torch.tensor(2.0, dtype=torch.float64))
+
+
+def test_correlation_dimension_two_points_is_exact_slope():
+    radius = torch.tensor([1.0, 2.0], dtype=torch.float64)
+    correlation_sum_values = torch.tensor([0.1, 0.4], dtype=torch.float64)
+    expected = (torch.log(correlation_sum_values[1]) - torch.log(correlation_sum_values[0])) / (
+        torch.log(radius[1]) - torch.log(radius[0])
+    )
+    assert torch.isclose(correlation_dimension(radius, correlation_sum_values), expected)
+
+
+def test_correlation_dimension_batched_shape():
+    torch.manual_seed(7)
+    trajectory = torch.randn(4, 30, 2, dtype=torch.float64)
+    radius = torch.tensor([0.5, 0.75, 1.0, 1.5], dtype=torch.float64)
+    correlation_sum_values = correlation_sum(trajectory, radius=radius)
+    dimension = correlation_dimension(radius, correlation_sum_values)
+    assert dimension.shape == (4,)
+    for i in range(4):
+        expected = correlation_dimension(radius, correlation_sum(trajectory[i], radius=radius))
+        assert torch.isclose(dimension[i], expected)
+
+
+def test_correlation_dimension_single_radius_is_nan_not_crash():
+    result = correlation_dimension(torch.tensor([1.0]), torch.tensor([0.5]))
+    assert torch.isnan(result)
+
+
+def test_correlation_dimension_identical_radii_is_nan_not_crash():
+    result = correlation_dimension(torch.tensor([1.0, 1.0, 1.0]), torch.tensor([0.2, 0.5, 0.3]))
+    assert torch.isnan(result)
+
+
+def test_correlation_dimension_zero_correlation_sum_is_nan_not_crash():
+    result = correlation_dimension(torch.tensor([1.0, 2.0, 4.0]), torch.tensor([0.0, 0.2, 0.5]))
+    assert torch.isnan(result)
+
+
+def test_correlation_dimension_gradcheck_direct_radius_and_correlation_sum():
+    # Direct gradcheck of the OLS formula itself, differentiating w.r.t.
+    # both inputs (not just through a trajectory) -- "exact" gradient
+    # class claims ordinary autodiff through whatever's passed in, which
+    # includes radius itself (e.g. learning optimal sweep points).
+    radius = torch.tensor([0.5, 0.75, 1.0, 1.5], dtype=torch.float64, requires_grad=True)
+    correlation_sum_values = torch.tensor([0.1, 0.2, 0.35, 0.6], dtype=torch.float64, requires_grad=True)
+
+    assert torch.autograd.gradcheck(correlation_dimension, (radius, correlation_sum_values))
+
+
+def test_correlation_dimension_gradcheck_through_soft_correlation_sum():
+    torch.manual_seed(8)
+    trajectory = torch.randn(30, dtype=torch.float64, requires_grad=True)
+    temperature = torch.tensor([0.3, 0.5, 0.75, 1.0], dtype=torch.float64)
+
+    def dimension(x):
+        return correlation_dimension(temperature, soft_correlation_sum(x, temperature=temperature))
+
+    assert torch.autograd.gradcheck(dimension, (trajectory,))
+
+
+def test_correlation_dimension_matches_fractaldimensions_jl_linear_regression():
+    torch.manual_seed(9)
+    trajectory = torch.randn(40, dtype=torch.float64)
+    radii = [0.4, 0.6, 0.9, 1.3, 1.9]
+
+    values = ", ".join(f"{v:.17g}" for v in trajectory.numpy())
+    # ignore_saturation=false: slopefit's default (true) can silently trim
+    # endpoints where adjacent log-differences look flat, which would no
+    # longer match our all-point OLS by construction rather than by luck.
+    julia_code = f"""
+    using FractalDimensions
+    x = [{values}]
+    X = StateSpaceSet(reshape(x, :, 1))
+    cs = correlationsum(X, {radii})
+    slope, _, _ = slopefit(log2.({radii}), log2.(cs), LinearRegression(); ignore_saturation=false)
+    println(slope)
+    """
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    julia_dimension = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    radius = torch.tensor(radii, dtype=torch.float64)
+    torch_dimension = correlation_dimension(radius, correlation_sum(trajectory, radius=radius))
+    # atol=1e-9: both sides do the same closed-form OLS in float64 on an
+    # identical correlation sum, so the residual is float64 rounding noise
+    # (parsed-string round-trip + log-base conversion), not model mismatch.
+    assert torch.isclose(torch_dimension, julia_dimension, atol=1e-9)

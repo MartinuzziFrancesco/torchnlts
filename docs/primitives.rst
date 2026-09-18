@@ -135,3 +135,8 @@ Updated in the same commit that adds or changes a primitive.
      - smooth
      - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency-checked against ``correlation_sum``'s radius=0 limit)
+
+   * - :doc:`correlation_dimension <generated/torchnlts.dimension.correlation.correlation_dimension>`
+     - exact
+     - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1 and surrounding discussion
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``slopefit`` with ``LinearRegression``)
