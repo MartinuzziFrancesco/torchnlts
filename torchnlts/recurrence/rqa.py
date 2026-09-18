@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts.neighbors.theiler import _validate_square_matrix, theiler_window_mask
+from torchnlts._shape import _validate_square_matrix
+from torchnlts.neighbors.theiler import theiler_window_mask
 
 
 def recurrence_rate(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tensor:
@@ -210,8 +211,9 @@ def dl_entropy(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0)
     histogram, _ = _qualifying_line_lengths(recurrence, lmin, theiler_window)
     counts = histogram.to(torch.get_default_dtype())
     num_lines = counts.sum(dim=-1, keepdim=True)
-    has_lines = histogram > 0
     probability = counts / num_lines.clamp(min=1)
-    log_probability = torch.where(has_lines, torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny)), torch.zeros_like(probability))
-    entropy = -torch.where(has_lines, probability * log_probability, torch.zeros_like(probability)).sum(dim=-1)
+    # probability is 0 wherever histogram is 0, so 0 * log(clamped-tiny) is
+    # always 0 -- no separate has_lines mask needed to avoid 0 * -inf.
+    log_probability = torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny))
+    entropy = -(probability * log_probability).sum(dim=-1)
     return torch.where(num_lines.squeeze(-1) > 0, entropy, torch.full_like(entropy, float("nan")))

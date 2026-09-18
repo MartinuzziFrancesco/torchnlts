@@ -33,3 +33,14 @@ def _restore_batch(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
     if ndim in (1, 2):
         return tensor.squeeze(0)
     raise ValueError(f"ndim must be 1, 2, or 3, got {ndim}")
+
+
+def _validate_square_matrix(matrix: torch.Tensor) -> None:
+    """Shared shape guard for every function that masks a ``[T, T]``-style
+    matrix by time-index pairs (Theiler window, RQA measures, ...):
+    without it, a malformed shape surfaces as a confusing broadcast
+    ``RuntimeError`` deep inside whichever masking op runs first, instead
+    of a clear message at the call site.
+    """
+    if matrix.dim() not in (2, 3) or matrix.shape[-1] != matrix.shape[-2]:
+        raise ValueError(f"expected a [T, T] or [B, T, T] square matrix, got {tuple(matrix.shape)}")

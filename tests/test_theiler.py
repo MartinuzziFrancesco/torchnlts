@@ -53,6 +53,14 @@ def test_apply_theiler_window_batched():
     assert torch.equal(torch.isinf(out), (~mask).unsqueeze(0).expand(3, 5, 5))
 
 
+def test_apply_theiler_window_rejects_non_square_matrix():
+    try:
+        apply_theiler_window(torch.zeros(3, 5), window=1)
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for a non-square matrix")
+
+
 def test_apply_theiler_window_gradcheck():
     d = torch.rand(5, 5, dtype=torch.float64, requires_grad=True)
     assert torch.autograd.gradcheck(lambda x: apply_theiler_window(x, window=1, fill_value=0.0), (d,))
