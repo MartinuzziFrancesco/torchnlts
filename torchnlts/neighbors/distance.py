@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch
+from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch
 
 
 def pairwise_distance(
@@ -22,7 +22,10 @@ def pairwise_distance(
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
             numpy array, or pandas Series/DataFrame.
         other: Optional second trajectory, same convention as ``trajectory``.
-            Defaults to ``trajectory`` (self-distance matrix).
+            Defaults to ``trajectory`` (self-distance matrix). Must agree
+            with ``trajectory`` on batched-ness (both ``[B, T, D]`` or both
+            unbatched) and feature dim; batch size must match if both are
+            batched.
         norm_order: Minkowski norm order (``2`` = Euclidean, ``1`` =
             Manhattan, ``float('inf')`` = Chebyshev).
 
@@ -30,7 +33,11 @@ def pairwise_distance(
         Distance matrix of shape ``[T, T']`` or ``[B, T, T']``.
     """
     batched, ndim = _ensure_batched(trajectory)
-    other_batched = batched if other is None else _ensure_batched(other)[0]
+    if other is None:
+        other_batched = batched
+    else:
+        other_batched, other_ndim = _ensure_batched(other)
+        _validate_matching_batch(batched, other_batched, ndim, other_ndim)
     # compute_mode forced: torch.cdist's default matmul path for p=2
     # loses precision in float32 for points sharing a large offset.
     distance = torch.cdist(batched, other_batched, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")

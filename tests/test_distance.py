@@ -55,6 +55,40 @@ def test_pairwise_distance_cross():
     assert torch.allclose(d, brute, atol=1e-10)
 
 
+def test_pairwise_distance_rejects_batched_ndim_mismatch():
+    # Regression: one trajectory batched, the other not, used to silently
+    # broadcast to the wrong shape instead of raising -- _restore_batch
+    # decided whether to squeeze using only trajectory's original ndim.
+    unbatched = torch.randn(3)
+    batched = torch.randn(2, 5, 1)
+    for x, y in ((unbatched, batched), (batched, unbatched)):
+        try:
+            pairwise_distance(x, y)
+        except ValueError:
+            continue
+        raise AssertionError("expected ValueError for a batched/unbatched mismatch")
+
+
+def test_pairwise_distance_rejects_unequal_batch_size():
+    x = torch.randn(3, 5, 1)
+    y = torch.randn(4, 6, 1)
+    try:
+        pairwise_distance(x, y)
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for unequal batch sizes")
+
+
+def test_pairwise_distance_rejects_feature_dim_mismatch():
+    x = torch.randn(5, 2)
+    y = torch.randn(6, 4)
+    try:
+        pairwise_distance(x, y)
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for a feature dim mismatch")
+
+
 def test_pairwise_distance_chebyshev():
     x = torch.tensor([[0.0, 0.0], [3.0, 4.0]])
     d = pairwise_distance(x, norm_order=float("inf"))

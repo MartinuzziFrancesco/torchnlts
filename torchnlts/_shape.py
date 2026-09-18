@@ -44,3 +44,37 @@ def _validate_square_matrix(matrix: torch.Tensor) -> None:
     """
     if matrix.dim() not in (2, 3) or matrix.shape[-1] != matrix.shape[-2]:
         raise ValueError(f"expected a [T, T] or [B, T, T] square matrix, got {tuple(matrix.shape)}")
+
+
+def _validate_matching_batch(trajectory: torch.Tensor, other: torch.Tensor, trajectory_ndim: int, other_ndim: int) -> None:
+    """Shared shape guard for every two-trajectory function built on
+    :func:`_ensure_batched` (``pairwise_distance``'s ``other`` argument, and
+    everything that forwards it: ``knn_search``, ``radius_neighbors``, the
+    cross recurrence matrices, ...).
+
+    Without it, a batch-dim mismatch (one trajectory batched, the other
+    not) silently broadcasts to the wrong output shape instead of raising
+    -- ``_restore_batch`` decides whether to squeeze using only
+    ``trajectory``'s ndim, so a batched ``other`` paired with an unbatched
+    ``trajectory`` returns an unintended ``[B, T, T']`` where a squeeze
+    would otherwise have been a no-op. A feature-dim or non-broadcastable
+    batch-size mismatch instead surfaces as a raw, context-free
+    ``RuntimeError`` deep inside ``torch.cdist``.
+
+    Args:
+        trajectory: First trajectory, already normalized via ``_ensure_batched``.
+        other: Second trajectory, already normalized via ``_ensure_batched``.
+        trajectory_ndim: ``trajectory``'s original ndim, as returned by ``_ensure_batched``.
+        other_ndim: ``other``'s original ndim, as returned by ``_ensure_batched``.
+    """
+    trajectory_batched = trajectory_ndim == 3
+    other_batched = other_ndim == 3
+    if trajectory_batched != other_batched:
+        raise ValueError(
+            "trajectory and other must both be batched ([B, T, D]) or both "
+            f"unbatched ([T] or [T, D]), got ndim {trajectory_ndim} and {other_ndim}"
+        )
+    if trajectory_batched and trajectory.shape[0] != other.shape[0]:
+        raise ValueError(f"batch size mismatch between trajectory ({trajectory.shape[0]}) and other ({other.shape[0]})")
+    if trajectory.shape[-1] != other.shape[-1]:
+        raise ValueError(f"feature dim mismatch between trajectory ({trajectory.shape[-1]}) and other ({other.shape[-1]})")
