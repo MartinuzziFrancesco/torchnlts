@@ -125,3 +125,13 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 14
      - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``dl_entropy``)
+
+   * - :doc:`correlation_sum <generated/torchnlts.dimension.correlation.correlation_sum>`
+     - none
+     - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``correlationsum``)
+
+   * - :doc:`soft_correlation_sum <generated/torchnlts.dimension.correlation.soft_correlation_sum>`
+     - smooth
+     - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1 (kernel-relaxed via ``trajectory_kernel``)
+     - none (see module docstring; consistency-checked against ``correlation_sum``'s radius=0 limit)

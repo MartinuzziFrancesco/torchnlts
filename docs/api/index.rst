@@ -9,5 +9,6 @@ Full API reference, one page per subpackage.
    neighbors
    embedding
    recurrence
+   dimension
    systems
    convert
