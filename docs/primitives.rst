@@ -80,3 +80,28 @@ Updated in the same commit that adds or changes a primitive.
      - smooth
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 1 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency-checked against ``hard_recurrence_matrix``'s epsilon=0 limit)
+
+   * - :doc:`recurrence_rate <generated/torchnlts.recurrence.rqa.recurrence_rate>`
+     - exact
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 11
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``recurrencerate``)
+
+   * - :doc:`determinism <generated/torchnlts.recurrence.rqa.determinism>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 13
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``determinism``)
+
+   * - :doc:`dl_average <generated/torchnlts.recurrence.rqa.dl_average>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 12
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``dl_average``)
+
+   * - :doc:`dl_max <generated/torchnlts.recurrence.rqa.dl_max>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 2.1 (no separate numbered equation: the max of the same distribution ``dl_average``/eq. 12 draws on)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``dl_max``)
+
+   * - :doc:`dl_entropy <generated/torchnlts.recurrence.rqa.dl_entropy>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 14
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``dl_entropy``)

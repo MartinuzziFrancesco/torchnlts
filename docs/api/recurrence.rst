@@ -9,3 +9,8 @@ Recurrence matrices -- the ``torchnlts.recurrence`` subpackage.
 
    torchnlts.recurrence.matrix.hard_recurrence_matrix
    torchnlts.recurrence.matrix.soft_recurrence_matrix
+   torchnlts.recurrence.rqa.recurrence_rate
+   torchnlts.recurrence.rqa.determinism
+   torchnlts.recurrence.rqa.dl_average
+   torchnlts.recurrence.rqa.dl_max
+   torchnlts.recurrence.rqa.dl_entropy
