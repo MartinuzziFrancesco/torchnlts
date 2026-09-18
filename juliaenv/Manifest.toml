@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "40402e745f8085a6fdf6462fdda814ff7fd0c83f"
+project_hash = "6b46ebd2e9604480ca0f37bc400cf9ec7d49edc1"
 
 [[deps.ADTypes]]
 deps = ["PrecompileTools"]
@@ -395,9 +395,9 @@ version = "1.3.0+1"
 
 [[deps.ComplexityMeasures]]
 deps = ["Combinatorics", "DelayEmbeddings", "Distances", "FFTW", "KrylovKit", "LinearAlgebra", "Neighborhood", "QuadGK", "Random", "Reexport", "SparseArrays", "SpecialFunctions", "StateSpaceSets", "StaticArrays", "Statistics", "StatsBase", "StatsFuns", "Wavelets"]
-git-tree-sha1 = "3f1d4a27d43985e556a7f4e5cd1655dc9d687dff"
+git-tree-sha1 = "842a27b699fb1a4980cc1c74d27393250dafd9b3"
 uuid = "ab4b797d-85ee-42ba-b621-05d793b346a2"
-version = "3.10.1"
+version = "3.11.0"
 
 [[deps.CompositionsBase]]
 git-tree-sha1 = "802bb88cd69dfd1509f6670416bd4434015693ad"

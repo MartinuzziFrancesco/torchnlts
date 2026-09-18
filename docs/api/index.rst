@@ -10,5 +10,6 @@ Full API reference, one page per subpackage.
    embedding
    recurrence
    dimension
+   entropy
    systems
    convert

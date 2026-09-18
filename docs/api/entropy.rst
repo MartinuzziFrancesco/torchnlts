@@ -1,0 +1,11 @@
+Entropy Reference
+==================
+
+Complexity/entropy measures -- the ``torchnlts.entropy`` subpackage.
+
+.. autosummary::
+   :toctree: ../generated/
+   :nosignatures:
+
+   torchnlts.entropy.sample.sample_entropy
+   torchnlts.entropy.sample.soft_sample_entropy

@@ -140,3 +140,13 @@ Updated in the same commit that adds or changes a primitive.
      - exact
      - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1 and surrounding discussion
      - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``slopefit`` with ``LinearRegression``)
+
+   * - :doc:`sample_entropy <generated/torchnlts.entropy.sample.sample_entropy>`
+     - none
+     - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``SampleEntropy``; only loosely comparable -- its B(r) has a confirmed boundary-handling deviation from the paper, neutralized rather than replicated in one test and locked in as a regression in another; it also returns ``NaN`` rather than ``inf`` when A(r)=0)
+
+   * - :doc:`soft_sample_entropy <generated/torchnlts.entropy.sample.soft_sample_entropy>`
+     - smooth (except at exact Chebyshev-distance ties, see docstring)
+     - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3 (kernel-relaxed via ``trajectory_kernel``)
+     - none (see module docstring; consistency built on ``soft_correlation_sum``, already validated against its own radius=0 hard limit)
