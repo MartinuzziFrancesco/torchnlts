@@ -91,6 +91,16 @@ Updated in the same commit that adds or changes a primitive.
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.1 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency-checked against ``hard_cross_recurrence_matrix``'s epsilon=0 limit)
 
+   * - :doc:`hard_joint_recurrence_matrix <generated/torchnlts.recurrence.joint_recurrence.hard_joint_recurrence_matrix>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.2
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``JointRecurrenceMatrix``'s definition, via element-wise AND of two ``RecurrenceMatrix``; see module docstring)
+
+   * - :doc:`soft_joint_recurrence_matrix <generated/torchnlts.recurrence.joint_recurrence.soft_joint_recurrence_matrix>`
+     - smooth
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.2 (kernel-relaxed via ``trajectory_kernel``)
+     - none (see module docstring; consistency-checked against ``hard_joint_recurrence_matrix``'s epsilon=0 limit)
+
    * - :doc:`recurrence_rate <generated/torchnlts.recurrence.rqa.recurrence_rate>`
      - exact
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 11

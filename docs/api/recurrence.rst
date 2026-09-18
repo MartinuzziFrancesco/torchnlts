@@ -11,6 +11,8 @@ Recurrence matrices -- the ``torchnlts.recurrence`` subpackage.
    torchnlts.recurrence.matrix.soft_recurrence_matrix
    torchnlts.recurrence.cross_recurrence.hard_cross_recurrence_matrix
    torchnlts.recurrence.cross_recurrence.soft_cross_recurrence_matrix
+   torchnlts.recurrence.joint_recurrence.hard_joint_recurrence_matrix
+   torchnlts.recurrence.joint_recurrence.soft_joint_recurrence_matrix
    torchnlts.recurrence.rqa.recurrence_rate
    torchnlts.recurrence.rqa.determinism
    torchnlts.recurrence.rqa.dl_average
