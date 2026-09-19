@@ -30,6 +30,18 @@ def theiler_window_mask(num_points: int, window: int, device=None) -> torch.Tens
     return (index.unsqueeze(0) - index.unsqueeze(1)).abs() > window
 
 
+def _require_self_exclusion(theiler_window: int, context: str) -> None:
+    """Shared guard for statistics that require excluding self-matches
+    unconditionally (sample entropy, KSG mutual information, ...): a
+    negative ``theiler_window`` would otherwise admit them via
+    :func:`theiler_window_mask`'s documented "no exclusion" case, where
+    every point trivially matches itself at distance 0 and the
+    statistic's defining ratio/neighbor-count breaks down.
+    """
+    if theiler_window < 0:
+        raise ValueError(f"theiler_window must be >= 0 for {context} (self-matches must be excluded), got {theiler_window}")
+
+
 def apply_theiler_window(distance: torch.Tensor, window: int, fill_value: float = float("inf")) -> torch.Tensor:
     """Mask out temporally correlated pairs of a distance matrix.
 

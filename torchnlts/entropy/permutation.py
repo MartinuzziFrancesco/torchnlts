@@ -78,20 +78,26 @@ def permutation_entropy(
 
     Returns:
         Scalar (unbatched trajectory) or ``[B]`` (batched) entropy, in
-        nats (or dimensionless if ``normalize=True``).
+        nats (or dimensionless if ``normalize=True``). ``NaN`` if any
+        delay-embedded window contains ``NaN`` (an ordinal pattern is
+        undefined when a coordinate can't be compared to the others) --
+        not raised, since a raise would need a data-dependent Python
+        ``if`` on the tensor's contents, which rejects ``torch.vmap``'s
+        ``BatchedTensor`` inputs outright.
 
     Raises:
-        ValueError: If ``trajectory`` has a feature dim other than 1, is
-            too short for ``embedding_dim``/``delay`` (see
-            :func:`torchnlts.embedding.delay.delay_embedding`), or
-            contains ``NaN`` in a delay-embedded window (an ordinal pattern is undefined when a
-            coordinate can't be compared to the others).
+        ValueError: If ``trajectory`` has a feature dim other than 1, or
+            is too short for ``embedding_dim``/``delay`` (see
+            :func:`torchnlts.embedding.delay.delay_embedding`).
     """
     tensor, _ = _ensure_batched(trajectory)
     _require_univariate(tensor)
     embedded = delay_embedding(trajectory, embedding_dim, delay)
-    if torch.isnan(embedded).any():
-        raise ValueError("permutation_entropy: trajectory contains NaN, ordinal patterns are undefined for NaN")
+    # A data-dependent `if torch.isnan(...).any(): raise` would reject
+    # torch.vmap's BatchedTensor inputs outright; masking into NaN here
+    # instead is a plain tensor op, so a NaN trajectory degrades to a
+    # NaN result under vmap or not.
+    has_nan = torch.isnan(embedded).any(dim=(-2, -1))
     codes = _ordinal_pattern_codes(embedded)
     num_patterns = math.factorial(embedding_dim)
     dtype = embedded.dtype if embedded.is_floating_point() else torch.get_default_dtype()
@@ -99,6 +105,7 @@ def permutation_entropy(
     probability = counts / counts.sum(dim=-1, keepdim=True)
     log_probability = torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny))
     entropy = -(probability * log_probability).sum(dim=-1)
+    entropy = torch.where(has_nan, torch.full_like(entropy, float("nan")), entropy)
     if normalize:
         entropy = entropy / math.log(num_patterns)
     return entropy

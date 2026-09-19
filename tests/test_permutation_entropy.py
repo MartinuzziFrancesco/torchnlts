@@ -104,16 +104,23 @@ def test_permutation_entropy_rejects_multivariate():
         pass
 
 
-def test_permutation_entropy_rejects_nan():
+def test_permutation_entropy_nan_input_gives_nan_output():
     # An ordinal pattern is undefined when a coordinate can't be
     # compared to the others -- argsort would otherwise silently place
-    # the NaN somewhere and report a spurious, too-low entropy.
+    # the NaN somewhere and report a spurious, too-low entropy. Not
+    # raised: a raise would need a data-dependent Python `if` on the
+    # tensor's contents, which rejects torch.vmap's BatchedTensor
+    # inputs outright (see test_permutation_entropy_vmap_compatible).
     trajectory = torch.tensor([1.0, float("nan"), 2.0, 3.0], dtype=torch.float64)
-    try:
-        permutation_entropy(trajectory, embedding_dim=3)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
+    assert torch.isnan(permutation_entropy(trajectory, embedding_dim=3))
+
+
+def test_permutation_entropy_vmap_compatible():
+    torch.manual_seed(7)
+    trajectory = torch.randn(2, 20, 1, dtype=torch.float64)
+    direct = permutation_entropy(trajectory, embedding_dim=3)
+    vmapped = torch.vmap(lambda t: permutation_entropy(t, embedding_dim=3))(trajectory)
+    assert torch.allclose(direct, vmapped)
 
 
 def test_permutation_entropy_too_short_raises():

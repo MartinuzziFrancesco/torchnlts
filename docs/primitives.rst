@@ -150,3 +150,13 @@ Updated in the same commit that adds or changes a primitive.
      - smooth (except at exact Chebyshev-distance ties, see docstring)
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency built on ``soft_correlation_sum``, already validated against its own radius=0 hard limit)
+
+   * - :doc:`permutation_entropy <generated/torchnlts.entropy.permutation.permutation_entropy>`
+     - none
+     - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``OrdinalPatterns`` + ``Shannon``)
+
+   * - :doc:`mutual_information <generated/torchnlts.entropy.mutual_information.mutual_information>`
+     - none
+     - `Kraskov, Stogbauer & Grassberger (2004) <https://doi.org/10.1103/PhysRevE.69.066138>`__, eq. 6-8 (KSG1)
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``; confirmed inclusive-vs-strict marginal-counting deviation from the paper, locked in as a regression rather than reconciled -- see module docstring)

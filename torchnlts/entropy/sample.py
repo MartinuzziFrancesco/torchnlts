@@ -25,6 +25,7 @@ import torch
 
 from torchnlts.dimension.correlation import correlation_sum, soft_correlation_sum
 from torchnlts.embedding.delay import delay_embedding
+from torchnlts.neighbors.theiler import _require_self_exclusion
 
 
 def _matched_length_templates(trajectory, embedding_dim: int, delay: int):
@@ -37,16 +38,6 @@ def _matched_length_templates(trajectory, embedding_dim: int, delay: int):
     short_embed = delay_embedding(trajectory, embedding_dim, delay)
     short_embed = short_embed[..., : long_embed.shape[-2], :]
     return short_embed, long_embed
-
-
-def _require_self_exclusion(theiler_window: int) -> None:
-    # SampEn's B(r)/A(r) are defined with j != i unconditionally
-    # (Richman & Moorman, eq. 1-2); a negative theiler_window would
-    # otherwise admit self-matches (theiler_window_mask's documented
-    # "no exclusion" case), where every template trivially matches
-    # itself at distance 0 and the ratio stops being sample entropy.
-    if theiler_window < 0:
-        raise ValueError(f"theiler_window must be >= 0 for sample entropy (self-matches must be excluded), got {theiler_window}")
 
 
 def sample_entropy(
@@ -100,7 +91,7 @@ def sample_entropy(
     Raises:
         ValueError: If ``theiler_window < 0``.
     """
-    _require_self_exclusion(theiler_window)
+    _require_self_exclusion(theiler_window, "sample entropy")
     short_embed, long_embed = _matched_length_templates(trajectory, embedding_dim, delay)
     b = correlation_sum(short_embed, radius=radius, theiler_window=theiler_window, norm_order=norm_order)
     a = correlation_sum(long_embed, radius=radius, theiler_window=theiler_window, norm_order=norm_order)
@@ -150,7 +141,7 @@ def soft_sample_entropy(
     Raises:
         ValueError: If ``theiler_window < 0``.
     """
-    _require_self_exclusion(theiler_window)
+    _require_self_exclusion(theiler_window, "sample entropy")
     short_embed, long_embed = _matched_length_templates(trajectory, embedding_dim, delay)
     b = soft_correlation_sum(
         short_embed, temperature=temperature, kind=kind, theiler_window=theiler_window, norm_order=norm_order
