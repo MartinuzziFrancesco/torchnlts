@@ -20,19 +20,10 @@ from __future__ import annotations
 
 import torch
 
+from torchnlts._shape import _broadcast_over_matrix
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 from torchnlts.neighbors.theiler import theiler_window_mask
-
-
-def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.Tensor:
-    """Reshape a scalar or ``[R]`` radius/temperature sweep to broadcast
-    against ``matrix``'s trailing ``[..., T, T]`` dims as a leading ``R``
-    axis, e.g. ``[R]`` -> ``[R, 1, 1]`` for an unbatched ``[T, T]`` matrix.
-    An already-scalar (0-dim) ``value`` reshapes to all-ones, which
-    broadcasts the same as leaving it scalar.
-    """
-    return value.view(value.shape + (1,) * matrix.dim())
 
 
 def correlation_sum(trajectory, radius, theiler_window: int = 0, norm_order: float = 2.0) -> torch.Tensor:

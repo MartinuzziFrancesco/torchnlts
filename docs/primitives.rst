@@ -151,6 +151,16 @@ Updated in the same commit that adds or changes a primitive.
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency built on ``soft_correlation_sum``, already validated against its own radius=0 hard limit)
 
+   * - :doc:`approximate_entropy <generated/torchnlts.entropy.approximate.approximate_entropy>`
+     - none
+     - `Pincus (1991) <https://doi.org/10.1073/pnas.88.6.2297>`__, eq. 1-4
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``ApproximateEntropy``; matches at ``embedding_dim >= 2`` only -- confirmed to special-case ``m=1`` to a different, non-Pincus definition, locked in as a regression)
+
+   * - :doc:`soft_approximate_entropy <generated/torchnlts.entropy.approximate.soft_approximate_entropy>`
+     - smooth (except at exact Chebyshev-distance ties, see docstring)
+     - `Pincus (1991) <https://doi.org/10.1073/pnas.88.6.2297>`__, eq. 1-4 (kernel-relaxed via ``trajectory_kernel``)
+     - none (see module docstring; consistency-checked against ``approximate_entropy``'s radius=0 hard limit)
+
    * - :doc:`permutation_entropy <generated/torchnlts.entropy.permutation.permutation_entropy>`
      - none
      - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III

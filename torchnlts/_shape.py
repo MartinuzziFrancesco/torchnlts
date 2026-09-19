@@ -35,6 +35,16 @@ def _restore_batch(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
     raise ValueError(f"ndim must be 1, 2, or 3, got {ndim}")
 
 
+def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.Tensor:
+    """Reshape a scalar or ``[R]`` radius/temperature sweep to broadcast
+    against ``matrix``'s trailing ``[..., T, T]`` dims as a leading ``R``
+    axis, e.g. ``[R]`` -> ``[R, 1, 1]`` for an unbatched ``[T, T]`` matrix.
+    An already-scalar (0-dim) ``value`` reshapes to all-ones, which
+    broadcasts the same as leaving it scalar.
+    """
+    return value.view(value.shape + (1,) * matrix.dim())
+
+
 def _validate_square_matrix(matrix: torch.Tensor) -> None:
     """Shared shape guard for every function that masks a ``[T, T]``-style
     matrix by time-index pairs (Theiler window, RQA measures, ...):
