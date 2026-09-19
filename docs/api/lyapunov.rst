@@ -3,8 +3,10 @@ Lyapunov Reference
 
 Largest Lyapunov exponent estimation -- the ``torchnlts.lyapunov`` subpackage.
 
-Gradient stability note: these estimators select nearest neighbors,
-compute log-distances between evolved points, and fit a slope. They do
+Gradient stability note: Rosenstein selects a nearest neighbor per point;
+Kantz selects a radius neighborhood and averages its evolved distances
+before taking the log. Both average over reference points and use a slope
+fit to estimate the exponent. They do
 not internally roll out a dynamics model. That local computation does
 not itself have the chaos-induced exploding-variance gradient structure Metz et al.
 ("Gradients are Not All You Need", 2021/2022) describe (products of
@@ -13,7 +15,7 @@ See `Metz et al. <https://arxiv.org/abs/2111.05803>`_.
 
 The local operations are not uniformly well-conditioned: log-distance
 gradients grow as separation approaches zero, exact duplicates can
-produce ``-inf`` and undefined gradients, and nearest-neighbor changes
+produce ``-inf`` and undefined gradients, and neighbor-membership changes
 are discrete boundaries. The slope fit is also ill-conditioned when
 the fitted steps have little variation, and undefined when their
 variance is zero. Distances are not clamped or regularized.
@@ -39,3 +41,4 @@ will document its chosen mitigation in its own docstring when it's built.
 
    torchnlts.lyapunov.rosenstein.rosenstein_divergence
    torchnlts.lyapunov.rosenstein.rosenstein_lyapunov
+   torchnlts.lyapunov.kantz.kantz_divergence

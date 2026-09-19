@@ -13,13 +13,18 @@ the caller picks the fit range, same convention as
 :func:`torchnlts.dimension.correlation.correlation_dimension`).
 
 Matches ChaosTools.jl's more general ``lyapunov_from_data`` at
-``ntype=NeighborNumber(1)``, ``distance=Euclidean()`` (that function's
-generalization, due to Parlitz, also covers Kantz's method via a
-radius-neighborhood instead of a single nearest neighbor -- this
-codebase keeps them as separate functions, ``rosenstein_divergence``
-here and ``kantz_divergence`` in ``torchnlts.lyapunov.kantz`` (not yet
-implemented), matching this repo's package layout and the two papers'
-distinct presentations).
+``ntype=NeighborNumber(1)``, ``distance=Euclidean()``. That function's
+Parlitz-due generalization also accepts a radius-neighborhood
+(``ntype=WithinRange``) in place of a single nearest neighbor, structurally
+resembling Kantz's method -- but it is *not* a match for Kantz's own
+1994 formula even there (it averages the log of each neighbor's distance
+rather than the log of the mean neighbor distance the paper defines; see
+:func:`torchnlts.lyapunov.kantz.kantz_divergence`'s module docstring for
+the confirmed disagreement). This codebase keeps Rosenstein and Kantz as
+separate functions, ``rosenstein_divergence`` here and ``kantz_divergence``
+there, matching this repo's package layout and the two papers' distinct
+presentations. ``rosenstein_lyapunov`` below fits either curve -- the OLS
+slope step doesn't care which method produced ``divergence``.
 """
 
 from __future__ import annotations

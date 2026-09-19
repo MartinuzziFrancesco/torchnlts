@@ -180,3 +180,8 @@ Updated in the same commit that adds or changes a primitive.
      - exact
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__, eq. 12-13 and surrounding discussion
      - none (closed-form OLS slope; validated against the logistic map's analytically known ln(2) Lyapunov exponent instead, see module docstring)
+
+   * - :doc:`kantz_divergence <generated/torchnlts.lyapunov.kantz.kantz_divergence>`
+     - piecewise
+     - `Kantz (1994) <https://doi.org/10.1016/0375-9601(94)90991-1>`__, eq. 1-2
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=WithinRange``; confirmed mean-of-logs-vs-log-of-mean deviation from the paper, locked in as a regression rather than reconciled -- see module docstring). Its Lyapunov-exponent slope reuses ``rosenstein_lyapunov`` directly.

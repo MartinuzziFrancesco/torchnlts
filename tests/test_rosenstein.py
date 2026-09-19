@@ -23,17 +23,10 @@ import subprocess
 import pytest
 import torch
 
+from tests.conftest import logistic_map_trajectory
 from torchnlts.lyapunov.rosenstein import rosenstein_divergence, rosenstein_lyapunov
 
 JULIA_PROJECT = "juliaenv"
-
-
-def _logistic_map_trajectory(num_points: int, x0: float = 0.4) -> torch.Tensor:
-    x = torch.empty(num_points, dtype=torch.float64)
-    x[0] = x0
-    for i in range(1, num_points):
-        x[i] = 4.0 * x[i - 1] * (1 - x[i - 1])
-    return x
 
 
 def test_rosenstein_divergence_hand_derived():
@@ -290,7 +283,7 @@ def test_rosenstein_matches_analytic_logistic_map_lyapunov_exponent():
     # exponent exactly ln(2). A finite-sample kNN estimator won't hit
     # this exactly, so this uses a tolerance appropriate for that,
     # not an exact-value check.
-    trajectory = _logistic_map_trajectory(2000)
+    trajectory = logistic_map_trajectory(2000)
     k_values = torch.arange(1, 12, dtype=torch.float64)
     divergence = rosenstein_divergence(trajectory, k_values, embedding_dim=2, delay=1, theiler_window=10)
     # Fit range [1, 7]: visually confirmed to be the linear-growth
@@ -308,7 +301,7 @@ def test_rosenstein_matches_chaostools_jl():
     # internal per-point loop in Julia to isolate where a difference
     # would come from before writing this test), so the two curves are
     # expected to agree closely, not just in the same ballpark.
-    trajectory = _logistic_map_trajectory(300)
+    trajectory = logistic_map_trajectory(300)
     k_values = torch.arange(1, 9, dtype=torch.float64)
 
     values = ", ".join(f"{v:.17g}" for v in trajectory.numpy())
