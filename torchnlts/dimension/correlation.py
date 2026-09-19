@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _broadcast_over_matrix
+from torchnlts._shape import _broadcast_over_matrix, _ols_slope
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 from torchnlts.neighbors.theiler import theiler_window_mask
@@ -141,8 +141,4 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
         Theiler-excluded radius).
     """
     log_radius = torch.log(torch.as_tensor(radius, dtype=correlation_sum.dtype, device=correlation_sum.device))
-    log_radius = log_radius.view((-1,) + (1,) * (correlation_sum.dim() - 1))
-    log_sum = torch.log(correlation_sum)
-    x = log_radius - log_radius.mean(dim=0, keepdim=True)
-    y = log_sum - log_sum.mean(dim=0, keepdim=True)
-    return (x * y).sum(dim=0) / (x * x).sum(dim=0)
+    return _ols_slope(log_radius, torch.log(correlation_sum))

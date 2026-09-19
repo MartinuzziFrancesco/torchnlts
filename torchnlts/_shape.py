@@ -45,6 +45,26 @@ def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.T
     return value.view(value.shape + (1,) * matrix.dim())
 
 
+def _ols_slope(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Closed-form ordinary-least-squares slope of a sweep ``y`` against ``x``.
+
+    Args:
+        x: Shape ``[R]``, the sweep ``y`` was evaluated at, reshaped here
+           to broadcast as a leading axis against ``y``'s own shape.
+        y: Shape ``[R]`` (unbatched) or ``[R, B]`` (batched).
+
+    Returns:
+        Slope estimate(s), shape ``[]`` for an unbatched ``y`` or ``[B]``
+        for a batched one. ``NaN`` if ``x`` has a single value or repeated
+        values (an exactly-zero denominator; see callers for float
+        exactness caveats on "repeated").
+    """
+    x = x.view((-1,) + (1,) * (y.dim() - 1))
+    x_centered = x - x.mean(dim=0, keepdim=True)
+    y_centered = y - y.mean(dim=0, keepdim=True)
+    return (x_centered * y_centered).sum(dim=0) / (x_centered * x_centered).sum(dim=0)
+
+
 def _validate_square_matrix(matrix: torch.Tensor) -> None:
     """Shared shape guard for every function that masks a ``[T, T]``-style
     matrix by time-index pairs (Theiler window, RQA measures, ...):

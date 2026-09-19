@@ -11,5 +11,6 @@ Full API reference, one page per subpackage.
    recurrence
    dimension
    entropy
+   lyapunov
    systems
    convert

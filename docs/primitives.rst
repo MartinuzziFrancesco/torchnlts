@@ -170,3 +170,13 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Kraskov, Stogbauer & Grassberger (2004) <https://doi.org/10.1103/PhysRevE.69.066138>`__, eq. 6-8 (KSG1)
      - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``; confirmed inclusive-vs-strict marginal-counting deviation from the paper, locked in as a regression rather than reconciled -- see module docstring)
+
+   * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein.rosenstein_divergence>`
+     - piecewise
+     - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=NeighborNumber(1)``, ``distance=Euclidean()``; matches to float64 precision, including its reference-set-fixed-by-max(k) convention, confirmed by reading its source)
+
+   * - :doc:`rosenstein_lyapunov <generated/torchnlts.lyapunov.rosenstein.rosenstein_lyapunov>`
+     - exact
+     - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__, eq. 12-13 and surrounding discussion
+     - none (closed-form OLS slope; validated against the logistic map's analytically known ln(2) Lyapunov exponent instead, see module docstring)
