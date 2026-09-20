@@ -10,3 +10,5 @@ subpackage.
 
    torchnlts.causality.ccm.cross_map_estimate
    torchnlts.causality.ccm.ccm_skill
+   torchnlts.causality.transfer_entropy.conditional_mutual_information
+   torchnlts.causality.transfer_entropy.transfer_entropy

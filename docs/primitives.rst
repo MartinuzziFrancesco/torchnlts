@@ -220,3 +220,13 @@ Updated in the same commit that adds or changes a primitive.
      - exact
      - `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__
      - none (a direct Pearson correlation, not a published algorithm of its own; validated via ``cross_map_estimate``'s own Julia cross-check, which compares the resulting correlation too)
+
+   * - :doc:`conditional_mutual_information <generated/torchnlts.causality.transfer_entropy.conditional_mutual_information>`
+     - none
+     - `Frenzel & Pompe (2007) <https://doi.org/10.1103/PhysRevLett.99.204101>`__
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``FPVP``; confirmed inclusive-vs-strict marginal-counting deviation from the paper, same underlying ``Neighborhood.jl`` primitive as ``mutual_information``'s own confirmed ``KSG1`` deviation -- locked in as a regression rather than reconciled, see module docstring)
+
+   * - :doc:`transfer_entropy <generated/torchnlts.causality.transfer_entropy.transfer_entropy>`
+     - none
+     - `Schreiber (2000) <https://doi.org/10.1103/PhysRevLett.85.461>`__
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``TEShannon`` decomposed via ``CMIDecomposition``/``FPVP``, run live via subprocess; confirmed to match once the same (inclusive) marginal-counting convention is used on both sides, isolating the source/target-past and target-future alignment as independently verified correct -- see module docstring)
