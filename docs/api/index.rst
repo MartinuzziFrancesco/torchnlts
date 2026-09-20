@@ -12,5 +12,6 @@ Full API reference, one page per subpackage.
    dimension
    entropy
    lyapunov
+   surrogate
    systems
    convert
