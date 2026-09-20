@@ -35,6 +35,24 @@ def _restore_batch(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
     raise ValueError(f"ndim must be 1, 2, or 3, got {ndim}")
 
 
+def _restore_shape_preserving(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
+    """Undo :func:`_ensure_batched` on a result whose shape mirrors the
+    input's exactly (e.g. a surrogate generator's ``[T] -> [T]``),
+    unlike :func:`_restore_batch` (for a result whose *trailing* shape
+    differs from the input's, e.g. delay_embedding's
+    ``[T] -> [num_embedded, embedding_dim]``, where only the leading
+    batch dim needs undoing): squeeze back every dim ``_ensure_batched``
+    added, including the feature dim it synthesizes for a ``[T]`` input.
+    """
+    if ndim == 1:
+        return tensor.squeeze(0).squeeze(-1)
+    if ndim == 2:
+        return tensor.squeeze(0)
+    if ndim == 3:
+        return tensor
+    raise ValueError(f"ndim must be 1, 2, or 3, got {ndim}")
+
+
 def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.Tensor:
     """Reshape a scalar or ``[R]`` radius/temperature sweep to broadcast
     against ``matrix``'s trailing ``[..., T, T]`` dims as a leading ``R``

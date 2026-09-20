@@ -1,6 +1,6 @@
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch
+from torchnlts._shape import _ensure_batched, _restore_batch, _restore_shape_preserving
 
 
 def test_ensure_batched_1d():
@@ -50,3 +50,26 @@ def test_restore_batch_keeps_3d():
     x = torch.randn(2, 5, 3)
     out = _restore_batch(x, 3)
     assert out is x
+
+
+def test_restore_shape_preserving_roundtrips_all_three_ndims():
+    x1 = torch.randn(5)
+    b1, n1 = _ensure_batched(x1)
+    assert torch.equal(_restore_shape_preserving(b1, n1), x1)
+
+    x2 = torch.randn(5, 3)
+    b2, n2 = _ensure_batched(x2)
+    assert torch.equal(_restore_shape_preserving(b2, n2), x2)
+
+    x3 = torch.randn(2, 5, 3)
+    b3, n3 = _ensure_batched(x3)
+    out3 = _restore_shape_preserving(b3, n3)
+    assert out3 is x3
+
+
+def test_restore_shape_preserving_rejects_bad_ndim():
+    try:
+        _restore_shape_preserving(torch.randn(2, 5, 3), 4)
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for ndim=4")

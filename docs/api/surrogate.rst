@@ -12,3 +12,4 @@ backpropagated through.
    :nosignatures:
 
    torchnlts.surrogate.phase.phase_randomized_surrogate
+   torchnlts.surrogate.aaft.aaft_surrogate

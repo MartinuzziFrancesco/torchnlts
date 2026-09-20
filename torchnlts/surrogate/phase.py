@@ -45,7 +45,7 @@ import math
 
 import torch
 
-from torchnlts._shape import _ensure_batched
+from torchnlts._shape import _ensure_batched, _restore_shape_preserving
 
 
 def phase_randomized_surrogate(trajectory, generator: torch.Generator | None = None) -> torch.Tensor:
@@ -61,22 +61,27 @@ def phase_randomized_surrogate(trajectory, generator: torch.Generator | None = N
     deliberate contract, not a claim that autograd fails here.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``, real
-            floating-point dtype (``float32``/``float64``; integer,
-            complex, and half/bfloat16 inputs aren't supported --
-            ``rfft`` or ``.mean()`` raises naturally). A tensor, numpy
-            array, or pandas Series/DataFrame. Each feature channel
-            (and batch element) is phase-randomized independently --
-            this is the univariate method applied per-channel, not a
-            joint multivariate surrogate that preserves cross-channel
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``, with
+            ``T >= 1`` (an empty time axis reaches ``rfft`` and raises
+            from there, not from this function), real floating-point
+            dtype (``float32``/``float64``; integer, complex, and
+            half/bfloat16 inputs aren't supported -- ``rfft`` or
+            ``.mean()`` raises naturally). A tensor, numpy array, or
+            pandas Series/DataFrame. Each feature channel (and batch
+            element) is phase-randomized independently -- this is the
+            univariate method applied per-channel, not a joint
+            multivariate surrogate that preserves cross-channel
             correlation.
         generator: Optional ``torch.Generator`` for the random phase
             draw, forwarded to ``torch.rand``. Defaults to the global
             RNG (reproducible via ``torch.manual_seed``). Passing an
             explicit ``generator`` advances *its own* state on every
             call, so reusing the same generator object across two calls
-            gives two different surrogates, not the same one twice --
-            for a reproducible surrogate, pass a freshly re-seeded
+            generally gives two different surrogates, not the same one
+            twice -- though that's not an absolute guarantee (a constant
+            ``trajectory`` has an all-zero magnitude spectrum, so every
+            phase draw reconstructs the same constant output regardless).
+            For a reproducible surrogate, pass a freshly re-seeded
             generator (or reset the global seed) before each call.
 
     Returns:
@@ -98,14 +103,4 @@ def phase_randomized_surrogate(trajectory, generator: torch.Generator | None = N
     phase = phase * (2.0 * math.pi)
     shuffled = magnitude * torch.exp(1j * phase)
     surrogate = torch.fft.irfft(shuffled, n=num_points, dim=-2) + mean
-    # Not `_restore_batch`: that helper only undoes the leading batch
-    # dim, for functions whose output has a *different* trailing shape
-    # than the input (e.g. delay_embedding's [T] -> [num_embedded,
-    # embedding_dim]). This function is shape-preserving -- its output
-    # must round-trip [T] -> [T] and [T, D] -> [T, D] exactly, not stay
-    # 2D/3D, so both dims _ensure_batched added need undoing here.
-    if ndim == 1:
-        return surrogate.squeeze(0).squeeze(-1)
-    if ndim == 2:
-        return surrogate.squeeze(0)
-    return surrogate
+    return _restore_shape_preserving(surrogate, ndim)

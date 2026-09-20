@@ -200,3 +200,8 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
      - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``RandomFourier``, run live via subprocess; confirmed to share this algorithm's literal-recipe quirk of not preserving the Nyquist bin's magnitude for even-length input, rather than diverge from it -- see module docstring)
+
+   * - :doc:`aaft_surrogate <generated/torchnlts.surrogate.aaft.aaft_surrogate>`
+     - none
+     - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``AAFT``; confirmed live, not just by reading source, to skip the paper's Gaussian-rank-matching step and reduce to ``RandomFourier`` on the raw data plus rank-restoration -- locked in as a disagreement rather than reconciled, same playbook as ``kantz_divergence``'s Julia deviation -- see module docstring)
