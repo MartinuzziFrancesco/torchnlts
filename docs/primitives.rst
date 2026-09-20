@@ -230,3 +230,23 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Schreiber (2000) <https://doi.org/10.1103/PhysRevLett.85.461>`__
      - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``TEShannon`` decomposed via ``CMIDecomposition``/``FPVP``, run live via subprocess; confirmed to match once the same (inclusive) marginal-counting convention is used on both sides, isolating the source/target-past and target-future alignment as independently verified correct -- see module docstring)
+
+   * - :doc:`LyapunovLoss <generated/torchnlts.sciml.losses.LyapunovLoss>`
+     - exact
+     - none (composes ``lyapunov_spectrum``, already dual-validated -- see module docstring)
+     - none (validated by direct comparison against calling ``lyapunov_spectrum`` outside the loss, not independently re-validated against Julia)
+
+   * - :doc:`CorrelationDimensionLoss <generated/torchnlts.sciml.losses.CorrelationDimensionLoss>`
+     - smooth
+     - none (composes ``soft_correlation_sum`` + ``correlation_dimension``, already dual-validated -- see module docstring)
+     - none (validated by direct comparison against calling those functions outside the loss)
+
+   * - :doc:`RecurrenceLoss <generated/torchnlts.sciml.losses.RecurrenceLoss>`
+     - smooth
+     - none (composes ``soft_recurrence_matrix`` + ``recurrence_rate``, already dual-validated -- see module docstring)
+     - none (validated by direct comparison against calling those functions outside the loss)
+
+   * - :doc:`AttractorLoss <generated/torchnlts.sciml.losses.AttractorLoss>`
+     - smooth
+     - `Gretton et al. (2012) <https://jmlr.org/papers/v13/gretton12a.html>`__ (Maximum Mean Discrepancy)
+     - none (composes ``trajectory_kernel``, already dual-validated; the MMD combination itself is validated by direct comparison against an independent computation, not against a published MMD reference implementation -- see module docstring)

@@ -14,5 +14,6 @@ Full API reference, one page per subpackage.
    lyapunov
    surrogate
    causality
+   sciml
    systems
    convert
