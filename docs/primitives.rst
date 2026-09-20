@@ -185,3 +185,13 @@ Updated in the same commit that adds or changes a primitive.
      - piecewise
      - `Kantz (1994) <https://doi.org/10.1016/0375-9601(94)90991-1>`__, eq. 1-2
      - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=WithinRange``; confirmed mean-of-logs-vs-log-of-mean deviation from the paper, locked in as a regression rather than reconciled -- see module docstring). Its Lyapunov-exponent slope reuses ``rosenstein_lyapunov`` directly.
+
+   * - :doc:`step_jacobian <generated/torchnlts.lyapunov.jacobian.step_jacobian>`
+     - exact
+     - none (a direct ``torch.func.jacrev``/``vmap`` application, not a published algorithm of its own)
+     - none
+
+   * - :doc:`lyapunov_spectrum <generated/torchnlts.lyapunov.spectrum.lyapunov_spectrum>`
+     - exact
+     - `Benettin, Galgani, Giorgilli & Strelcyn (1980) <https://doi.org/10.1007/BF02128236>`__; Geist, Parlitz & Lauterborn (1990), *Prog. Theor. Phys.* 83(5), 875-893 (QR "H2" variant)
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunovspectrum``, run live via subprocess in the test suite, not hardcoded; matches ``PredefinedDynamicalSystems.henon()`` to float64 precision, including its ``Ttr`` transient convention; confirmed to share this method's non-generic non-descending-order edge case on an unsorted diagonal linear map rather than diverge from it -- see module docstring)

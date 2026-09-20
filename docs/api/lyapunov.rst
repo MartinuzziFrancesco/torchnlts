@@ -1,7 +1,8 @@
 Lyapunov Reference
 ===================
 
-Largest Lyapunov exponent estimation -- the ``torchnlts.lyapunov`` subpackage.
+Largest Lyapunov exponent estimation and the full Lyapunov spectrum -- the
+``torchnlts.lyapunov`` subpackage.
 
 Gradient stability note: Rosenstein selects a nearest neighbor per point;
 Kantz selects a radius neighborhood and averages its evolved distances
@@ -29,11 +30,29 @@ inherits the same exploding-variance risk regardless of what's computed
 on top of it -- these functions neither cause nor fix that, and offer no
 built-in mitigation for it. Any mitigation (truncated/windowed BPTT,
 gradient clipping, or a documented fallback to a black-box estimator)
-has to be applied to the rollout itself. The planned ``torch.func``-based
-Jacobian/QR Lyapunov *spectrum* estimator for differentiable dynamics
-models (not yet implemented) will face this directly, since computing it
-generally requires differentiating through the model's own rollout, and
-will document its chosen mitigation in its own docstring when it's built.
+has to be applied to the rollout itself.
+
+``lyapunov_spectrum`` faces this directly rather than only inheriting it:
+it computes the full Lyapunov spectrum of a differentiable ``step_fn``
+(a discrete map, or one fixed-step continuous-flow integration) via the
+Benettin/QR ("H2") method, using ``torch.func.jacrev``/``vmap`` for the
+per-step Jacobian. Differentiating its output w.r.t. anything upstream of
+``initial_state`` or ``step_fn`` means backpropagating through
+``num_steps`` chained Jacobian-and-QR steps -- the same
+products-of-state-Jacobians structure Metz et al. describe. It applies no
+mitigation of its own and exposes no hook to add one inside its own loop;
+see its own docstring for what's actually actionable (keeping
+``num_steps`` modest, clipping gradients in the surrounding optimizer
+step, or detaching state in an outer rollout the caller controls,
+upstream of calling this function at all).
+
+Its returned spectrum is also only *generically* sorted descending, not
+unconditionally: see its own docstring for a confirmed non-generic
+counterexample (a diagonal linear map with unsorted diagonal entries)
+where ChaosTools.jl's ``lyapunovspectrum`` returns the same
+non-descending order -- a shared limitation of the Benettin/QR method's
+sensitivity to the initial deviation vectors, not a divergence between
+this implementation and its reference.
 
 .. autosummary::
    :toctree: ../generated/
@@ -42,3 +61,5 @@ will document its chosen mitigation in its own docstring when it's built.
    torchnlts.lyapunov.rosenstein.rosenstein_divergence
    torchnlts.lyapunov.rosenstein.rosenstein_lyapunov
    torchnlts.lyapunov.kantz.kantz_divergence
+   torchnlts.lyapunov.jacobian.step_jacobian
+   torchnlts.lyapunov.spectrum.lyapunov_spectrum
