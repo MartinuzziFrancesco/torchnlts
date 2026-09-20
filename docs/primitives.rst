@@ -210,3 +210,13 @@ Updated in the same commit that adds or changes a primitive.
      - none
      - `Schreiber & Schmitz (1996) <https://doi.org/10.1103/PhysRevLett.77.635>`__
      - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``IAAFT``, run live via subprocess; confirmed to share this method's seed-dependent convergence-quality spread on the same input, rather than a fixed always-tiny error -- deliberate, documented differences in initial condition and iteration-count/early-stopping convention, see module docstring)
+
+   * - :doc:`cross_map_estimate <generated/torchnlts.causality.ccm.cross_map_estimate>`
+     - piecewise
+     - `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``ConvergentCrossMapping``/``predict``, run live via subprocess in the ``juliaenv_causality`` project; matches to float64 precision (~1e-16 max per-point difference) once a confirmed off-by-one in its own ``w`` Theiler-window parameter is accounted for (``theiler_window = w + 1``, not ``w`` directly) -- see module docstring)
+
+   * - :doc:`ccm_skill <generated/torchnlts.causality.ccm.ccm_skill>`
+     - exact
+     - `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__
+     - none (a direct Pearson correlation, not a published algorithm of its own; validated via ``cross_map_estimate``'s own Julia cross-check, which compares the resulting correlation too)

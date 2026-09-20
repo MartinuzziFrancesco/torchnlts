@@ -13,5 +13,6 @@ Full API reference, one page per subpackage.
    entropy
    lyapunov
    surrogate
+   causality
    systems
    convert
