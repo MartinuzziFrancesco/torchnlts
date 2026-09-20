@@ -13,3 +13,4 @@ backpropagated through.
 
    torchnlts.surrogate.phase.phase_randomized_surrogate
    torchnlts.surrogate.aaft.aaft_surrogate
+   torchnlts.surrogate.iaaft.iaaft_surrogate
