@@ -1,6 +1,6 @@
 """Reproduces Kraskov, Stogbauer & Grassberger (2004): their KSG1
 k-nearest-neighbor mutual information estimator, checked against the
-one case where the true value is known analytically -- a pair of
+standard benchmark where the true value is known analytically -- a pair of
 correlated Gaussians, whose mutual information is exactly
 ``-0.5 * log(1 - rho**2)``.
 """

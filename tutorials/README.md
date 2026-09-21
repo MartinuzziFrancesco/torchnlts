@@ -1,9 +1,10 @@
 # Tutorials
 
-Hand-holding walkthroughs of library functionality, each reproducing a
-specific published result as a runnable check that the implementation
-matches the literature (not just the unit tests). One script per
-result; add one whenever a new module lands a result worth reproducing.
+Hand-holding walkthroughs of library functionality, using published methods on
+explicit benchmarks as runnable checks alongside the unit tests. Some
+reproduce known numerical values; others illustrate a method on synthetic
+data rather than replicate a paper's exact experiment. One script per
+benchmark; add one whenever a new module lands a result worth reproducing.
 
 For harder technical showcases (advanced, composed usage rather than
 guided walkthroughs), see `../examples/`.
@@ -17,14 +18,14 @@ guided walkthroughs), see `../examples/`.
   -- choosing a delay embedding's dimension from a scalar observable
   alone.
 - `recurrence_rqa.py`: Marwan, Romano, Thiel & Kurths (2007) --
-  determinism separates deterministic signals (periodic or chaotic)
-  from stochastic noise.
+  compare DET for sine, Lorenz x, and white noise at matched
+  recurrence rate; this comparison is not a general determinism test.
 - `correlation_dimension_lorenz.py`: Grassberger & Procaccia (1983) --
   the Lorenz attractor's fractal correlation dimension, estimated from
   a trajectory alone.
 - `entropy_measures.py`: Bandt & Pompe (2002) + Richman & Moorman
-  (2000) -- permutation and sample entropy, same deterministic-vs-random
-  distinction as `recurrence_rqa.py` from a different angle.
+  (2000) -- compare permutation and sample entropy for sine, Lorenz x, and
+  white noise at fixed sampling and embedding settings.
 - `mutual_information_gaussians.py`: Kraskov, Stogbauer & Grassberger
   (2004) -- their KSG1 estimator checked against correlated Gaussians'
   analytically known mutual information.
@@ -36,10 +37,12 @@ guided walkthroughs), see `../examples/`.
   spectrum of a differentiable map, via `torch.func`.
 - `surrogate_data_testing.py`: Theiler, Eubank, Longtin, Galdrikian &
   Farmer (1992) + Schreiber & Schmitz (1996) -- the surrogate data
-  hypothesis-testing methodology, using IAAFT surrogates.
+  hypothesis-testing methodology, using IAAFT surrogates and a
+  lower-tail rank test against a statically transformed Gaussian-linear null.
 - `convergent_cross_mapping.py`: Sugihara, May, Ye, Hsieh, Deyle,
-  Fogarty & Munch (2012) -- detecting which of two coupled variables
-  drives the other.
-- `transfer_entropy_coupled_maps.py`: Schreiber (2000) -- the same
-  causal-direction question as `convergent_cross_mapping.py`, via an
-  information-theoretic method instead.
+  Fogarty & Munch (2012) -- cross-map skill versus prefix-library size
+  in a synthetic unidirectionally coupled map pair.
+- `transfer_entropy_coupled_maps.py`: Schreiber (2000) -- directional
+  predictive information in the same synthetic maps as
+  `convergent_cross_mapping.py`, estimated with Frenzel-Pompe (2007)
+  nearest-neighbor conditional mutual information.

@@ -7,7 +7,7 @@ map itself with `torch.func`.
 The Hénon map (a=1.4, b=0.3) is the standard benchmark here: its two
 Lyapunov exponents are well known from the literature (approximately
 0.42 and -1.62), one positive (chaotic stretching) and one negative
-(contraction -- the Hénon map has zero net area growth since its
+(contraction -- area shrinks by a factor |b|=0.3 per step since the
 Jacobian determinant is the constant -b).
 """
 
@@ -25,7 +25,5 @@ spectrum = lyapunov_spectrum(henon_step, initial_state, num_steps=10000)
 
 print(f"Lyapunov spectrum: {spectrum.tolist()}")
 print("literature values are approximately [0.42, -1.62]")
-print(f"sum of exponents: {spectrum.sum().item():.4f} (should be near log(b) = log(0.3) = {torch.tensor(0.3).log().item():.4f},")
-print("the map's constant Jacobian determinant -- the sum of Lyapunov exponents")
-print("is the average log-volume growth rate, independent of the QR method's")
-print("individual-exponent estimates)")
+print(f"sum of exponents: {spectrum.sum().item():.4f} (expected log|det J| = log(0.3) = {torch.tensor(0.3).log().item():.4f})")
+print("This negative sum is the log-area growth per iteration, not the determinant.")

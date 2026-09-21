@@ -1,14 +1,13 @@
 """Reproduces Bandt & Pompe (2002) and Richman & Moorman (2000):
-complexity/entropy measures that are low for *any* deterministic signal
-(periodic or chaotic) and high for stochastic noise -- the same
-"deterministic vs. random" distinction as
-:mod:`recurrence_rqa.py`'s determinism, from a completely different
-angle (ordinal-pattern statistics and embedded template matching,
-rather than recurrence structure).
+ordinal-pattern and template-matching entropy measures, illustrated on
+a sine wave, Lorenz x, and white noise. At these sampling intervals and
+parameters, the smooth deterministic signals have lower entropy than
+white noise. This ordering is not universal: chaotic signals can have
+high entropy, and correlated stochastic signals can have low entropy.
 
 Permutation entropy is normalized to [0, 1] (1 = every ordinal pattern
 equally likely, the maximum-entropy case); sample entropy is unbounded
-but follows the same ordering.
+and depends on the template length, delay, and matching radius.
 """
 
 import torch
@@ -32,7 +31,6 @@ for name, signal in signals.items():
     sample_en = sample_entropy(signal, radius=0.2, embedding_dim=2, delay=1)
     print(f"{name:>20}  {perm_en.item():>7.3f}  {sample_en.item():>7.3f}")
 
-print("\nBoth deterministic signals (periodic, chaotic) score far lower on both")
-print("measures than white noise, even though one of them is chaotic --")
-print("'low-dimensional dynamics', not 'predictable moment to moment', is")
-print("what these measures actually pick up on.")
+print("\nAt these sampling intervals and parameters, sine and Lorenz x have")
+print("lower entropy than white noise. This measures temporal regularity;")
+print("neither statistic alone establishes determinism or low dimensionality.")

@@ -1,7 +1,7 @@
 """Reproduces Marwan, Romano, Thiel & Kurths (2007): recurrence
-quantification analysis distinguishes deterministic signals (periodic
-or chaotic) from stochastic ones, using only their recurrence
-structure -- no model of the underlying dynamics needed.
+quantification analysis compares recurrence structure in a sine wave,
+Lorenz x, and white noise. This is a scalar-observable comparison,
+without delay reconstruction; DET is not a general test of determinism.
 
 Determinism (DET, the fraction of recurrent points that form diagonal
 lines of length >= 2) is compared across three signals, each
@@ -45,7 +45,7 @@ for name, signal in [("periodic (sine)", periodic), ("chaotic (Lorenz x)", chaot
     det = determinism(recurrence, lmin=2, theiler_window=theiler_window)
     print(f"{name:>20}  {epsilon:>8.4f}  {rate.item():>6.3f}  {det.item():>6.3f}")
 
-print("\nAt matched recurrence rate, both deterministic signals (periodic and")
-print("chaotic) have far higher determinism than white noise -- DET separates")
-print("'governed by some dynamics' from 'no dynamics at all', regardless of")
-print("whether that underlying dynamics is periodic or chaotic.")
+print("\nAt matched recurrence rate, sine and Lorenz x have higher DET than")
+print("white noise here. DET measures diagonal recurrence structure;")
+print("sampling and serial correlation matter, and stochastic signals can")
+print("also have high DET. This comparison alone does not establish determinism.")

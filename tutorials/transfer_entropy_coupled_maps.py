@@ -1,9 +1,11 @@
-"""Reproduces Schreiber (2000): information-theoretic detection of
+"""Illustrates Schreiber (2000)'s transfer-entropy concept:
 directional coupling, using the same unidirectionally-coupled logistic
 maps as `convergent_cross_mapping.py` -- a different method (conditional
 mutual information between one series' future and the other's past,
-rather than cross-mapped nearest-neighbor prediction skill) arriving at
-the same causal-direction conclusion.
+rather than cross-mapped nearest-neighbor prediction skill) checking the
+known direction of predictive information. These are synthetic maps,
+not an exact reproduction of Schreiber's numerical experiment. The API
+uses the later Frenzel-Pompe (2007) nearest-neighbor CMI estimator.
 
 Transfer entropy is asymmetric by construction: TE(X -> Y) measures how
 much of Y's future the recent past of X explains beyond what Y's own
@@ -31,6 +33,6 @@ te_y_to_x = transfer_entropy(y, x, embedding_dim=2, delay=1, theiler_window=5)
 
 print(f"TE(X -> Y) (true direction):  {te_x_to_y.item():.3f}")
 print(f"TE(Y -> X) (false direction): {te_y_to_x.item():.3f}")
-print("\nTE(X -> Y) is substantially larger, correctly identifying X as the driver")
-print("-- agreeing with convergent_cross_mapping.py's conclusion via an entirely")
-print("different (information-theoretic, not nearest-neighbor) method.")
+print("\nLarger TE(X -> Y) is consistent with the known coupling in these maps.")
+print("TE measures additional predictive information, not causation in general.")
+print("Both this estimator and CCM use nearest neighbors, but estimate different quantities.")
