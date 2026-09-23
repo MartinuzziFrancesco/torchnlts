@@ -141,6 +141,21 @@ Updated in the same commit that adds or changes a primitive.
      - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1 and surrounding discussion
      - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``slopefit`` with ``LinearRegression``)
 
+   * - :doc:`box_occupation_probabilities <generated/torchnlts.dimension.generalized.box_occupation_probabilities>`
+     - none
+     - `Russell, Hanson & Ott (1980) <https://doi.org/10.1103/PhysRevLett.45.1175>`__
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``probabilities(ValueHistogram(ε), X)``; exact match confirmed, including box occupancy on a multivariate point set -- an earlier version of the cross-check test itself scrambled Julia's column-major ``reshape`` against torch's row-major flatten, giving a spurious-looking mismatch traced to every single point's box index before concluding it wasn't a real deviation)
+
+   * - :doc:`box_counting_entropy <generated/torchnlts.dimension.generalized.box_counting_entropy>`
+     - none
+     - `Russell, Hanson & Ott (1980) <https://doi.org/10.1103/PhysRevLett.45.1175>`__
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``entropy(Renyi(;q,base=ℯ), ValueHistogram(ε), X)``; exact match across ``q`` in ``{0, 1, 2, 3.5}``)
+
+   * - :doc:`generalized_dimension <generated/torchnlts.dimension.generalized.generalized_dimension>`
+     - exact
+     - `Russell, Hanson & Ott (1980) <https://doi.org/10.1103/PhysRevLett.45.1175>`__
+     - none directly (this codebase doesn't replicate FractalDimensions.jl's ``estimate_boxsizes``/``slopefit`` automatic scaling-region detection, same "caller picks the sizes" convention as ``correlation_dimension``); validated instead against a p-weighted binary cascade's known strongly non-increasing-in-``q`` D_q spectrum (Rényi's own theorem) and a uniform interval's known D_q=1 for every ``q``
+
    * - :doc:`sample_entropy <generated/torchnlts.entropy.sample.sample_entropy>`
      - none
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3

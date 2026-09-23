@@ -81,3 +81,13 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   (`torchnlts.entropy.fuzzy`), whose continuous membership function
   degrades far more gracefully, stays finite and smoothly increasing
   across the same sweep.
+- `generalized_dimension_cascade_and_lorenz.py`: Russell, Hanson & Ott
+  (1980) -- `torchnlts.dimension.generalized`'s box-counting D_q
+  spectrum is non-increasing in order on a strongly multifractal
+  p-weighted binary cascade (Rényi's own theorem), with D0/D1/D2
+  falling out as special cases of one method. Also compares
+  box-counting D2 against `torchnlts.dimension.correlation`'s existing
+  pairwise-distance D2 on the Lorenz attractor, illustrating (not
+  tightly matching) box-counting's well-known need for far more data
+  to resolve a higher-dimensional attractor -- the historical reason
+  Grassberger & Procaccia (1983) introduced the correlation sum.
