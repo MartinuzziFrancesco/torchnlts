@@ -156,6 +156,16 @@ Updated in the same commit that adds or changes a primitive.
      - `Russell, Hanson & Ott (1980) <https://doi.org/10.1103/PhysRevLett.45.1175>`__
      - none directly (this codebase doesn't replicate FractalDimensions.jl's ``estimate_boxsizes``/``slopefit`` automatic scaling-region detection, same "caller picks the sizes" convention as ``correlation_dimension``); validated instead against a p-weighted binary cascade's known strongly non-increasing-in-``q`` D_q spectrum (Rényi's own theorem) and a uniform interval's known D_q=1 for every ``q``
 
+   * - :doc:`higuchi_length <generated/torchnlts.dimension.higuchi.higuchi_length>`
+     - piecewise
+     - `Higuchi (1988) <https://doi.org/10.1016/0167-2789(88)90081-4>`__
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``higuchi_length``; exact match confirmed, including its ``k**2`` (not ``k``) normalization, verified against Higuchi's own equation via a secondary source, not just carried over from Julia uncritically)
+
+   * - :doc:`higuchi_dimension <generated/torchnlts.dimension.higuchi.higuchi_dimension>`
+     - exact
+     - `Higuchi (1988) <https://doi.org/10.1016/0167-2789(88)90081-4>`__
+     - none directly (this codebase doesn't replicate FractalDimensions.jl's ``higuchi_dim``'s own automatic linear-region selection, same "caller picks the sweep" convention as ``correlation_dimension``/``generalized_dimension`` -- confirmed both functions can genuinely disagree, e.g. a sine wave over strides 1-20 gives 1.274 here against Julia's own region-restricted 1.052); ``higuchi_length`` itself is validated against Julia's own ``higuchi_length`` above, and this module's OLS-slope formula is validated directly on hand-derived power-law examples
+
    * - :doc:`sample_entropy <generated/torchnlts.entropy.sample.sample_entropy>`
      - none
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3

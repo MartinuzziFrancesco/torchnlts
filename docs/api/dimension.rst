@@ -13,3 +13,5 @@ Fractal dimension estimation -- the ``torchnlts.dimension`` subpackage.
    torchnlts.dimension.generalized.box_occupation_probabilities
    torchnlts.dimension.generalized.box_counting_entropy
    torchnlts.dimension.generalized.generalized_dimension
+   torchnlts.dimension.higuchi.higuchi_length
+   torchnlts.dimension.higuchi.higuchi_dimension

@@ -91,3 +91,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   tightly matching) box-counting's well-known need for far more data
   to resolve a higher-dimensional attractor -- the historical reason
   Grassberger & Procaccia (1983) introduced the correlation sum.
+- `higuchi_dimension_signals.py`: Higuchi (1988) -- `torchnlts.dimension.higuchi`'s
+  no-embedding-needed fractal dimension D_H orders a sine wave, Lorenz
+  x, and white noise from close to 1 (smooth) to close to 2 (maximally
+  rough), the same three signals `entropy_measures.py` compares with
+  embedding-based measures instead.
