@@ -74,3 +74,10 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   `permutation_entropy`'s own probability estimator): both recover its
   exact Shannon value at order 1, and Rényi entropy is non-increasing
   in order across the full sweep, as Rényi's own theorem requires.
+- `fuzzy_vs_sample_entropy.py`: Chen, Wang, Xie & Yu (2007) -- sample
+  entropy's hard threshold diverges to infinity at small
+  radius/short trajectories (`torchnlts.entropy.sample.sample_entropy`,
+  zero matching long templates), while fuzzy entropy
+  (`torchnlts.entropy.fuzzy`), whose continuous membership function
+  degrades far more gracefully, stays finite and smoothly increasing
+  across the same sweep.

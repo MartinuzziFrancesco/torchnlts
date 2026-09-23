@@ -21,3 +21,4 @@ Complexity/entropy measures -- the ``torchnlts.entropy`` subpackage.
    torchnlts.entropy.dispersion.dispersion_entropy
    torchnlts.entropy.generalized.renyi_entropy
    torchnlts.entropy.generalized.tsallis_entropy
+   torchnlts.entropy.fuzzy.fuzzy_entropy

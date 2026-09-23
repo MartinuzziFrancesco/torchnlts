@@ -211,6 +211,11 @@ Updated in the same commit that adds or changes a primitive.
      - `Tsallis (1988) <https://doi.org/10.1007/BF01016429>`__
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Tsallis``; exact match including negative ``q`` -- but a confirmed deviation across Julia's own ``q ≈ 1`` tolerance window (not only exactly at ``q=1``) with ``k!=1``, where Julia's own special case silently drops ``k`` throughout that window unlike its own general-formula branch just outside it, locked in as a regression test)
 
+   * - :doc:`fuzzy_entropy <generated/torchnlts.entropy.fuzzy.fuzzy_entropy>`
+     - smooth, except a systematic (not measure-zero) Chebyshev-distance tie for any flattened length-2 template, and (outside the always-zero univariate ``embedding_dim=1`` short-template case, handled exactly) an inherent singularity at exactly coincident templates for ``0 < fuzzy_power < 1`` -- see module docstring
+     - `Chen, Wang, Xie & Yu (2007) <https://doi.org/10.1109/TNSRE.2007.897025>`__, eq. 2-10
+     - `EntropyHub <https://github.com/MattWillFlood/EntropyHub>`__ (``FuzzEn``, ``Fx='default'``; exact match confirmed, including a hand re-derivation of the paper's own formula from first principles, not just against EntropyHub's source -- no Julia comparison available, ``ComplexityMeasures.jl`` has no fuzzy entropy estimator)
+
    * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein.rosenstein_divergence>`
      - piecewise
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__

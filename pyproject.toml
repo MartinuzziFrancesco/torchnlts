@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "EntropyHub"]
 sde = ["torchsde"]
 pandas = ["pandas"]
 
