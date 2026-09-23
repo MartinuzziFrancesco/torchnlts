@@ -63,3 +63,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   period-doubling route to chaos: near-minimal at periodic parameters
   (including a periodic window inside the chaotic band), far higher at
   full chaos, and close to pure random noise there.
+- `dispersion_vs_permutation_entropy.py`: Rostaghi & Azami (2016) --
+  permutation entropy is provably invariant under any strictly
+  increasing transform of a trajectory (checked exactly), while
+  dispersion entropy (`torchnlts.entropy.dispersion`), sensitive to
+  actual amplitude values rather than just rank order, is not.

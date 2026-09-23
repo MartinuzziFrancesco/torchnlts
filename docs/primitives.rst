@@ -191,6 +191,11 @@ Updated in the same commit that adds or changes a primitive.
      - `Lempel & Ziv (1976) <https://doi.org/10.1109/TIT.1976.1055501>`__ (complexity c(n)); `Kaspar & Schuster (1987) <https://doi.org/10.1103/PhysRevA.36.842>`__ (the algorithm actually implemented -- not linear time despite the reputation, see module docstring)
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``LempelZiv76``; a direct port of the same algorithm, exact match confirmed -- no known deviation, unlike this subpackage's other Julia comparisons)
 
+   * - :doc:`dispersion_entropy <generated/torchnlts.entropy.dispersion.dispersion_entropy>`
+     - none (Gaussian-CDF classification + histogram-based Shannon entropy, no soft variant -- same reasoning as ``permutation_entropy``); fully ``torch.vmap``-compatible, confirmed directly
+     - `Rostaghi & Azami (2016) <https://doi.org/10.1109/LSP.2016.2542880>`__, eqs. as restated in `Azami, Rostaghi, Abasolo & Escudero (2017) <https://doi.org/10.1109/TBME.2017.2679136>`__, eqs. 2-4
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Dispersion`` + ``Shannon``; exact float64-precision match confirmed on ordinary input, including at an exact tie in the class-rounding step -- but a confirmed deviation for an exactly-constant trajectory, where Julia returns ``-0.0`` rather than this function's ``NaN``, locked in as a regression test)
+
    * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein.rosenstein_divergence>`
      - piecewise
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__
