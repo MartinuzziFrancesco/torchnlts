@@ -23,7 +23,7 @@ from torchnlts.dimension.correlation import correlation_dimension, soft_correlat
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
 from torchnlts.recurrence.matrix import soft_recurrence_matrix
 from torchnlts.recurrence.rqa import recurrence_rate
-from torchnlts.sciml.losses import AttractorLoss, CorrelationDimensionLoss, LyapunovLoss, RecurrenceLoss
+from torchnlts.sciml.losses import AttractorLoss, CorrelationDimensionLoss, LyapunovLoss, RecurrenceLoss, SinkhornLoss, _sinkhorn_cost
 
 
 def _henon_step(x, a=1.4, b=0.3):
@@ -223,6 +223,143 @@ def test_attractor_loss_rejects_norm_order():
         pass
 
 
+# ---------------------------------------------------------------- Sinkhorn
+
+
+def test_sinkhorn_loss_zero_for_identical_trajectory():
+    torch.manual_seed(12)
+    trajectory = torch.randn(40, 2, dtype=torch.float64)
+    loss_module = SinkhornLoss(reg=0.5)
+    assert torch.isclose(loss_module(trajectory, trajectory), torch.tensor(0.0, dtype=torch.float64), atol=1e-10)
+
+
+def test_sinkhorn_loss_symmetric():
+    torch.manual_seed(13)
+    a = torch.randn(40, 2, dtype=torch.float64)
+    b = torch.randn(35, 2, dtype=torch.float64) + 1.0
+    loss_module = SinkhornLoss(reg=0.5)
+    assert torch.isclose(loss_module(a, b), loss_module(b, a), atol=1e-10)
+
+
+def test_sinkhorn_loss_positive_for_different_trajectories():
+    torch.manual_seed(14)
+    a = torch.randn(40, 2, dtype=torch.float64)
+    b = torch.randn(40, 2, dtype=torch.float64) + 5.0  # well-separated clusters
+    loss_module = SinkhornLoss(reg=0.5)
+    assert loss_module(a, b).item() > 0.1
+
+
+def test_sinkhorn_loss_gradcheck():
+    torch.manual_seed(15)
+    a = torch.randn(8, 2, dtype=torch.float64, requires_grad=True)
+    b = torch.randn(8, 2, dtype=torch.float64)
+    loss_module = SinkhornLoss(reg=1.0, num_iters=20)
+    assert torch.autograd.gradcheck(loss_module, (a, b))
+
+
+def test_sinkhorn_loss_batched_matches_independent_loop():
+    torch.manual_seed(16)
+    a = torch.randn(3, 20, 2, dtype=torch.float64)
+    b = torch.randn(3, 20, 2, dtype=torch.float64)
+    loss_module = SinkhornLoss(reg=0.5, reduction="none")
+    batched = loss_module(a, b)
+    assert batched.shape == (3,)
+    for i in range(3):
+        expected = loss_module(a[i], b[i])
+        assert torch.isclose(batched[i], expected)
+
+
+def test_sinkhorn_cost_converges_to_exact_optimal_transport():
+    # Independent ground truth (SinkhornLoss is this module's one truly
+    # new primitive -- see the module docstring): for equal-size point
+    # clouds with uniform marginals, the exact (unregularized) discrete
+    # OT plan is a permutation -- the minimum-cost perfect matching,
+    # found independently via scipy's Hungarian algorithm. As entropic
+    # regularization shrinks and iterations grow, _sinkhorn_cost should
+    # converge to that exact value.
+    from scipy.optimize import linear_sum_assignment
+
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    torch.manual_seed(17)
+    a = torch.randn(12, 2, dtype=torch.float64)
+    b = torch.randn(12, 2, dtype=torch.float64) + 0.5
+
+    cost = 0.5 * pairwise_distance(a, other=b, norm_order=2.0) ** 2
+    row_idx, col_idx = linear_sum_assignment(cost.numpy())
+    exact_cost = cost.numpy()[row_idx, col_idx].sum() / a.shape[0]
+
+    entropic_cost = _sinkhorn_cost(cost, torch.tensor(0.01, dtype=torch.float64), 2000).item()
+    assert abs(entropic_cost - exact_cost) < 0.05
+
+
+def test_sinkhorn_cost_matches_brute_force_regularized_objective():
+    # Regression: an earlier version of _sinkhorn_cost
+    # returned only the transport term <P,C> at the entropic-optimal
+    # plan, silently dropping the reg*KL(P | a(x)b) term that makes it
+    # the actual Feydy et al. (2019) regularized OT objective the
+    # docstring/SinkhornLoss cite -- a materially different (and always
+    # smaller) number for reg > 0, confirmed here by computing that
+    # objective a second, independent way: forming the transport plan
+    # explicitly from converged dual potentials and its KL divergence
+    # by hand, rather than reading it off the same potentials
+    # _sinkhorn_cost itself already computed internally.
+    torch.manual_seed(18)
+    a = torch.randn(6, dtype=torch.float64)
+    b = torch.randn(8, dtype=torch.float64) + 0.4
+    reg = 0.6
+    num_iters = 3000
+    cost = 0.5 * (a.unsqueeze(-1) - b.unsqueeze(0)) ** 2
+
+    num_source, num_target = cost.shape
+    log_source = -torch.log(torch.tensor(float(num_source), dtype=cost.dtype))
+    log_target = -torch.log(torch.tensor(float(num_target), dtype=cost.dtype))
+    f = torch.zeros(num_source, dtype=cost.dtype)
+    g = torch.zeros(num_target, dtype=cost.dtype)
+    for _ in range(num_iters):
+        f = reg * (log_source - torch.logsumexp((g.unsqueeze(0) - cost) / reg, dim=1))
+        g = reg * (log_target - torch.logsumexp((f.unsqueeze(1) - cost) / reg, dim=0))
+    plan = torch.exp((f.unsqueeze(1) + g.unsqueeze(0) - cost) / reg)
+    reference = torch.full((num_source,), 1 / num_source, dtype=cost.dtype).unsqueeze(1) * torch.full(
+        (num_target,), 1 / num_target, dtype=cost.dtype
+    ).unsqueeze(0)
+    brute_force = (plan * cost).sum() + reg * (plan * torch.log(plan / reference)).sum()
+
+    assert torch.isclose(_sinkhorn_cost(cost, torch.tensor(reg, dtype=torch.float64), num_iters), brute_force, atol=1e-6)
+
+
+def test_sinkhorn_loss_rejects_non_positive_reg():
+    try:
+        SinkhornLoss(reg=0.0)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+    try:
+        SinkhornLoss(reg=-1.0)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_sinkhorn_loss_rejects_non_positive_num_iters():
+    try:
+        SinkhornLoss(reg=0.5, num_iters=0)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_sinkhorn_loss_rejects_bad_reduction():
+    a = torch.randn(10, 2, dtype=torch.float64)
+    b = torch.randn(10, 2, dtype=torch.float64)
+    loss_module = SinkhornLoss(reg=0.5, reduction="invalid")
+    try:
+        loss_module(a, b)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
 # --------------------------------------------------------- dtype regressions
 
 
@@ -243,6 +380,9 @@ def test_loss_modules_preserve_float64_target_and_temperature_precision():
 
     al = AttractorLoss(temperature=close_values[0])
     assert al.temperature.dtype == torch.float64
+
+    sl = SinkhornLoss(reg=close_values[0])
+    assert sl.reg.dtype == torch.float64
 
     lyapunov_target = torch.tensor([0.1, -0.1 + 1e-9], dtype=torch.float64)
     ll = LyapunovLoss(target=lyapunov_target, num_steps=5)
