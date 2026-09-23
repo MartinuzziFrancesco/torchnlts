@@ -50,20 +50,16 @@ def _ordinal_pattern_codes(embedded: torch.Tensor) -> torch.Tensor:
     return (digits * weights).sum(dim=-1)
 
 
-def permutation_entropy(
-    trajectory,
-    embedding_dim: int = 3,
-    delay: int = 1,
-    normalize: bool = False,
-) -> torch.Tensor:
-    """Permutation entropy: Shannon entropy of ordinal pattern frequencies.
+def ordinal_pattern_probabilities(trajectory, embedding_dim: int = 3, delay: int = 1) -> torch.Tensor:
+    """Relative frequency of each ordinal pattern in a delay-embedded
+    trajectory -- the probability distribution :func:`permutation_entropy`
+    applies Shannon entropy to, exposed here so a *different* entropy
+    (e.g. :func:`torchnlts.entropy.generalized.renyi_entropy`/
+    :func:`~torchnlts.entropy.generalized.tsallis_entropy`) can be
+    applied to the same real, already-validated distribution instead
+    (see ``tutorials/generalized_entropy_lorenz.py``).
 
     Gradient class: none (ordinal ranking via ``argsort`` has no useful gradient).
-
-    Reference: Bandt & Pompe (2002), Sec. II-III. Matches
-    ComplexityMeasures.jl's ``entropy(Shannon(base=MathConstants.e),
-    OrdinalPatterns(m=embedding_dim, τ=delay), x)`` (natural log, forced
-    explicitly since that package's own default base is 2).
 
     Args:
         trajectory: Shape ``[T]`` or ``[T, 1]``/``[B, T, 1]`` (a
@@ -71,19 +67,16 @@ def permutation_entropy(
             docstring). A tensor, numpy array, or pandas Series/DataFrame.
         embedding_dim: Pattern order m (number of points per pattern).
         delay: Embedding lag.
-        normalize: Divide by ``log(embedding_dim!)`` so the result is a
-            dimensionless quantity in ``[0, 1]``. ``NaN`` (``0 / 0``) at
-            ``embedding_dim = 1``, where there is exactly one possible
-            pattern and no normalizing constant.
 
     Returns:
-        Scalar (unbatched trajectory) or ``[B]`` (batched) entropy, in
-        nats (or dimensionless if ``normalize=True``). ``NaN`` if any
+        Probability distribution over the ``embedding_dim!`` possible
+        ordinal patterns, shape ``[embedding_dim!]`` (unbatched) or
+        ``[B, embedding_dim!]`` (batched), summing to 1 along the last
+        dimension. A row is entirely ``NaN`` if the corresponding
         delay-embedded window contains ``NaN`` (an ordinal pattern is
         undefined when a coordinate can't be compared to the others) --
-        not raised, since a raise would need a data-dependent Python
-        ``if`` on the tensor's contents, which rejects ``torch.vmap``'s
-        ``BatchedTensor`` inputs outright.
+        masked via a plain tensor op rather than raised, so a NaN
+        trajectory degrades gracefully under ``torch.vmap`` too.
 
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1, or
@@ -93,19 +86,53 @@ def permutation_entropy(
     tensor, _ = _ensure_batched(trajectory)
     _require_univariate(tensor)
     embedded = delay_embedding(trajectory, embedding_dim, delay)
-    # A data-dependent `if torch.isnan(...).any(): raise` would reject
-    # torch.vmap's BatchedTensor inputs outright; masking into NaN here
-    # instead is a plain tensor op, so a NaN trajectory degrades to a
-    # NaN result under vmap or not.
     has_nan = torch.isnan(embedded).any(dim=(-2, -1))
     codes = _ordinal_pattern_codes(embedded)
     num_patterns = math.factorial(embedding_dim)
     dtype = embedded.dtype if embedded.is_floating_point() else torch.get_default_dtype()
     counts = torch.nn.functional.one_hot(codes, num_classes=num_patterns).sum(dim=-2).to(dtype)
     probability = counts / counts.sum(dim=-1, keepdim=True)
+    return torch.where(has_nan.unsqueeze(-1), torch.full_like(probability, float("nan")), probability)
+
+
+def permutation_entropy(
+    trajectory,
+    embedding_dim: int = 3,
+    delay: int = 1,
+    normalize: bool = False,
+) -> torch.Tensor:
+    """Permutation entropy: Shannon entropy of ordinal pattern frequencies.
+
+    Gradient class: none (see :func:`ordinal_pattern_probabilities`).
+
+    Reference: Bandt & Pompe (2002), Sec. II-III. Matches
+    ComplexityMeasures.jl's ``entropy(Shannon(base=MathConstants.e),
+    OrdinalPatterns(m=embedding_dim, τ=delay), x)`` (natural log, forced
+    explicitly since that package's own default base is 2).
+
+    Args:
+        trajectory: Forwarded to :func:`ordinal_pattern_probabilities`.
+        embedding_dim: Pattern order m (number of points per pattern).
+        delay: Embedding lag.
+        normalize: Divide by ``log(embedding_dim!)`` so the result is a
+            dimensionless quantity in ``[0, 1]``. ``NaN`` (``0 / 0``) at
+            ``embedding_dim = 1``, where there is exactly one possible
+            pattern and no normalizing constant.
+
+    Returns:
+        Scalar (unbatched trajectory) or ``[B]`` (batched) entropy, in
+        nats (or dimensionless if ``normalize=True``). ``NaN`` under
+        the same condition as :func:`ordinal_pattern_probabilities`'s
+        own ``NaN`` rows (Shannon entropy of an all-``NaN`` distribution
+        is itself ``NaN``, propagated rather than special-cased again
+        here).
+
+    Raises:
+        ValueError: Same as :func:`ordinal_pattern_probabilities`.
+    """
+    probability = ordinal_pattern_probabilities(trajectory, embedding_dim, delay)
     log_probability = torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny))
     entropy = -(probability * log_probability).sum(dim=-1)
-    entropy = torch.where(has_nan, torch.full_like(entropy, float("nan")), entropy)
     if normalize:
-        entropy = entropy / math.log(num_patterns)
+        entropy = entropy / math.log(math.factorial(embedding_dim))
     return entropy

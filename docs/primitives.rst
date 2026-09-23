@@ -161,6 +161,11 @@ Updated in the same commit that adds or changes a primitive.
      - `Pincus (1991) <https://doi.org/10.1073/pnas.88.6.2297>`__, eq. 1-4 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency-checked against ``approximate_entropy``'s radius=0 hard limit)
 
+   * - :doc:`ordinal_pattern_probabilities <generated/torchnlts.entropy.permutation.ordinal_pattern_probabilities>`
+     - none
+     - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``OrdinalPatterns``; validated via ``permutation_entropy``'s own tests plus a direct composition check)
+
    * - :doc:`permutation_entropy <generated/torchnlts.entropy.permutation.permutation_entropy>`
      - none
      - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III
@@ -195,6 +200,16 @@ Updated in the same commit that adds or changes a primitive.
      - none (Gaussian-CDF classification + histogram-based Shannon entropy, no soft variant -- same reasoning as ``permutation_entropy``); fully ``torch.vmap``-compatible, confirmed directly
      - `Rostaghi & Azami (2016) <https://doi.org/10.1109/LSP.2016.2542880>`__, eqs. as restated in `Azami, Rostaghi, Abasolo & Escudero (2017) <https://doi.org/10.1109/TBME.2017.2679136>`__, eqs. 2-4
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Dispersion`` + ``Shannon``; exact float64-precision match confirmed on ordinary input, including at an exact tie in the class-rounding step -- but a confirmed deviation for an exactly-constant trajectory, where Julia returns ``-0.0`` rather than this function's ``NaN``, locked in as a regression test)
+
+   * - :doc:`renyi_entropy <generated/torchnlts.entropy.generalized.renyi_entropy>`
+     - smooth, except at ``alpha=0`` (no gradient path) and, for every ``alpha``, only on a fixed support (see module docstring for both)
+     - `Rényi (1961) <https://projecteuclid.org/euclid.bsmsp/1200512181>`__
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Renyi``; exact match across the full parameter range tested, ``alpha`` in ``{0, 0.5, 1, 2, 5, inf}``, including near its own ``alpha ≈ 1`` tolerance window, not only exactly at it -- see module docstring for the precise tolerance conventions, which differ between ``alpha ≈ 0`` and ``alpha ≈ 1``)
+
+   * - :doc:`tsallis_entropy <generated/torchnlts.entropy.generalized.tsallis_entropy>`
+     - smooth, only on a fixed support (see module docstring)
+     - `Tsallis (1988) <https://doi.org/10.1007/BF01016429>`__
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Tsallis``; exact match including negative ``q`` -- but a confirmed deviation across Julia's own ``q ≈ 1`` tolerance window (not only exactly at ``q=1``) with ``k!=1``, where Julia's own special case silently drops ``k`` throughout that window unlike its own general-formula branch just outside it, locked in as a regression test)
 
    * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein.rosenstein_divergence>`
      - piecewise

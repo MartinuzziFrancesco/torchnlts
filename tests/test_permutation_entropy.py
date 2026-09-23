@@ -16,7 +16,7 @@ import subprocess
 
 import torch
 
-from torchnlts.entropy.permutation import _ordinal_pattern_codes, permutation_entropy
+from torchnlts.entropy.permutation import _ordinal_pattern_codes, ordinal_pattern_probabilities, permutation_entropy
 
 JULIA_PROJECT = "juliaenv"
 
@@ -42,6 +42,37 @@ def test_permutation_entropy_normalized():
     result = permutation_entropy(trajectory, embedding_dim=3, delay=1, normalize=True)
     raw = permutation_entropy(trajectory, embedding_dim=3, delay=1)
     assert torch.isclose(result, raw / math.log(6))
+
+
+def test_ordinal_pattern_probabilities_matches_hand_derived_counts():
+    # Same trajectory/pattern breakdown as test_permutation_entropy_hand_derived:
+    # (0,1,2)x2, (2,0,1)x2, (1,0,2)x1 out of 5 -> Lehmer codes 0, 4, 1 with
+    # counts 2, 2, 1 -- asserting the full vector, not just shape/sum/max
+    # (coverage gap: those three checks alone can't tell
+    # [0.4,0,0.2,0,0.4,0] apart from a differently-arranged permutation
+    # with the same sum and max).
+    trajectory = torch.tensor([4.0, 7.0, 9.0, 10.0, 6.0, 11.0, 3.0], dtype=torch.float64)
+    probability = ordinal_pattern_probabilities(trajectory, embedding_dim=3, delay=1)
+    expected = torch.tensor([0.4, 0.0, 0.2, 0.0, 0.4, 0.0], dtype=torch.float64)
+    assert torch.equal(probability, expected)
+
+
+def test_permutation_entropy_matches_shannon_of_ordinal_pattern_probabilities():
+    # Confirms permutation_entropy is exactly Shannon entropy applied to
+    # ordinal_pattern_probabilities's own output -- the composition this
+    # refactor introduced, checked directly rather than just trusting
+    # the pre-refactor tests still pass. Uses the hand-derived trajectory
+    # above (not a random one) specifically because it has genuine
+    # zero-probability outcomes, and torch.equal (not isclose) since
+    # both sides run the identical probability computation -- only the
+    # final entropy reduction should differ between them, and even that
+    # should match exactly here, not just approximately.
+    trajectory = torch.tensor([4.0, 7.0, 9.0, 10.0, 6.0, 11.0, 3.0], dtype=torch.float64)
+    probability = ordinal_pattern_probabilities(trajectory, embedding_dim=3, delay=1)
+    nonzero = probability > 0
+    safe = torch.where(nonzero, probability, torch.ones_like(probability))
+    expected = -(probability * torch.log(safe)).sum(dim=-1)
+    assert torch.equal(permutation_entropy(trajectory, embedding_dim=3, delay=1), expected)
 
 
 def test_ordinal_pattern_codes_ties_broken_by_index():

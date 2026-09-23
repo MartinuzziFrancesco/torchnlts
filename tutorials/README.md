@@ -68,3 +68,9 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   increasing transform of a trajectory (checked exactly), while
   dispersion entropy (`torchnlts.entropy.dispersion`), sensitive to
   actual amplitude values rather than just rank order, is not.
+- `generalized_entropy_lorenz.py`: Rényi (1961) + Tsallis (1988) --
+  applying `torchnlts.entropy.generalized`'s order-tunable entropies to
+  the Lorenz x-coordinate's real ordinal-pattern distribution (reusing
+  `permutation_entropy`'s own probability estimator): both recover its
+  exact Shannon value at order 1, and Rényi entropy is non-increasing
+  in order across the full sweep, as Rényi's own theorem requires.
