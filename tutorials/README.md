@@ -58,3 +58,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   single-scale sample entropy ranks white noise as more "complex" than
   1/f noise, and multiscale entropy (`torchnlts.entropy.multiscale`)
   reverses that ranking by the largest coarse-graining scale swept.
+- `lempel_ziv_logistic_map.py`: Lempel & Ziv (1976) + Kaspar & Schuster
+  (1987) -- Lempel-Ziv complexity across the logistic map's
+  period-doubling route to chaos: near-minimal at periodic parameters
+  (including a periodic window inside the chaotic band), far higher at
+  full chaos, and close to pure random noise there.

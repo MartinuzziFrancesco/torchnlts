@@ -186,6 +186,11 @@ Updated in the same commit that adds or changes a primitive.
      - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (kernel-relaxed via ``soft_sample_entropy``)
      - none (no direct test of this function's own hard-limit behavior -- inherits ``soft_sample_entropy``'s own correctness story instead, which traces to ``soft_correlation_sum``'s radius=0 hard-limit validation, see that row above; gradcheck-verified for both temperature and trajectory)
 
+   * - :doc:`lempel_ziv_complexity <generated/torchnlts.entropy.lempel_ziv.lempel_ziv_complexity>`
+     - none (sequential incremental-parsing algorithm, no soft variant -- see module docstring)
+     - `Lempel & Ziv (1976) <https://doi.org/10.1109/TIT.1976.1055501>`__ (complexity c(n)); `Kaspar & Schuster (1987) <https://doi.org/10.1103/PhysRevA.36.842>`__ (the algorithm actually implemented -- not linear time despite the reputation, see module docstring)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``LempelZiv76``; a direct port of the same algorithm, exact match confirmed -- no known deviation, unlike this subpackage's other Julia comparisons)
+
    * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein.rosenstein_divergence>`
      - piecewise
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__

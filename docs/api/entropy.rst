@@ -16,3 +16,4 @@ Complexity/entropy measures -- the ``torchnlts.entropy`` subpackage.
    torchnlts.entropy.multiscale.coarse_grain
    torchnlts.entropy.multiscale.multiscale_entropy
    torchnlts.entropy.multiscale.soft_multiscale_entropy
+   torchnlts.entropy.lempel_ziv.lempel_ziv_complexity
