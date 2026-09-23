@@ -171,6 +171,21 @@ Updated in the same commit that adds or changes a primitive.
      - `Kraskov, Stogbauer & Grassberger (2004) <https://doi.org/10.1103/PhysRevE.69.066138>`__, eq. 6-8 (KSG1)
      - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``; confirmed inclusive-vs-strict marginal-counting deviation from the paper, locked in as a regression rather than reconciled -- see module docstring)
 
+   * - :doc:`coarse_grain <generated/torchnlts.entropy.multiscale.coarse_grain>`
+     - exact
+     - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (their eq. 1 is Shannon entropy, not this)
+     - none (validated directly via hand-derived examples; its only consumer, ``multiscale_entropy``, is cross-checked below)
+
+   * - :doc:`multiscale_entropy <generated/torchnlts.entropy.multiscale.multiscale_entropy>`
+     - none (inherits ``sample_entropy``'s)
+     - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``multiscale(RegularDownsampling, SampleEntropy)``; inherits ``sample_entropy``'s own confirmed boundary-handling deviation, neutralized the same way at every scale)
+
+   * - :doc:`soft_multiscale_entropy <generated/torchnlts.entropy.multiscale.soft_multiscale_entropy>`
+     - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
+     - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (kernel-relaxed via ``soft_sample_entropy``)
+     - none (no direct test of this function's own hard-limit behavior -- inherits ``soft_sample_entropy``'s own correctness story instead, which traces to ``soft_correlation_sum``'s radius=0 hard-limit validation, see that row above; gradcheck-verified for both temperature and trajectory)
+
    * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein.rosenstein_divergence>`
      - piecewise
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__

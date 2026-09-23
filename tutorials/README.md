@@ -54,3 +54,7 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   `torchnlts.sciml.losses.SinkhornLoss` (their entropic-OT loss,
   new in this tutorial) against `AttractorLoss` (MMD, already in the
   library) on Lyapunov-exponent and correlation-dimension recovery.
+- `multiscale_entropy_noise.py`: Costa, Goldberger & Peng (2002) --
+  single-scale sample entropy ranks white noise as more "complex" than
+  1/f noise, and multiscale entropy (`torchnlts.entropy.multiscale`)
+  reverses that ranking by the largest coarse-graining scale swept.

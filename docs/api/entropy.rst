@@ -13,3 +13,6 @@ Complexity/entropy measures -- the ``torchnlts.entropy`` subpackage.
    torchnlts.entropy.approximate.soft_approximate_entropy
    torchnlts.entropy.permutation.permutation_entropy
    torchnlts.entropy.mutual_information.mutual_information
+   torchnlts.entropy.multiscale.coarse_grain
+   torchnlts.entropy.multiscale.multiscale_entropy
+   torchnlts.entropy.multiscale.soft_multiscale_entropy
