@@ -6,9 +6,6 @@ reproduce known numerical values; others illustrate a method on synthetic
 data rather than replicate a paper's exact experiment. One script per
 benchmark; add one whenever a new module lands a result worth reproducing.
 
-For harder technical showcases (advanced, composed usage rather than
-guided walkthroughs), see `../examples/`.
-
 - `delay_embedding_lorenz.py`: Takens (1981) -- a scalar observable's
   delay embedding is diffeomorphic to the original attractor.
 - `numpy_pandas_interop.py`: using torchnlts functions directly on
@@ -46,3 +43,14 @@ guided walkthroughs), see `../examples/`.
   predictive information in the same synthetic maps as
   `convergent_cross_mapping.py`, estimated with Frenzel-Pompe (2007)
   nearest-neighbor conditional mutual information.
+- `fprm_missing_dynamics.py`: Wu, Gao, Tang, An, Sun, Aihara, An &
+  Kurths (2026) -- imputing a missing variable from a fully observed
+  one via delay embedding + Gaussian process regression (FPRM),
+  reproducing their ecology-map and Lorenz r=90%-missing results in
+  the same range.
+- `sinkhorn_vs_mmd_invariant_matching.py`: Jiang, Lu, Orlova & Willett
+  (2023) -- training a differentiable Lorenz vector field with a
+  whole-attractor distributional loss added to MSE, comparing
+  `torchnlts.sciml.losses.SinkhornLoss` (their entropic-OT loss,
+  new in this tutorial) against `AttractorLoss` (MMD, already in the
+  library) on Lyapunov-exponent and correlation-dimension recovery.
