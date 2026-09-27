@@ -340,3 +340,12 @@ def test_power_variogram_sub_one_power_gradient_matches_analytic():
                 expected[index + lag] += term
                 expected[index] -= term
         assert torch.allclose(gradient, expected)
+
+
+def test_variogram_dimension_half_close_values_and_integer_input():
+    # log(10008) - log(10000) = 8e-4 is below float16 resolution at 9.2.
+    half = variogram_dimension([1000, 1001], torch.tensor([10000.0, 10008.0]).half())
+    assert half.dtype == torch.float16
+    assert torch.isclose(half.float(), variogram_dimension([1000, 1001], torch.tensor([10000.0, 10008.0], dtype=torch.float64)).float(), atol=2e-3)
+    integer = variogram_dimension([1, 2], torch.tensor([1, 4]))
+    assert integer.dtype == torch.get_default_dtype() and integer.item() == 1.0

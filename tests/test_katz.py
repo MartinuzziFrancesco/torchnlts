@@ -249,3 +249,13 @@ def test_katz_dimension_planar_tiny_amplitude_is_near_one():
     torch.manual_seed(9)
     values = torch.randn(50) * 1e-39
     assert abs(katz_dimension(values).item() - 1.0) < 1e-6
+
+
+def test_katz_dimension_pole_with_offset_is_nan():
+    # [1000, 1001, 999.5, 1000], amplitude only: L = 1 + 1.5 + 0.5 = 3 = 3 * d
+    # with d = 1, an exact pole. Scaling before removing the 1000 offset lost
+    # digits and returned -2.96e13 (float64). The planar value is well defined.
+    for dtype in (torch.float32, torch.float64):
+        trajectory = torch.tensor([1000.0, 1001.0, 999.5, 1000.0], dtype=dtype)
+        assert torch.isnan(katz_dimension(trajectory, amplitude_only=True))
+        assert torch.isfinite(katz_dimension(trajectory))

@@ -16,6 +16,8 @@ for the farthest point and, with ``amplitude_only``, at zero steps).
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 from torchnlts._shape import _ensure_batched, _restore_batch
@@ -69,7 +71,7 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
         formula is undefined: fewer than 3 points, ``L = 0`` (a constant
         series with ``amplitude_only=True``), or a denominator that is zero
         to within rounding (``d / L`` at ``1 / n``, where ``|D|`` would
-        exceed about ``1 / (8 * eps)`` and is not determined by the data). A constant series gives ``D = 1`` in the
+        exceed about ``1 / (8 * log2(T) * eps)`` and is not determined by the data). A constant series gives ``D = 1`` in the
         plane (a straight line).
 
     Raises:
@@ -88,9 +90,11 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
         result = torch.full(values.shape[:-1], float("nan"), dtype=work_dtype, device=values.device)
         return _restore_batch(result.to(dtype), ndim)
 
-    # d / L is unchanged when both coordinates are divided by the same
-    # factor, so compute in coordinates scaled to at most 1: no distance or
-    # sum overflows. The factor is a constant, so detaching it is exact.
+    # Distances are unchanged by subtracting the first value (removes an
+    # offset that would cancel digits) and d / L by dividing both coordinates
+    # by one factor, so compute in coordinates scaled to at most 1: no
+    # distance or sum overflows. The factor is a constant, so detaching it is exact.
+    values = values - values[:, :1]
     scale = values.detach().abs().amax(dim=-1)
     if not amplitude_only:
         scale = scale.clamp(min=1.0)
@@ -108,7 +112,8 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     with torch.no_grad():
         zero_length = length == 0
         log_ratio = torch.log10(extent / torch.where(zero_length, torch.ones_like(length), length))
-        rounding = 8 * torch.finfo(work_dtype).eps * (log_num_steps + log_ratio.abs())
+        # Summing n distances adds about log2(n) rounding steps to L.
+        rounding = 8 * math.log2(num_points) * torch.finfo(work_dtype).eps * (log_num_steps + log_ratio.abs())
         degenerate = zero_length | ((log_num_steps + log_ratio).abs() <= rounding)
     safe_extent = torch.where(degenerate, torch.ones_like(extent), extent)
     safe_length = torch.where(degenerate, torch.ones_like(length), length)

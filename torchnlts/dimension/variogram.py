@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope, _safe_log
+from torchnlts._shape import _ensure_batched, _ols_slope, _output_dtype, _safe_log
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -147,6 +147,6 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
     """
     if not 0 < power < float("inf"):
         raise ValueError(f"power must be finite and > 0, got {power}")
-    log_lag = torch.log(torch.as_tensor(lag, dtype=torch.float64, device=variogram.device))
+    log_lag = _safe_log(torch.as_tensor(lag, dtype=torch.float64, device=variogram.device))
     slope = _ols_slope(log_lag, _safe_log(variogram))
-    return 2.0 - slope / power
+    return (2.0 - slope / power).to(_output_dtype(variogram))

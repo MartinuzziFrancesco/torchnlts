@@ -71,11 +71,20 @@ def _work_dtype(dtype: torch.dtype) -> torch.dtype:
     return torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
 
 
+def _output_dtype(tensor: torch.Tensor) -> torch.dtype:
+    """Result dtype for a computation on ``tensor``: its own floating dtype,
+    or the default dtype for non-float input."""
+    return tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
+
+
 def _safe_log(values: torch.Tensor) -> torch.Tensor:
     """``log(values)``, with every column (last dim of a ``[R, B]`` input,
     or the whole ``[R]`` input) that has a non-positive or non-finite entry
     set to ``NaN``. Invalid entries never reach ``log``, so no infinite
-    gradient is produced there."""
+    gradient is produced there. Computed and returned in
+    :func:`_work_dtype` (a log of half-precision values cannot resolve
+    small ratios)."""
+    values = values.to(_work_dtype(values.dtype))
     valid = (values > 0) & torch.isfinite(values)
     column_valid = valid.all(dim=0, keepdim=True)
     safe = torch.where(column_valid, values, torch.ones_like(values))
@@ -105,7 +114,9 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
         raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
     out_dtype = values.dtype if values.is_floating_point() else torch.get_default_dtype()
-    work_dtype = _work_dtype(out_dtype)
+    # The wider of the two dtypes, so distinct float64 sweep points are not
+    # merged when values are float32.
+    work_dtype = torch.promote_types(_work_dtype(out_dtype), _work_dtype(sweep.dtype))
     sweep = sweep.to(work_dtype).view((-1,) + (1,) * (values.dim() - 1))
     values = values.to(work_dtype)
     # Degenerate sweeps and invalid columns are replaced before any

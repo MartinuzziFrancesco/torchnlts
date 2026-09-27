@@ -169,3 +169,30 @@ def test_ols_slope_degenerate_sweep_gives_zero_gradient():
         assert torch.isnan(slope)
         sweep_gradient, values_gradient = torch.autograd.grad(slope, (sweep, values))
         assert (sweep_gradient == 0).all() and (values_gradient == 0).all()
+
+
+def test_safe_log_integer_and_half_input():
+    assert torch.allclose(_safe_log(torch.tensor([1, 4])), torch.log(torch.tensor([1.0, 4.0])))
+    # log of half values near 1e4 cannot resolve a 1e-3 ratio; computed in float32.
+    logged = _safe_log(torch.tensor([10000.0, 10008.0]).half())
+    assert logged.dtype == torch.float32 and logged[1] > logged[0]
+
+
+def test_ols_slope_keeps_close_float64_sweep_points_distinct():
+    # float64 sweep points 1e-9 apart collapse in float32; the wider dtype is used.
+    sweep = torch.tensor([1.0, 1.0 + 1e-9, 1.0 + 2e-9], dtype=torch.float64)
+    values = torch.tensor([0.0, 1.0, 2.0], dtype=torch.float32)
+    slope = _ols_slope(sweep, values)
+    assert slope.dtype == torch.float32 and torch.isclose(slope, torch.tensor(1e9), rtol=1e-4)
+
+
+def test_slope_callers_zero_sweep_does_not_poison_shared_gradient():
+    from torchnlts.dimension.higuchi import higuchi_dimension
+    from torchnlts.dimension.variogram import variogram_dimension
+
+    for function in (higuchi_dimension, variogram_dimension):
+        parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+        result = function(parameter * torch.tensor([0.0, 1.0, 2.0], dtype=torch.float64), torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64))
+        assert torch.isnan(result)
+        (gradient,) = torch.autograd.grad(torch.nan_to_num(result) + parameter, parameter)
+        assert gradient.item() == 1.0

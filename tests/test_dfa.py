@@ -358,3 +358,42 @@ def test_dfa_matches_fluctuationanalysis_jl():
         fluctuation = dfa_fluctuation(trajectory, window_sizes, order=order)
         assert torch.allclose(fluctuation, julia_fluctuation, rtol=0, atol=1e-12)
         assert abs(dfa_exponent(window_sizes, fluctuation).item() - float(lines[1])) < 1e-12
+
+
+def test_dfa_fluctuation_large_amplitude_gradient_is_scale_invariant():
+    # F is homogeneous of degree 1, so dF/dx does not depend on the amplitude;
+    # backward through sqrt(...) * 5e37 used to overflow to NaN.
+    base = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0])
+    unit = base.clone().requires_grad_(True)
+    (unit_gradient,) = torch.autograd.grad(dfa_fluctuation(unit, 4), unit)
+    large = (base * 5e37).requires_grad_(True)
+    (large_gradient,) = torch.autograd.grad(dfa_fluctuation(large, 4), large)
+    assert torch.allclose(large_gradient, unit_gradient, atol=1e-6)
+
+
+def test_dfa_fluctuation_small_kept_window_next_to_large_dropped_samples():
+    # The kept window (first 4 samples) is ~1e-25 while the dropped tail is ~1;
+    # normalizing by the row maximum alone underflowed the residual squares to 0.
+    for dtype, tiny in ((torch.float32, 1e-25), (torch.float64, 1e-170)):
+        trajectory = torch.tensor([1 * tiny, 2 * tiny, 1 * tiny, 3 * tiny, 1.0, -1.0], dtype=dtype, requires_grad=True)
+        result = dfa_fluctuation(trajectory, 4)
+        reference = dfa_fluctuation(torch.tensor([1.0, 2.0, 1.0, 3.0, 1e25, -1e25], dtype=torch.float64), 4).item() * tiny
+        assert abs(result.item() / reference - 1) < 1e-4
+        (gradient,) = torch.autograd.grad(result, trajectory)
+        assert torch.isfinite(gradient).all() and gradient[:4].abs().sum() > 0
+
+
+def test_dfa_fluctuation_clongdouble_window_size_raises():
+    import numpy as np
+
+    for window_size in (np.clongdouble(4 + 0j), np.array([4 + 0j], dtype=np.clongdouble)):
+        with pytest.raises(ValueError):
+            dfa_fluctuation(torch.arange(8.0), window_size)
+
+
+def test_dfa_exponent_invalid_window_size_does_not_poison_shared_gradient():
+    parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+    exponent = dfa_exponent(parameter * torch.tensor([0.0, 4.0, 8.0], dtype=torch.float64), torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64))
+    assert torch.isnan(exponent)
+    (gradient,) = torch.autograd.grad(torch.nan_to_num(exponent) + parameter, parameter)
+    assert gradient.item() == 1.0
