@@ -205,3 +205,47 @@ def test_katz_dimension_bounded_for_typical_waveforms():
     torch.manual_seed(5)
     noise_dimension = katz_dimension(torch.randn(2000, dtype=torch.float64))
     assert noise_dimension.item() > sine_dimension.item()
+
+
+def test_katz_dimension_pole_within_rounding_is_nan():
+    # Exactly singular (L = n * d mathematically) alternating series, where
+    # summation vs multiplication rounding differ, and inputs one ulp away
+    # from the pole: all have a denominator at rounding level, D undetermined.
+    for dtype, count, amplitude in ((torch.float32, 7, 0.3), (torch.float64, 10, 0.1)):
+        assert torch.isnan(katz_dimension((torch.arange(count) % 2).to(dtype) * amplitude, amplitude_only=True))
+    for dtype in (torch.float32, torch.float64):
+        one = torch.tensor(1.0, dtype=dtype)
+        below = torch.nextafter(one, torch.zeros_like(one))
+        assert torch.isnan(katz_dimension(torch.stack([one * 0, one, one * 0, below]), amplitude_only=True))
+    # A genuinely large but determined value is kept: [0, 1, 0, 0.9]
+    # (amplitude only): L = 2.9, d = 1, n = 3.
+    expected = math.log10(3) / (math.log10(3) + math.log10(1 / 2.9))
+    assert torch.isclose(katz_dimension(torch.tensor([0.0, 1.0, 0.0, 0.9], dtype=torch.float64), amplitude_only=True), torch.tensor(expected, dtype=torch.float64))
+
+
+def test_katz_dimension_extreme_amplitude():
+    # Amplitude-only D is scale invariant; at these amplitudes the planar
+    # index term is negligible, so both conventions give the same value.
+    reference = katz_dimension(torch.tensor([0.0, 1.0, -1.0, 0.5], dtype=torch.float64), amplitude_only=True)
+    for dtype, amplitude in ((torch.float32, 1e38), (torch.float64, 1e308)):
+        values = torch.tensor([0.0, 1.0, -1.0, 0.5], dtype=dtype) * amplitude
+        for amplitude_only in (True, False):
+            assert torch.isclose(katz_dimension(values, amplitude_only=amplitude_only).double(), reference, atol=1e-5)
+
+
+def test_katz_dimension_tiny_singular_row_does_not_poison_batch_gradient():
+    for dtype, amplitude in ((torch.float32, 1e-40), (torch.float64, 1e-310)):
+        scale = torch.tensor(1.0, dtype=dtype, requires_grad=True)
+        batch = torch.tensor([[0.0, amplitude, 0.0, amplitude], [0.0, 2.0, -1.0, 5.0]], dtype=dtype).unsqueeze(-1)
+        result = katz_dimension(scale * batch, amplitude_only=True)
+        assert torch.isnan(result[0])
+        (gradient,) = torch.autograd.grad(result[1], scale)
+        assert torch.isclose(gradient, torch.zeros_like(gradient), atol=1e-6)
+
+
+def test_katz_dimension_planar_tiny_amplitude_is_near_one():
+    # In the (index, amplitude) plane a 1e-39 (subnormal float32) series is almost a
+    # straight line, so D is close to 1 (and must not overflow the index term).
+    torch.manual_seed(9)
+    values = torch.randn(50) * 1e-39
+    assert abs(katz_dimension(values).item() - 1.0) < 1e-6

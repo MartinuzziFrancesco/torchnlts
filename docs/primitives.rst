@@ -189,12 +189,12 @@ Updated in the same commit that adds or changes a primitive.
    * - :doc:`dfa_fluctuation <generated/torchnlts.fluctuations.dfa.dfa_fluctuation>`
      - exact
      - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__; order-n detrending from `Kantelhardt et al. (2001) <https://doi.org/10.1016/S0378-4371(01)00144-3>`__
-     - `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``overlap=False, fit_trend='poly'``; matches to 1e-15 at orders 0-3) and `antropy <https://github.com/raphaelvallat/antropy>`__ (``detrended_fluctuation``, order 1); no Julia equivalent
+     - FluctuationAnalysis.jl (``dfa`` with ``bidirectional=false``; fluctuation values match to 1e-12 at orders 1-2); hand-derived example
 
    * - :doc:`dfa_exponent <generated/torchnlts.fluctuations.dfa.dfa_exponent>`
      - exact
      - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__
-     - `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``fit_exp='poly'``); also checked on white noise (alpha near 0.5) and Brownian motion (alpha near 1.5)
+     - FluctuationAnalysis.jl (``scaling_exponent``, to 1e-12); `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``overlap=False, fit_trend='poly', fit_exp='poly'``; exponent to 1e-9 at orders 0-3) and `antropy <https://github.com/raphaelvallat/antropy>`__ (``detrended_fluctuation``, order 1; exponent to 1e-6); also checked on white noise (alpha near 0.5) and Brownian motion (alpha near 1.5)
 
    * - :doc:`sample_entropy <generated/torchnlts.entropy.sample.sample_entropy>`
      - none

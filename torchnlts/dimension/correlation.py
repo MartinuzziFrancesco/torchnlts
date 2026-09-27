@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _broadcast_over_matrix, _ols_slope
+from torchnlts._shape import _broadcast_over_matrix, _ols_slope, _safe_log
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 from torchnlts.neighbors.theiler import theiler_window_mask
@@ -138,4 +138,4 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
             shapes with matching sweep lengths.
     """
     log_radius = torch.log(torch.as_tensor(radius, dtype=correlation_sum.dtype, device=correlation_sum.device))
-    return _ols_slope(log_radius, torch.log(correlation_sum))
+    return _ols_slope(log_radius, _safe_log(correlation_sum))

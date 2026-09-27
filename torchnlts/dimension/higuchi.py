@@ -60,7 +60,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope
+from torchnlts._shape import _ensure_batched, _ols_slope, _safe_log
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -193,5 +193,5 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
         ValueError: If ``k``/``length`` do not have the documented
             shapes with matching sweep lengths.
     """
-    neg_log_k = -torch.log(torch.as_tensor(k, dtype=length.dtype, device=length.device))
-    return _ols_slope(neg_log_k, torch.log(length))
+    neg_log_k = -torch.log(torch.as_tensor(k, dtype=torch.float64, device=length.device))
+    return _ols_slope(neg_log_k, _safe_log(length))

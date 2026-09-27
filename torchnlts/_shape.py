@@ -63,34 +63,64 @@ def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.T
     return value.view(value.shape + (1,) * matrix.dim())
 
 
-def _ols_slope(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    """Closed-form ordinary-least-squares slope of a sweep ``y`` against ``x``.
+def _work_dtype(dtype: torch.dtype) -> torch.dtype:
+    """Computation dtype for ``dtype``: default float for non-float input,
+    float32 for half precision, else ``dtype`` itself."""
+    if not dtype.is_floating_point:
+        return torch.get_default_dtype()
+    return torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
+
+
+def _safe_log(values: torch.Tensor) -> torch.Tensor:
+    """``log(values)``, with every column (last dim of a ``[R, B]`` input,
+    or the whole ``[R]`` input) that has a non-positive or non-finite entry
+    set to ``NaN``. Invalid entries never reach ``log``, so no infinite
+    gradient is produced there."""
+    valid = (values > 0) & torch.isfinite(values)
+    column_valid = valid.all(dim=0, keepdim=True)
+    safe = torch.where(column_valid, values, torch.ones_like(values))
+    return torch.where(column_valid, torch.log(safe), torch.full_like(values, float("nan")))
+
+
+def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
+    """Closed-form ordinary-least-squares slope of ``values`` against ``sweep``.
 
     Args:
-        x: Shape ``[R]``, the sweep ``y`` was evaluated at, reshaped here
-           to broadcast as a leading axis against ``y``'s own shape.
-        y: Shape ``[R]`` (unbatched) or ``[R, B]`` (batched).
+        sweep: Shape ``[R]``, the points ``values`` was evaluated at.
+        values: Shape ``[R]`` (unbatched) or ``[R, B]`` (batched).
 
     Returns:
-        Slope estimate(s), shape ``[]`` for an unbatched ``y`` or ``[B]``
-        for a batched one. ``NaN`` if ``x`` has fewer than two distinct
-        values.
+        Slope estimate(s), shape ``[]`` for an unbatched ``values`` or
+        ``[B]`` for a batched one, in ``values``' floating dtype (the
+        default dtype for integer input; half precision is computed in
+        float32). ``NaN`` if ``sweep`` has fewer than two distinct values
+        or is non-finite, and for any column of ``values`` with a
+        non-finite entry. A ``NaN`` result never produces a ``NaN``
+        gradient for the other columns or for ``sweep``.
 
     Raises:
-        ValueError: If ``x``/``y`` do not have the shapes above with
-            matching ``R``.
+        ValueError: If ``sweep``/``values`` do not have the shapes above
+            with matching ``R``.
     """
-    if x.dim() != 1 or y.dim() not in (1, 2) or x.shape[0] != y.shape[0]:
-        raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(x.shape)} and {tuple(y.shape)}")
-    x = x.view((-1,) + (1,) * (y.dim() - 1))
-    x_centered = x - x.mean(dim=0, keepdim=True)
-    y_centered = y - y.mean(dim=0, keepdim=True)
-    slope = (x_centered * y_centered).sum(dim=0) / (x_centered * x_centered).sum(dim=0)
-    # Checked on x itself: centering repeated values can leave a tiny
-    # nonzero denominator from rounding instead of an exact zero. A tensor
-    # mask, not a Python branch, so vmap still works.
-    repeated = (x == x[:1]).all()
-    return torch.where(repeated, torch.full_like(slope, float("nan")), slope)
+    if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
+        raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
+    out_dtype = values.dtype if values.is_floating_point() else torch.get_default_dtype()
+    work_dtype = _work_dtype(out_dtype)
+    sweep = sweep.to(work_dtype).view((-1,) + (1,) * (values.dim() - 1))
+    values = values.to(work_dtype)
+    # Degenerate sweeps and invalid columns are replaced before any
+    # arithmetic, so their NaN/inf cannot reach backward through a shared
+    # input. Repeated values are checked on sweep itself: centering can
+    # leave a rounding-sized nonzero denominator instead of an exact zero.
+    # Tensor masks, not Python branches, so vmap still works.
+    sweep_valid = torch.isfinite(sweep).all() & ~(sweep == sweep[:1]).all()
+    column_valid = torch.isfinite(values).all(dim=0) & sweep_valid
+    safe_sweep = torch.where(sweep_valid, sweep, torch.arange(sweep.shape[0], dtype=work_dtype, device=sweep.device).view_as(sweep))
+    safe_values = torch.where(column_valid, values, torch.zeros_like(values))
+    sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
+    values_centered = safe_values - safe_values.mean(dim=0, keepdim=True)
+    slope = (sweep_centered * values_centered).sum(dim=0) / (sweep_centered * sweep_centered).sum(dim=0)
+    return torch.where(column_valid, slope, torch.full_like(slope, float("nan"))).to(out_dtype)
 
 
 def _validate_square_matrix(matrix: torch.Tensor) -> None:

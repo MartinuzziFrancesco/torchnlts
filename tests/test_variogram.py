@@ -293,3 +293,50 @@ def test_variogram_dimension_fractional_gaussian_noise_known_hurst(hurst):
     expected = 2.0 - hurst
     assert torch.isclose(variogram_estimate, torch.tensor(expected, dtype=torch.float64), atol=0.03)
     assert torch.isclose(madogram_estimate, torch.tensor(expected, dtype=torch.float64), atol=0.03)
+
+
+def test_variogram_dimension_degenerate_column_does_not_poison_shared_gradient():
+    values = torch.tensor([1.0, 4.0], dtype=torch.float64, requires_grad=True)
+    batch = torch.stack([values * 0, values], dim=1)  # column 0: V = 0, log undefined
+    dimension = variogram_dimension([1, 2], batch)
+    assert torch.isnan(dimension[0])
+    dimension[1].backward()
+    # D = 2 - (log V2 - log V1) / (p log 2), p = 2: dD/dV1 = 1/(2 log2 V1), dD/dV2 = -1/(2 log2 V2).
+    expected = torch.tensor([1 / (2 * math.log(2) * 1.0), -1 / (2 * math.log(2) * 4.0)], dtype=torch.float64)
+    assert torch.allclose(values.grad, expected)
+
+
+def test_variogram_dimension_half_precision_is_promoted():
+    variogram = torch.tensor([1.0, 4.0], dtype=torch.float16)
+    # lags above float16's range (65504) and close lags that float16 cannot separate well.
+    result = variogram_dimension([100000, 200000], variogram)
+    assert result.dtype == torch.float16 and result.item() == 1.0
+    close = variogram_dimension([256, 257], variogram)
+    assert torch.isclose(close.float(), variogram_dimension([256, 257], variogram.float()), rtol=1e-2)
+
+
+def test_variogram_non_finite_power_raises():
+    for power in (float("inf"), float("nan")):
+        with pytest.raises(ValueError):
+            power_variogram(torch.arange(10.0), [1, 2], power=power)
+        with pytest.raises(ValueError):
+            variogram_dimension([1, 2], torch.tensor([1.0, 2.0]), power=power)
+
+
+def test_power_variogram_sub_one_power_gradient_matches_analytic():
+    # V_p(l) = sum |dx|**p / (2 (n - l)); dV/dx_j from each increment
+    # dx = x_{i+l} - x_i is p |dx|**(p-1) sign(dx) at x_{i+l}, minus that at x_i.
+    # A zero increment contributes 0 (masked).
+    power = 0.5
+    trajectory = torch.tensor([1.0, 1.0, 2.0, 5.0, 3.0], dtype=torch.float64, requires_grad=True)
+    for lag in (1, 2):
+        (gradient,) = torch.autograd.grad(power_variogram(trajectory, lag, power=power), trajectory)
+        expected = torch.zeros(5, dtype=torch.float64)
+        values = trajectory.detach()
+        for index in range(5 - lag):
+            increment = values[index + lag] - values[index]
+            if increment != 0:
+                term = power * increment.abs() ** (power - 1) * torch.sign(increment) / (2 * (5 - lag))
+                expected[index + lag] += term
+                expected[index] -= term
+        assert torch.allclose(gradient, expected)

@@ -2,9 +2,9 @@
 
 Dual ground truth:
   1. Paper: Peng et al. (1994) -- checked via a hand-derived example.
-  2. Reference implementations: nolds.dfa (overlap=False, fit_exp='poly'
-     matches this module's convention exactly) and antropy.detrended_fluctuation
-     (order=1, non-overlapping, fixed log-spaced nvals sweep).
+  2. Julia: FluctuationAnalysis.jl's ``dfa`` (bidirectional=false), plus
+     nolds.dfa (overlap=False, fit_exp='poly') and
+     antropy.detrended_fluctuation (order=1, its fixed log-spaced sweep).
 """
 
 import pytest
@@ -301,3 +301,60 @@ def test_dfa_fluctuation_half_profile_exceeding_half_range():
     result = dfa_fluctuation(ramp.half(), 400)
     assert torch.isfinite(result)
     assert torch.isclose(result.double(), dfa_fluctuation(ramp.half().double(), 400), rtol=1e-2)
+
+
+def test_dfa_fluctuation_profile_does_not_overflow():
+    # Finite float32 input whose mean/profile sums overflow float32 unless
+    # the amplitude is normalized first.
+    base = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0])
+    result = dfa_fluctuation(base * 5e37, 4)
+    assert torch.isfinite(result)
+    assert torch.isclose(result.double(), dfa_fluctuation(base.double(), 4) * 5e37, rtol=1e-5)
+
+
+def test_dfa_fluctuation_complex_window_size_any_type_raises():
+    import numpy as np
+
+    for window_size in (np.array([4 + 2j]), 4 + 2j, [4 + 0j]):
+        with pytest.raises(ValueError):
+            dfa_fluctuation(torch.arange(16.0), window_size)
+
+
+def test_dfa_exponent_degenerate_column_does_not_poison_shared_gradient():
+    parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+    fluctuation = parameter * torch.tensor([[0.0, 2.0], [0.0, 4.0], [0.0, 8.0]], dtype=torch.float64)
+    exponent = dfa_exponent([4, 8, 16], fluctuation)
+    assert torch.isnan(exponent[0]) and torch.isclose(exponent[1], torch.tensor(1.0, dtype=torch.float64))
+    (gradient,) = torch.autograd.grad(exponent[1], parameter)
+    # alpha is scale invariant: d alpha / d parameter = 0.
+    assert torch.isclose(gradient, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)
+
+
+def test_dfa_matches_fluctuationanalysis_jl():
+    # FluctuationAnalysis.jl's dfa with bidirectional=false uses the same
+    # forward-only segmentation; both are float64, so agreement is to rounding.
+    import pathlib
+    import subprocess
+
+    project = pathlib.Path.home() / ".julia" / "dev" / "FluctuationAnalysis"
+    if not project.exists():
+        pytest.skip("FluctuationAnalysis.jl not available")
+    torch.manual_seed(3)
+    trajectory = torch.randn(1003, dtype=torch.float64)
+    window_sizes = [10, 20, 40, 80, 160]
+    values = ", ".join(f"{value:.17g}" for value in trajectory.numpy())
+    for order in (1, 2):
+        julia_code = f"""
+        using FluctuationAnalysis
+        x = [{values}]
+        result = dfa(x; scales={window_sizes}, order={order}, bidirectional=false)
+        println(join(result.fluctuations, ","))
+        println(scaling_exponent(result))
+        """
+        completed = subprocess.run(["julia", f"--project={project}", "-e", julia_code], capture_output=True, text=True, timeout=300)
+        assert completed.returncode == 0, completed.stderr
+        lines = completed.stdout.strip().split("\n")
+        julia_fluctuation = torch.tensor([float(item) for item in lines[0].split(",")], dtype=torch.float64)
+        fluctuation = dfa_fluctuation(trajectory, window_sizes, order=order)
+        assert torch.allclose(fluctuation, julia_fluctuation, rtol=0, atol=1e-12)
+        assert abs(dfa_exponent(window_sizes, fluctuation).item() - float(lines[1])) < 1e-12

@@ -1,12 +1,13 @@
 """Reproduces, in reduced form, a finding from Gneiting, Sevcikova &
 Percival (2012), "Estimators of fractal dimension: assessing the
 roughness of time series and spatial data", Statistical Science 27(2),
-247-277, Fig. 15: on clean fractional Brownian motion (no outliers,
-correctly specified Gaussian model), their classical variogram
-estimator (power p=2) has *lower* RMSE than the madogram (p=1) --
-"the variogram estimator generally shows the lowest MSE, followed by
-the madogram and rodogram" (their words, describing Fig. 15). Both use
-only lags 1 and 2, the paper's own recommended fit (their eq. 18, L=2).
+247-277, Section 3.2: on clean Gaussian data the variogram estimator
+(power p=2) has lower RMSE than the madogram (p=1). Their Fig. 15 shows
+this for stationary Gaussian processes with powered-exponential
+covariance; the text states that "this ranking is retained" for
+fractional Brownian motion at sufficiently large sample sizes, which is
+the case checked here. Both estimators use lags 1 and 2 only (their
+eq. 18, L=2).
 
 The paper still recommends the madogram as the general-purpose default,
 for its robustness to outliers and model misspecification, which this
@@ -36,7 +37,11 @@ def fractional_gaussian_noise(hurst: float, length: int, dtype=torch.float64) ->
         return 0.5 * (abs(lag - 1) ** (2 * hurst) - 2 * abs(lag) ** (2 * hurst) + abs(lag + 1) ** (2 * hurst))
 
     row = [autocovariance(0)] + [autocovariance(index) for index in range(1, length)] + [0.0] + [autocovariance(index) for index in range(length - 1, 0, -1)]
-    eigenvalues = torch.fft.fft(torch.tensor(row, dtype=dtype).to(torch.complex128)).real.clamp(min=0.0)
+    eigenvalues = torch.fft.fft(torch.tensor(row, dtype=dtype).to(torch.complex128)).real
+    # Clamping only removes rounding-level negatives; a genuinely negative
+    # eigenvalue means the embedding is invalid for this (hurst, length).
+    assert (eigenvalues >= -1e-6).all(), "Davies-Harte embedding is not positive semi-definite for this (hurst, length)"
+    eigenvalues = eigenvalues.clamp(min=0.0)
 
     gaussian_one = torch.randn(2 * length, dtype=dtype)
     gaussian_two = torch.randn(2 * length, dtype=dtype)
@@ -78,12 +83,8 @@ for hurst in hurst_values:
 rmse = {name: (sum(errors) / len(errors)) ** 0.5 for name, errors in squared_error.items()}
 print(f"\nOverall RMSE across all H: madogram={rmse['madogram']:.4f}  variogram={rmse['variogram']:.4f}  higuchi={rmse['higuchi']:.4f}")
 
-assert rmse["variogram"] < rmse["madogram"], "Fig. 15's own ranking on clean Gaussian data: variogram should have the lowest RMSE"
-print("\nMatches Fig. 15's own ranking on clean Gaussian fBm: the variogram (p=2) has lower RMSE than the")
-print("madogram (p=1) here, both fit at lags 1 and 2 only. This is not a contradiction of the paper's overall")
-print("recommendation of the madogram as the general-purpose default -- that recommendation rests on the")
-print("madogram's robustness to outliers/model misspecification, a property this noise-free, correctly")
-print("specified fBm simulation does not exercise. The paper's own simulation grid is much larger (more")
-print("Hurst values, more realizations, several other estimators); this script does not reproduce its exact")
-print("RMSE figures, only this one ranking. Higuchi's dimension is not part of the paper's own comparison;")
-print("printed here only as an additional reference point, with no claim about how it should rank.")
+assert rmse["variogram"] < rmse["madogram"], "the paper's ranking on clean Gaussian data: variogram below madogram"
+print("\nThe variogram (p=2) has lower RMSE than the madogram (p=1) on this clean fBm, the ranking the")
+print("paper reports (its Fig. 15 and Section 3.2). The paper recommends the madogram for robustness to")
+print("outliers, which this simulation does not test. Only the ranking is checked, not the paper's RMSE")
+print("values. Higuchi is not in the paper's comparison and is printed for reference only.")

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope
+from torchnlts._shape import _ensure_batched, _ols_slope, _safe_log
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -71,7 +71,7 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
 
     Raises:
         ValueError: If the feature dim is not 1, the trajectory is
-            complex or contains NaN/inf, ``power <= 0``, ``lag`` is
+            complex or contains NaN/inf, ``power`` is not a finite positive number, ``lag`` is
             empty, or any ``lag`` value is ``< 1`` or non-integer.
     """
     tensor, ndim = _ensure_batched(trajectory)
@@ -80,8 +80,8 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
         raise ValueError("power_variogram does not support complex input")
     if not torch.isfinite(tensor).all():
         raise ValueError("power_variogram requires a finite trajectory (no NaN/inf)")
-    if not power > 0:
-        raise ValueError(f"power must be > 0, got {power}")
+    if not 0 < power < float("inf"):
+        raise ValueError(f"power must be finite and > 0, got {power}")
     dtype = tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
     # Half precision overflows |x|**p for p far from 1; work in float32.
     work_dtype = torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
@@ -142,11 +142,11 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
         whose zero variogram gives ``log(0) = -inf``).
 
     Raises:
-        ValueError: If ``power <= 0``, or ``lag``/``variogram`` do not
+        ValueError: If ``power`` is not a finite positive number, or ``lag``/``variogram`` do not
             have the documented shapes with matching sweep lengths.
     """
-    if not power > 0:
-        raise ValueError(f"power must be > 0, got {power}")
-    log_lag = torch.log(torch.as_tensor(lag, dtype=variogram.dtype, device=variogram.device))
-    slope = _ols_slope(log_lag, torch.log(variogram))
+    if not 0 < power < float("inf"):
+        raise ValueError(f"power must be finite and > 0, got {power}")
+    log_lag = torch.log(torch.as_tensor(lag, dtype=torch.float64, device=variogram.device))
+    slope = _ols_slope(log_lag, _safe_log(variogram))
     return 2.0 - slope / power
