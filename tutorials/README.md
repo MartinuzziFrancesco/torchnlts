@@ -96,3 +96,13 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   x, and white noise from close to 1 (smooth) to close to 2 (maximally
   rough), the same three signals `entropy_measures.py` compares with
   embedding-based measures instead.
+- `katz_weierstrass_esteller.py`: Katz (1988), following Esteller et al.
+  (2001) -- `torchnlts.dimension.katz` on Weierstrass cosine functions of
+  known dimension: Katz increases with the true dimension but is biased
+  low and compressed toward 1, while Higuchi tracks it (qualitative match).
+- `petrosian_dimension_signals.py`: Petrosian (1995) --
+  `torchnlts.dimension.petrosian`'s sign-change-based dimension on a sine
+  wave, Lorenz x, and white noise, and why its ordering depends on sampling.
+- `dfa_noise_scaling.py`: Peng et al. (1994) / Kantelhardt et al. (2001) --
+  `torchnlts.dimension.dfa`'s exponent on white, 1/f, and Brownian noise,
+  near the asymptotic 0.5 / 1.0 / 1.5.

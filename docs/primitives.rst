@@ -166,6 +166,26 @@ Updated in the same commit that adds or changes a primitive.
      - `Higuchi (1988) <https://doi.org/10.1016/0167-2789(88)90081-4>`__
      - none directly (this codebase doesn't replicate FractalDimensions.jl's ``higuchi_dim``'s own automatic linear-region selection, same "caller picks the sweep" convention as ``correlation_dimension``/``generalized_dimension`` -- confirmed both functions can genuinely disagree, e.g. a sine wave over strides 1-20 gives 1.274 here against Julia's own region-restricted 1.052); ``higuchi_length`` itself is validated against Julia's own ``higuchi_length`` above, and this module's OLS-slope formula is validated directly on hand-derived power-law examples
 
+   * - :doc:`katz_dimension <generated/torchnlts.dimension.katz.katz_dimension>`
+     - piecewise
+     - `Katz (1988) <https://doi.org/10.1016/0010-4825(88)90041-8>`__
+     - `antropy <https://github.com/raphaelvallat/antropy>`__ (``katz_fd``; exact match with ``amplitude_only=True``, antropy's amplitude-differences-only variant; the default measures distances in the (index, amplitude) plane); no Julia equivalent
+
+   * - :doc:`petrosian_dimension <generated/torchnlts.dimension.petrosian.petrosian_dimension>`
+     - none
+     - `Petrosian (1995) <https://doi.org/10.1109/CBMS.1995.465426>`__
+     - `antropy <https://github.com/raphaelvallat/antropy>`__ (``petrosian_fd``; exact match, including its zero/negative-zero sign convention); no Julia equivalent
+
+   * - :doc:`dfa_fluctuation <generated/torchnlts.dimension.dfa.dfa_fluctuation>`
+     - exact
+     - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__; order-n detrending from `Kantelhardt et al. (2001) <https://doi.org/10.1016/S0378-4371(01)00144-3>`__
+     - `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``overlap=False, fit_trend='poly'``; matches to 1e-15 at orders 0-3) and `antropy <https://github.com/raphaelvallat/antropy>`__ (``detrended_fluctuation``, order 1); no Julia equivalent
+
+   * - :doc:`dfa_exponent <generated/torchnlts.dimension.dfa.dfa_exponent>`
+     - exact
+     - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__
+     - `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``fit_exp='poly'``); also checked on white noise (alpha near 0.5) and Brownian motion (alpha near 1.5)
+
    * - :doc:`sample_entropy <generated/torchnlts.entropy.sample.sample_entropy>`
      - none
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3
