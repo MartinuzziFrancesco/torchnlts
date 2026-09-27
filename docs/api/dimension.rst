@@ -17,3 +17,5 @@ Fractal dimension estimation -- the ``torchnlts.dimension`` subpackage.
    torchnlts.dimension.higuchi.higuchi_dimension
    torchnlts.dimension.katz.katz_dimension
    torchnlts.dimension.petrosian.petrosian_dimension
+   torchnlts.dimension.variogram.power_variogram
+   torchnlts.dimension.variogram.variogram_dimension

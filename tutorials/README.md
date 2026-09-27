@@ -103,6 +103,11 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `petrosian_dimension_signals.py`: Petrosian (1995) --
   `torchnlts.dimension.petrosian`'s sign-change-based dimension on a sine
   wave, Lorenz x, and white noise, and why its ordering depends on sampling.
+- `variogram_dimension_fbm.py`: Gneiting, Ševčíková & Percival (2012) --
+  `torchnlts.dimension.variogram`'s madogram and variogram estimates on
+  fractional Brownian motion of known dimension, reproducing their Fig. 15
+  ranking (variogram has the lower error on clean Gaussian data; the
+  madogram is their default for robustness to outliers).
 - `dfa_noise_scaling.py`: Peng et al. (1994) / Kantelhardt et al. (2001) --
   `torchnlts.fluctuations.dfa`'s exponent on white, 1/f, and Brownian noise,
   near the asymptotic 0.5 / 1.0 / 1.5.

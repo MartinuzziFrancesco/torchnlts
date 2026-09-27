@@ -176,6 +176,16 @@ Updated in the same commit that adds or changes a primitive.
      - `Petrosian (1995) <https://doi.org/10.1109/CBMS.1995.465426>`__
      - `antropy <https://github.com/raphaelvallat/antropy>`__ (``petrosian_fd``; exact match, including its zero/negative-zero sign convention); no Julia equivalent
 
+   * - :doc:`power_variogram <generated/torchnlts.dimension.variogram.power_variogram>`
+     - exact (``power=2``), piecewise (``power<=1``)
+     - `Gneiting, Ševčíková & Percival (2012) <https://doi.org/10.1214/11-STS370>`__, eq. 16
+     - `fractaldim <https://github.com/cran/fractaldim>`__ (``fd.Variation``; normalization checked by reading its R source, R not available to run); hand-derived example; no Python/Julia equivalent
+
+   * - :doc:`variogram_dimension <generated/torchnlts.dimension.variogram.variogram_dimension>`
+     - exact
+     - `Gneiting, Ševčíková & Percival (2012) <https://doi.org/10.1214/11-STS370>`__, eqs. 17-18
+     - `fractaldim <https://github.com/cran/fractaldim>`__ (``fd.estim.variogram``/``fd.estim.madogram``, source read); validated on a straight line (D=1), Brownian motion (D near 1.5) and exact Davies-Harte fBm (D near 2 - H for H in 0.2-0.8)
+
    * - :doc:`dfa_fluctuation <generated/torchnlts.fluctuations.dfa.dfa_fluctuation>`
      - exact
      - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__; order-n detrending from `Kantelhardt et al. (2001) <https://doi.org/10.1016/S0378-4371(01)00144-3>`__
