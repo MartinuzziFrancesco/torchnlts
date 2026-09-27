@@ -218,17 +218,12 @@ def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
 
     Returns:
         D_q estimate(s), shape ``[]`` for an unbatched ``entropy`` or
-        ``[B]`` for a batched one. ``NaN`` if ``box_size`` has a single
-        value, or repeated values whose ``-log`` is exactly
-        representable (e.g. all ``1.0``), leaving an exactly-zero
-        denominator -- same caveat as
-        :func:`torchnlts.dimension.correlation.correlation_dimension`'s
-        own ``radius``, since both feed the identical
-        :func:`torchnlts._shape._ols_slope` centering logic. Repeated
-        values that aren't exactly representable (e.g. all ``0.1``,
-        confirmed directly: 11 repeats give an ill-conditioned ``0.0``,
-        not ``NaN``) instead give an ill-conditioned, not reliably
-        ``NaN``, result -- pass a genuinely varied ``box_size`` sweep.
+        ``[B]`` for a batched one. ``NaN`` if ``box_size`` has fewer than
+        two distinct values.
+
+    Raises:
+        ValueError: If ``box_size``/``entropy`` do not have the documented
+            shapes with matching sweep lengths.
     """
     neg_log_size = -torch.log(torch.as_tensor(box_size, dtype=entropy.dtype, device=entropy.device))
     return _ols_slope(neg_log_size, entropy)

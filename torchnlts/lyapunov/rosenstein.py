@@ -241,10 +241,7 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
     Returns:
         Largest Lyapunov exponent estimate(s), shape ``[]`` for an
         unbatched ``divergence`` or ``[B]`` for a batched one. ``NaN`` if
-        ``k_values`` has a single value or repeated values (an
-        exactly-zero denominator -- see
-        :func:`torchnlts.dimension.correlation.correlation_dimension`'s
-        docstring for the float-exactness caveat on "repeated"), or
+        ``k_values`` has fewer than two distinct values, or
         propagated from any ``NaN`` in ``divergence`` itself.
 
     Raises:
@@ -252,6 +249,4 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
             with matching sweep lengths.
     """
     k_values = torch.as_tensor(k_values, dtype=divergence.dtype, device=divergence.device)
-    if k_values.dim() != 1 or divergence.dim() not in (1, 2) or k_values.shape[0] != divergence.shape[0]:
-        raise ValueError("expected k_values [K] and divergence [K] or [K, B] with matching K")
     return _ols_slope(k_values, divergence)

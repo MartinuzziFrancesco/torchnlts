@@ -435,5 +435,5 @@ def test_rosenstein_lyapunov_rejects_mismatched_sweep_shapes():
                                  ([[0, 1]], torch.tensor([1., 2.])),
                                  ([0, 1], torch.ones(2, 1, 1)),
                                  (0, torch.tensor(1.))):
-        with pytest.raises(ValueError, match='matching K'):
+        with pytest.raises(ValueError, match='matching'):
             rosenstein_lyapunov(k_values, divergence)

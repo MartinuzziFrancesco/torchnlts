@@ -184,14 +184,14 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
         limiting Higuchi dimension is theoretically bounded there --
         confirmed directly: this module's own hand-derived test example
         (an 8-point series at a 2-stride sweep) gives ``3.263``. ``NaN``
-        if ``k`` has a single value, or repeated values whose ``log``
-        is exactly representable (e.g. all ``1``), leaving an
-        exactly-zero denominator -- same caveat as
-        ``correlation_dimension``'s own ``radius`` (both feed the
-        identical :func:`torchnlts._shape._ols_slope` centering logic).
+        if ``k`` has fewer than two distinct values.
         ``NaN`` also if any ``length`` entry is non-positive or itself
         ``NaN`` (e.g. a degenerate ``k``, see :func:`higuchi_length`'s
         own Returns section).
+
+    Raises:
+        ValueError: If ``k``/``length`` do not have the documented
+            shapes with matching sweep lengths.
     """
     neg_log_k = -torch.log(torch.as_tensor(k, dtype=length.dtype, device=length.device))
     return _ols_slope(neg_log_k, torch.log(length))

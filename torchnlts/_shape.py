@@ -73,14 +73,24 @@ def _ols_slope(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
     Returns:
         Slope estimate(s), shape ``[]`` for an unbatched ``y`` or ``[B]``
-        for a batched one. ``NaN`` if ``x`` has a single value or repeated
-        values (an exactly-zero denominator; see callers for float
-        exactness caveats on "repeated").
+        for a batched one. ``NaN`` if ``x`` has fewer than two distinct
+        values.
+
+    Raises:
+        ValueError: If ``x``/``y`` do not have the shapes above with
+            matching ``R``.
     """
+    if x.dim() != 1 or y.dim() not in (1, 2) or x.shape[0] != y.shape[0]:
+        raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(x.shape)} and {tuple(y.shape)}")
     x = x.view((-1,) + (1,) * (y.dim() - 1))
     x_centered = x - x.mean(dim=0, keepdim=True)
     y_centered = y - y.mean(dim=0, keepdim=True)
-    return (x_centered * y_centered).sum(dim=0) / (x_centered * x_centered).sum(dim=0)
+    slope = (x_centered * y_centered).sum(dim=0) / (x_centered * x_centered).sum(dim=0)
+    # Checked on x itself: centering repeated values can leave a tiny
+    # nonzero denominator from rounding instead of an exact zero. A tensor
+    # mask, not a Python branch, so vmap still works.
+    repeated = (x == x[:1]).all()
+    return torch.where(repeated, torch.full_like(slope, float("nan")), slope)
 
 
 def _validate_square_matrix(matrix: torch.Tensor) -> None:

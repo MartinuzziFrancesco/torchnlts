@@ -1,6 +1,7 @@
+import pytest
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch, _restore_shape_preserving
+from torchnlts._shape import _ensure_batched, _ols_slope, _restore_batch, _restore_shape_preserving
 
 
 def test_ensure_batched_1d():
@@ -73,3 +74,22 @@ def test_restore_shape_preserving_rejects_bad_ndim():
     except ValueError:
         return
     raise AssertionError("expected ValueError for ndim=4")
+
+
+def test_ols_slope_repeated_sweep_is_nan():
+    # log(0.1) repeated: centering leaves a rounding-sized nonzero
+    # denominator, which used to give a finite slope instead of NaN.
+    sweep = torch.log(torch.full((11,), 0.1, dtype=torch.float64))
+    values = torch.arange(1.0, 12.0, dtype=torch.float64)
+    assert torch.isnan(_ols_slope(sweep, values))
+    assert torch.isnan(_ols_slope(sweep, values.unsqueeze(-1).repeat(1, 3))).all()
+
+
+def test_ols_slope_mismatched_lengths_raise():
+    with pytest.raises(ValueError, match="matching"):
+        _ols_slope(torch.tensor([1.0, 2.0]), torch.tensor([2.0]))
+
+
+def test_ols_slope_supports_vmap():
+    sweep = torch.tensor([[1.0, 2.0, 3.0], [2.0, 4.0, 8.0]])
+    assert torch.allclose(torch.vmap(_ols_slope)(sweep, 2 * sweep + 1), torch.tensor([2.0, 2.0]))

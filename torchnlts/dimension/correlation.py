@@ -129,16 +129,13 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
     Returns:
         Slope estimate(s), shape ``[]`` for an unbatched
         ``correlation_sum`` or ``[B]`` for a batched one. ``NaN`` if
-        ``radius`` has a single value, or repeated values whose
-        ``log`` is exactly representable (e.g. all ``1.0``), leaving
-        an exactly-zero denominator. Repeated values that aren't
-        exactly representable (e.g. all ``0.1``) instead give an
-        ill-conditioned, not reliably ``NaN`` result, since
-        floating-point rounding in the centering step can leave a
-        near-zero-but-nonzero denominator -- pass a genuinely varied
-        radius sweep. ``NaN`` also if any ``correlation_sum`` entry is
+        ``radius`` has fewer than two distinct values. ``NaN`` also if any ``correlation_sum`` entry is
         non-positive (``log`` of it is ``-inf``/``NaN``, e.g. a fully
         Theiler-excluded radius).
+
+    Raises:
+        ValueError: If ``radius``/``correlation_sum`` do not have the documented
+            shapes with matching sweep lengths.
     """
     log_radius = torch.log(torch.as_tensor(radius, dtype=correlation_sum.dtype, device=correlation_sum.device))
     return _ols_slope(log_radius, torch.log(correlation_sum))
