@@ -104,5 +104,5 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   `torchnlts.dimension.petrosian`'s sign-change-based dimension on a sine
   wave, Lorenz x, and white noise, and why its ordering depends on sampling.
 - `dfa_noise_scaling.py`: Peng et al. (1994) / Kantelhardt et al. (2001) --
-  `torchnlts.dimension.dfa`'s exponent on white, 1/f, and Brownian noise,
+  `torchnlts.fluctuations.dfa`'s exponent on white, 1/f, and Brownian noise,
   near the asymptotic 0.5 / 1.0 / 1.5.

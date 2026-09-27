@@ -176,12 +176,12 @@ Updated in the same commit that adds or changes a primitive.
      - `Petrosian (1995) <https://doi.org/10.1109/CBMS.1995.465426>`__
      - `antropy <https://github.com/raphaelvallat/antropy>`__ (``petrosian_fd``; exact match, including its zero/negative-zero sign convention); no Julia equivalent
 
-   * - :doc:`dfa_fluctuation <generated/torchnlts.dimension.dfa.dfa_fluctuation>`
+   * - :doc:`dfa_fluctuation <generated/torchnlts.fluctuations.dfa.dfa_fluctuation>`
      - exact
      - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__; order-n detrending from `Kantelhardt et al. (2001) <https://doi.org/10.1016/S0378-4371(01)00144-3>`__
      - `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``overlap=False, fit_trend='poly'``; matches to 1e-15 at orders 0-3) and `antropy <https://github.com/raphaelvallat/antropy>`__ (``detrended_fluctuation``, order 1); no Julia equivalent
 
-   * - :doc:`dfa_exponent <generated/torchnlts.dimension.dfa.dfa_exponent>`
+   * - :doc:`dfa_exponent <generated/torchnlts.fluctuations.dfa.dfa_exponent>`
      - exact
      - `Peng et al. (1994) <https://doi.org/10.1103/PhysRevE.49.1685>`__
      - `nolds <https://github.com/CSchoel/nolds>`__ (``dfa`` with ``fit_exp='poly'``); also checked on white noise (alpha near 0.5) and Brownian motion (alpha near 1.5)

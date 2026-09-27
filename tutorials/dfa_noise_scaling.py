@@ -15,7 +15,7 @@ the white-to-Brownian difference comes out near, not exactly at, 1.
 
 import torch
 
-from torchnlts.dimension.dfa import dfa_exponent, dfa_fluctuation
+from torchnlts.fluctuations.dfa import dfa_exponent, dfa_fluctuation
 
 torch.manual_seed(0)
 num_points = 8000

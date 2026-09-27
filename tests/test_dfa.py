@@ -1,4 +1,4 @@
-"""Tests for torchnlts.dimension.dfa.
+"""Tests for torchnlts.fluctuations.dfa.
 
 Dual ground truth:
   1. Paper: Peng et al. (1994) -- checked via a hand-derived example.
@@ -10,7 +10,7 @@ Dual ground truth:
 import pytest
 import torch
 
-from torchnlts.dimension.dfa import dfa_exponent, dfa_fluctuation
+from torchnlts.fluctuations.dfa import dfa_exponent, dfa_fluctuation
 
 
 def test_dfa_fluctuation_hand_derived():

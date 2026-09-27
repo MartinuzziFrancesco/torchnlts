@@ -17,5 +17,3 @@ Fractal dimension estimation -- the ``torchnlts.dimension`` subpackage.
    torchnlts.dimension.higuchi.higuchi_dimension
    torchnlts.dimension.katz.katz_dimension
    torchnlts.dimension.petrosian.petrosian_dimension
-   torchnlts.dimension.dfa.dfa_fluctuation
-   torchnlts.dimension.dfa.dfa_exponent
