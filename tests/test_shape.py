@@ -1,7 +1,9 @@
+import math
+
 import pytest
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope, _restore_batch, _restore_shape_preserving, _safe_log
+from torchnlts._shape import _ensure_batched, _ols_slope, _output_dtype, _restore_batch, _restore_shape_preserving, _safe_log, _work_dtype
 
 
 def test_ensure_batched_1d():
@@ -196,3 +198,40 @@ def test_slope_callers_zero_sweep_does_not_poison_shared_gradient():
         assert torch.isnan(result)
         (gradient,) = torch.autograd.grad(torch.nan_to_num(result) + parameter, parameter)
         assert gradient.item() == 1.0
+
+
+def test_slope_callers_keep_sweep_precision_and_accept_integer_values():
+    from torchnlts.dimension.correlation import correlation_dimension
+    from torchnlts.dimension.generalized import generalized_dimension
+    from torchnlts.lyapunov.rosenstein import rosenstein_lyapunov
+
+    # Integer values with a fractional sweep: the sweep used to be cast to int.
+    assert torch.isclose(correlation_dimension([0.25, 0.5, 1.0], torch.tensor([1, 2, 4])), torch.tensor(1.0))
+    assert torch.isfinite(generalized_dimension([0.25, 0.5, 1.0], torch.tensor([1, 2, 4])))
+    # float64 sweep points that float32 cannot separate (2**24 + 1).
+    sweep = torch.tensor([16777216.0, 16777217.0, 16777218.0], dtype=torch.float64)
+    assert torch.isclose(rosenstein_lyapunov(sweep, torch.tensor([0.0, 1.0, 2.0])), torch.tensor(1.0))
+
+
+def test_work_dtype_promotes_bfloat16():
+    assert _work_dtype(torch.bfloat16) == torch.float32
+    assert _work_dtype(torch.float16) == torch.float32
+    assert _work_dtype(torch.int64) == torch.get_default_dtype()
+    assert _work_dtype(torch.float64) == torch.float64
+
+
+def test_distance_based_functions_accept_integer_and_half_input():
+    from torchnlts.dimension.correlation import correlation_sum, soft_correlation_sum
+    from torchnlts.dimension.generalized import box_counting_entropy
+    from torchnlts.lyapunov.rosenstein import rosenstein_divergence
+
+    reference = torch.arange(8.0, dtype=torch.float64)
+    for trajectory in (torch.arange(8), reference.half(), reference.bfloat16()):
+        expected_dtype = _output_dtype(trajectory)
+        for function in (lambda values: correlation_sum(values, 2), lambda values: soft_correlation_sum(values, 2), lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1)):
+            result = function(trajectory)
+            assert result.dtype == expected_dtype
+            assert torch.allclose(result.double(), function(reference), atol=1e-2, equal_nan=True)
+    # Integer input to box counting used to return a truncated int64 entropy.
+    entropy = box_counting_entropy(torch.tensor([0, 1]), 1)
+    assert entropy.is_floating_point() and torch.isclose(entropy.double(), torch.tensor(math.log(2), dtype=torch.float64))

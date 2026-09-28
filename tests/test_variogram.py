@@ -349,3 +349,27 @@ def test_variogram_dimension_half_close_values_and_integer_input():
     assert torch.isclose(half.float(), variogram_dimension([1000, 1001], torch.tensor([10000.0, 10008.0], dtype=torch.float64)).float(), atol=2e-3)
     integer = variogram_dimension([1, 2], torch.tensor([1, 4]))
     assert integer.dtype == torch.get_default_dtype() and integer.item() == 1.0
+
+
+def test_variogram_complex_lag_raises():
+    for lag in (torch.tensor([1 + 2j, 2 + 3j]), [1 + 0j, 2 + 0j]):
+        with pytest.raises(ValueError):
+            power_variogram(torch.arange(5.0), lag)
+        with pytest.raises(ValueError):
+            variogram_dimension(lag, torch.tensor([1.0, 4.0]))
+
+
+def test_fgn_generator_rejects_invalid_embedding():
+    # Davies-Harte's circulant embedding has negative eigenvalues for H close
+    # to 1 at short lengths; the generators must refuse rather than clip.
+    import pathlib
+
+    with pytest.raises(AssertionError):
+        _fgn_davies_harte(0.9, 4)
+    # The tutorial's generator: run the script's definitions only (it starts
+    # its simulation at torch.manual_seed).
+    source = (pathlib.Path(__file__).parent.parent / "tutorials" / "variogram_dimension_fbm.py").read_text()
+    namespace = {}
+    exec(source[: source.index("torch.manual_seed(0)")], namespace)
+    with pytest.raises(AssertionError):
+        namespace["fractional_gaussian_noise"](0.95, 16)

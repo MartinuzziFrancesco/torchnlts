@@ -259,3 +259,14 @@ def test_katz_dimension_pole_with_offset_is_nan():
         trajectory = torch.tensor([1000.0, 1001.0, 999.5, 1000.0], dtype=dtype)
         assert torch.isnan(katz_dimension(trajectory, amplitude_only=True))
         assert torch.isfinite(katz_dimension(trajectory))
+
+
+def test_katz_dimension_resolved_value_near_pole_is_kept():
+    # 1000-point alternating series with the last value moved by 0.1:
+    # n d - L = 0.1, a relative gap of 1e-4, well above rounding. D is large
+    # (about 69000) but determined; float32 must agree with float64.
+    trajectory = (torch.arange(1000) % 2).to(torch.float32)
+    trajectory[-1] -= 0.1
+    single = katz_dimension(trajectory, amplitude_only=True)
+    double = katz_dimension(trajectory.double(), amplitude_only=True)
+    assert torch.isfinite(single) and abs(single.item() / double.item() - 1) < 1e-3

@@ -361,14 +361,20 @@ def test_dfa_matches_fluctuationanalysis_jl():
 
 
 def test_dfa_fluctuation_large_amplitude_gradient_is_scale_invariant():
-    # F is homogeneous of degree 1, so dF/dx does not depend on the amplitude;
-    # backward through sqrt(...) * 5e37 used to overflow to NaN.
+    # F is homogeneous of degree 1, so dF/dx does not depend on the amplitude.
     base = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0])
     unit = base.clone().requires_grad_(True)
     (unit_gradient,) = torch.autograd.grad(dfa_fluctuation(unit, 4), unit)
-    large = (base * 5e37).requires_grad_(True)
+    large = (base * 1e20).requires_grad_(True)
     (large_gradient,) = torch.autograd.grad(dfa_fluctuation(large, 4), large)
     assert torch.allclose(large_gradient, unit_gradient, atol=1e-6)
+
+
+def test_dfa_fluctuation_second_derivative():
+    # The amplitude scaling must be exact for double backward too (a
+    # forward-only scaling trick gave a Hessian off by the scale factor).
+    trajectory = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0], dtype=torch.float64, requires_grad=True)
+    assert torch.autograd.gradgradcheck(lambda series: dfa_fluctuation(series, 4), (trajectory,))
 
 
 def test_dfa_fluctuation_small_kept_window_next_to_large_dropped_samples():

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch
+from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch, _work_dtype
 
 
 def pairwise_distance(
@@ -30,7 +30,9 @@ def pairwise_distance(
             Manhattan, ``float('inf')`` = Chebyshev).
 
     Returns:
-        Distance matrix of shape ``[T, T']`` or ``[B, T, T']``.
+        Distance matrix of shape ``[T, T']`` or ``[B, T, T']``, in the
+        input's floating dtype (the default dtype for integer input,
+        float32 for half precision).
     """
     batched, ndim = _ensure_batched(trajectory)
     if other is None:
@@ -38,6 +40,9 @@ def pairwise_distance(
     else:
         other_batched, other_ndim = _ensure_batched(other)
         _validate_matching_batch(batched, other_batched, ndim, other_ndim)
+    # cdist supports neither integer nor (on CPU) half precision.
+    batched = batched.to(_work_dtype(batched.dtype))
+    other_batched = other_batched.to(_work_dtype(other_batched.dtype))
     # compute_mode forced: torch.cdist's default matmul path for p=2
     # loses precision in float32 for points sharing a large offset.
     distance = torch.cdist(batched, other_batched, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")

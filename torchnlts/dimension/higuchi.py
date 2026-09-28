@@ -60,7 +60,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _work_dtype
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -120,38 +120,26 @@ def higuchi_length(trajectory, k) -> torch.Tensor:
 
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1,
-            ``k`` is empty, or any ``k`` value is ``< 1`` or non-integer.
+            the trajectory is complex or contains NaN/inf, ``k`` is
+            empty or complex, or any ``k`` value is ``< 1`` or non-integer.
     """
     tensor, ndim = _ensure_batched(trajectory)
     _require_univariate(tensor)
-    values = tensor.squeeze(-1)  # [B, T]
+    if tensor.is_complex():
+        raise ValueError("higuchi_length does not support complex input")
+    if not torch.isfinite(tensor).all():
+        raise ValueError("higuchi_length requires a finite trajectory (no NaN/inf)")
+    dtype = _output_dtype(tensor)
+    values = tensor.squeeze(-1).to(_work_dtype(dtype))  # [B, T]
 
-    # dtype=float64 regardless of k's own dtype/Python-float precision:
-    # torch.as_tensor on a plain Python float otherwise defaults to
-    # float32 (torch.get_default_dtype()), which can silently round a
-    # genuinely fractional value (e.g. 1.00000001) to an exact integer
-    # before the integrality check below ever sees it -- confirmed
-    # directly, the identical value passed as an explicit float64
-    # tensor was correctly rejected while the plain float wasn't.
-    k_tensor = torch.as_tensor(k, dtype=torch.float64)
-    swept = k_tensor.dim() > 0
-    flat_k = k_tensor.reshape(-1)
-    if flat_k.numel() == 0:
-        raise ValueError("k must not be empty")
-    if not torch.isfinite(flat_k).all():
-        raise ValueError(f"k must be finite, got {flat_k.tolist()}")
-    if not torch.equal(flat_k, flat_k.round()):
-        raise ValueError(f"k must be integer-valued, got {flat_k.tolist()}")
-    k_list = [int(value) for value in flat_k.tolist()]
-    if any(value < 1 for value in k_list):
-        raise ValueError(f"k must be >= 1, got {k_list}")
+    k_list, swept = _as_positive_int_list(k, "k")
 
     lengths = torch.stack([_higuchi_length_single_k(values, value) for value in k_list], dim=0)  # [K, B]
     if not swept:
         lengths = lengths.squeeze(0)
     if ndim != 3:
         lengths = lengths.squeeze(-1)
-    return lengths
+    return lengths.to(dtype)
 
 
 def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
@@ -193,5 +181,5 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
         ValueError: If ``k``/``length`` do not have the documented
             shapes with matching sweep lengths.
     """
-    neg_log_k = -_safe_log(torch.as_tensor(k, dtype=torch.float64, device=length.device))
+    neg_log_k = -_safe_log(_as_sweep(k, length.device))
     return _ols_slope(neg_log_k, _safe_log(length)).to(_output_dtype(length))

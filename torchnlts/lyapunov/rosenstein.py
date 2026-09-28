@@ -33,7 +33,7 @@ import operator
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope
+from torchnlts._shape import _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
 from torchnlts.neighbors.theiler import _require_self_exclusion
@@ -136,6 +136,8 @@ def rosenstein_divergence(
     embedding_delay = 1 if embedding_dim == 1 and delay >= 1 else delay
     embedded = delay_embedding(trajectory, embedding_dim, embedding_delay)
     batched, ndim = _ensure_batched(embedded)
+    dtype = _output_dtype(batched)
+    batched = batched.to(_work_dtype(dtype))
     # Limitation: same OverflowError class, this time in
     # theiler_window_mask's `abs() > window` comparison against an
     # astronomically large Python int. Larger-than-the-trajectory
@@ -192,8 +194,12 @@ def rosenstein_divergence(
         # local gradient there); substituting 1 (log(1) = 0, and its
         # gradient 1/1 = 1 is finite) avoids that without touching any
         # valid position, including a genuinely-zero one (see Returns).
-        safe_divergence = torch.where(valid, divergence, torch.ones_like(divergence))
-        log_divergence = torch.log(safe_divergence)
+        # A genuine zero at a valid position keeps its -inf forward value
+        # (see Returns) but is also given a safe operand, so log(0)'s
+        # infinite gradient cannot reach a parameter shared with other rows.
+        usable = valid & (divergence > 0)
+        safe_divergence = torch.where(usable, divergence, torch.ones_like(divergence))
+        log_divergence = torch.where(valid & ~usable, torch.full_like(divergence, float("-inf")), torch.log(safe_divergence))
         masked_log_divergence = torch.where(valid, log_divergence, torch.zeros_like(log_divergence))
         curve.append(masked_log_divergence.sum(dim=-1) / valid_count)
 
@@ -202,7 +208,7 @@ def rosenstein_divergence(
     # `[K, B]`, batch trailing rather than leading, matching
     # `correlation_sum`'s own sweep convention -- so the batch axis to
     # drop for an unbatched trajectory is always the *last* one here.
-    return result.squeeze(-1) if ndim != 3 else result
+    return (result.squeeze(-1) if ndim != 3 else result).to(dtype)
 
 
 def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> torch.Tensor:
@@ -248,5 +254,4 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
         ValueError: If the inputs do not have the documented shapes
             with matching sweep lengths.
     """
-    k_values = torch.as_tensor(k_values, dtype=divergence.dtype, device=divergence.device)
-    return _ols_slope(k_values, divergence)
+    return _ols_slope(_as_sweep(k_values, divergence.device), divergence)

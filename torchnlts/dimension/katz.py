@@ -70,8 +70,8 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
         D, shape ``[]`` unbatched or ``[B]`` batched. ``NaN`` when the
         formula is undefined: fewer than 3 points, ``L = 0`` (a constant
         series with ``amplitude_only=True``), or a denominator that is zero
-        to within rounding (``d / L`` at ``1 / n``, where ``|D|`` would
-        exceed about ``1 / (8 * log2(T) * eps)`` and is not determined by the data). A constant series gives ``D = 1`` in the
+        to within rounding (``|n d - L| / L`` below ``8 * log2(T) * eps``, where
+        ``D`` is not determined by the data). A constant series gives ``D = 1`` in the
         plane (a straight line).
 
     Raises:
@@ -103,20 +103,22 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     index_step = None if amplitude_only else 1.0 / scale
     length = _curve_length(values, index_step)
     extent = _planar_extent(values, index_step)
-    log_num_steps = torch.log10(torch.tensor(float(num_points - 1), dtype=work_dtype, device=values.device))
-    # The denominator vanishes at d / L = 1 / n, where D has a pole. Near it
-    # D is not determined by the data (the denominator is at rounding level),
-    # so such rows, and rows with L = 0, are NaN. They are found first and
-    # given safe operands before the division, so their arithmetic cannot
-    # put NaN into the gradients of other rows.
+    num_steps = num_points - 1
+    log_num_steps = torch.log10(torch.tensor(float(num_steps), dtype=work_dtype, device=values.device))
+    # The denominator log10(n) + log10(d / L) = log10(1 + (n d - L) / L) has a
+    # pole at n d = L. Computed from the gap n d - L with log1p it stays
+    # accurate near the pole; rows whose relative gap is at rounding level
+    # (one rounding in n d, about log2(T) in the sum L) have a D that is
+    # not determined by the data and are NaN, as are rows with L = 0. They
+    # get safe operands (d = L = 1) before the division, so their
+    # arithmetic cannot put NaN into the gradients of other rows.
     with torch.no_grad():
         zero_length = length == 0
-        log_ratio = torch.log10(extent / torch.where(zero_length, torch.ones_like(length), length))
-        # Summing n distances adds about log2(n) rounding steps to L.
-        rounding = 8 * math.log2(num_points) * torch.finfo(work_dtype).eps * (log_num_steps + log_ratio.abs())
-        degenerate = zero_length | ((log_num_steps + log_ratio).abs() <= rounding)
+        relative_gap = (extent * num_steps - length) / torch.where(zero_length, torch.ones_like(length), length)
+        degenerate = zero_length | (relative_gap.abs() <= 8 * math.log2(num_points) * torch.finfo(work_dtype).eps)
     safe_extent = torch.where(degenerate, torch.ones_like(extent), extent)
     safe_length = torch.where(degenerate, torch.ones_like(length), length)
-    result = log_num_steps / (log_num_steps + torch.log10(safe_extent / safe_length))
+    denominator = torch.log1p((safe_extent * num_steps - safe_length) / safe_length) / math.log(10)
+    result = log_num_steps / denominator
     result = torch.where(degenerate, torch.full_like(result, float("nan")), result)
     return _restore_batch(result.to(dtype), ndim)

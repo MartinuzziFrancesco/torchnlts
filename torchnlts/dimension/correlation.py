@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _broadcast_over_matrix, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_sweep, _broadcast_over_matrix, _ols_slope, _output_dtype, _safe_log
+from torchnlts.convert import as_tensor
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 from torchnlts.neighbors.theiler import theiler_window_mask
@@ -56,7 +57,7 @@ def correlation_sum(trajectory, radius, theiler_window: int = 0, norm_order: flo
     radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     within_radius = distance <= _broadcast_over_matrix(radius, distance)
-    return (within_radius & mask).sum(dim=(-2, -1)).to(distance.dtype) / mask.sum()
+    return ((within_radius & mask).sum(dim=(-2, -1)).to(distance.dtype) / mask.sum()).to(_output_dtype(as_tensor(trajectory)))
 
 
 def soft_correlation_sum(
@@ -90,7 +91,7 @@ def soft_correlation_sum(
     temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
     weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    return torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()
+    return (torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()).to(_output_dtype(as_tensor(trajectory)))
 
 
 def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -> torch.Tensor:
@@ -137,5 +138,5 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
         ValueError: If ``radius``/``correlation_sum`` do not have the documented
             shapes with matching sweep lengths.
     """
-    log_radius = _safe_log(torch.as_tensor(radius, dtype=correlation_sum.dtype, device=correlation_sum.device))
+    log_radius = _safe_log(_as_sweep(radius, correlation_sum.device))
     return _ols_slope(log_radius, _safe_log(correlation_sum)).to(_output_dtype(correlation_sum))

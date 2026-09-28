@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy
 import torch
 
 from torchnlts.convert import as_tensor
@@ -71,6 +72,53 @@ def _work_dtype(dtype: torch.dtype) -> torch.dtype:
     return torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
 
 
+def _is_complex(value) -> bool:
+    """Whether ``value`` (tensor, numpy array, or Python number/sequence) is complex."""
+    return value.is_complex() if torch.is_tensor(value) else numpy.iscomplexobj(value)
+
+
+def _as_sweep(value, device) -> torch.Tensor:
+    """Sweep points (radii, strides, lags, ...) as a floating tensor.
+
+    A floating tensor keeps its own dtype (casting it to the values' dtype
+    could merge distinct points); anything else becomes float64.
+
+    Raises:
+        ValueError: If ``value`` is complex.
+    """
+    if _is_complex(value):
+        raise ValueError(f"sweep must be real, got {value!r}")
+    if torch.is_tensor(value):
+        return value.to(device) if value.is_floating_point() else value.to(device=device, dtype=torch.float64)
+    return torch.as_tensor(value, dtype=torch.float64, device=device)
+
+
+def _as_positive_int_list(value, name: str) -> tuple[list[int], bool]:
+    """Validate a positive-integer scalar or non-empty sweep.
+
+    Returns:
+        The values as Python ints, and whether ``value`` was a sweep.
+
+    Raises:
+        ValueError: If ``value`` is complex, empty, non-finite,
+            non-integer, or has a value ``< 1``.
+    """
+    if _is_complex(value):
+        raise ValueError(f"{name} must be integer-valued, got complex {value!r}")
+    # float64 so a Python float like 1.00000001 is not rounded to an
+    # integer by float32 before the integrality check.
+    value_tensor = torch.as_tensor(value, dtype=torch.float64)
+    flat = value_tensor.reshape(-1)
+    if flat.numel() == 0:
+        raise ValueError(f"{name} must not be empty")
+    if not torch.isfinite(flat).all() or not torch.equal(flat, flat.round()):
+        raise ValueError(f"{name} must be integer-valued, got {flat.tolist()}")
+    items = [int(item) for item in flat.tolist()]
+    if any(item < 1 for item in items):
+        raise ValueError(f"{name} must be >= 1, got {items}")
+    return items, value_tensor.dim() > 0
+
+
 def _output_dtype(tensor: torch.Tensor) -> torch.dtype:
     """Result dtype for a computation on ``tensor``: its own floating dtype,
     or the default dtype for non-float input."""
@@ -104,8 +152,9 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
         default dtype for integer input; half precision is computed in
         float32). ``NaN`` if ``sweep`` has fewer than two distinct values
         or is non-finite, and for any column of ``values`` with a
-        non-finite entry. A ``NaN`` result never produces a ``NaN``
-        gradient for the other columns or for ``sweep``.
+        non-finite entry. A ``NaN`` result does not produce a ``NaN``
+        gradient for the other columns or for ``sweep`` (for inputs away
+        from the dtype's overflow range, see docs/primitives.rst).
 
     Raises:
         ValueError: If ``sweep``/``values`` do not have the shapes above

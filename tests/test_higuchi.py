@@ -210,3 +210,21 @@ def test_higuchi_dimension_in_expected_range_for_known_signals():
     noise = torch.randn(2000, dtype=torch.float64)
     noise_dim = higuchi_dimension(ks, higuchi_length(noise, [int(k) for k in ks.tolist()]))
     assert noise_dim.item() > 1.8
+
+
+def test_higuchi_length_invalid_trajectory_raises():
+    import pytest
+
+    for bad in (torch.tensor([0j, 1 + 2j, 2j, 3j]), torch.tensor([0.0, float("inf"), 1.0, 2.0]), torch.tensor([0.0, float("nan"), 1.0, 2.0])):
+        with pytest.raises(ValueError):
+            higuchi_length(bad, 1)
+    with pytest.raises(ValueError):
+        higuchi_length(torch.arange(8.0), torch.tensor([1 + 1j]))
+
+
+def test_higuchi_length_half_precision_does_not_overflow():
+    # Absolute differences of 30000 summed in float16 overflow (max 65504).
+    trajectory = torch.tensor([0, 0, 30000, 30000, 0, 0, 30000, 30000], dtype=torch.float16)
+    result = higuchi_length(trajectory, 2)
+    assert result.dtype == torch.float16 and torch.isfinite(result)
+    assert torch.isclose(result.float(), higuchi_length(trajectory.float(), 2), rtol=1e-3)

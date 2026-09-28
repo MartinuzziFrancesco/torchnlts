@@ -8,27 +8,9 @@ Phys. Rev. E 49(2), 1685; polynomial detrending of order ``order``
 
 from __future__ import annotations
 
-import numpy
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope, _output_dtype, _safe_log
-
-
-def _as_int_list(value, name: str) -> tuple[list[int], bool]:
-    """Validate an integer-valued scalar or sweep; returns (values, swept)."""
-    # float64 so a Python float like 1.00000001 is not rounded to an
-    # integer by float32 before the integrality check (same as higuchi).
-    # Checked before the float64 cast, which would drop an imaginary part
-    # (numpy's check also covers types torch cannot convert, e.g. clongdouble).
-    if value.is_complex() if torch.is_tensor(value) else numpy.iscomplexobj(value):
-        raise ValueError(f"{name} must be integer-valued, got complex {value!r}")
-    value_tensor = torch.as_tensor(value, dtype=torch.float64)
-    flat = value_tensor.reshape(-1)
-    if flat.numel() == 0:
-        raise ValueError(f"{name} must not be empty")
-    if not torch.isfinite(flat).all() or not torch.equal(flat, flat.round()):
-        raise ValueError(f"{name} must be integer-valued, got {flat.tolist()}")
-    return [int(item) for item in flat.tolist()], value_tensor.dim() > 0
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -76,7 +58,7 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         raise ValueError(f"dfa_fluctuation only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
     if isinstance(order, bool) or not isinstance(order, int) or order < 0:
         raise ValueError(f"order must be a non-negative integer, got {order!r}")
-    window_sizes, swept = _as_int_list(window_size, "window_size")
+    window_sizes, swept = _as_positive_int_list(window_size, "window_size")
     if any(size <= order + 1 for size in window_sizes):
         raise ValueError(f"every window_size must be > order + 1 = {order + 1}, got {window_sizes}")
 
@@ -90,13 +72,12 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_samples = values.shape[-1]
     # F is homogeneous of degree 1 in the amplitude: compute it on values
-    # scaled to [-1, 1] and scale back, so the profile cannot overflow. Its
-    # gradient is scale invariant, so the scaling is applied to the forward
-    # values only (x.detach() / s + (x - x.detach())): backward sees the
-    # unscaled gradient and never multiplies by s.
+    # scaled to [-1, 1] and scale back, so the profile cannot overflow. The
+    # scale is a constant (detached) factor, so derivatives of every order
+    # stay exact.
     scale = values.detach().abs().amax(dim=-1) if num_samples > 0 else torch.ones(values.shape[0], dtype=work_dtype, device=values.device)
     scale = torch.where(scale == 0, torch.ones_like(scale), scale)
-    values = values.detach() / scale[:, None] + (values - values.detach())
+    values = values / scale[:, None]
     profile = torch.cumsum(values - values.mean(dim=-1, keepdim=True), dim=-1)
     # A constant series has an identically zero profile; mean removal leaves
     # rounding error, so report F = 0 exactly instead of a roundoff value.
@@ -119,7 +100,7 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         mean_square = (residual / residual_scale[:, None, None]).pow(2).mean(dim=(-2, -1))
         safe_mean_square = torch.where(zero, torch.ones_like(mean_square), mean_square)
         normalized = torch.where(zero, torch.zeros_like(mean_square), safe_mean_square.sqrt() * residual_scale)
-        fluctuations.append(normalized.detach() * scale + (normalized - normalized.detach()))
+        fluctuations.append(normalized * scale)
 
     result = torch.stack(fluctuations, dim=0).to(dtype)  # [K, B]
     if not swept:
@@ -158,5 +139,5 @@ def dfa_exponent(window_size, fluctuation: torch.Tensor) -> torch.Tensor:
         ValueError: If ``window_size``/``fluctuation`` do not have the
             documented shapes with matching sweep lengths.
     """
-    log_window_size = _safe_log(torch.as_tensor(window_size, dtype=torch.float64, device=fluctuation.device))
+    log_window_size = _safe_log(_as_sweep(window_size, fluctuation.device))
     return _ols_slope(log_window_size, _safe_log(fluctuation)).to(_output_dtype(fluctuation))

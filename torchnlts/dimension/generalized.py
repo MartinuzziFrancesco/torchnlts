@@ -77,7 +77,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope, _safe_log
+from torchnlts._shape import _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _work_dtype
 from torchnlts.entropy.generalized import renyi_entropy
 
 
@@ -174,13 +174,14 @@ def box_counting_entropy(trajectory, box_size, order: float = 1.0) -> torch.Tens
         ValueError: If ``order < 0``.
     """
     tensor, ndim = _ensure_batched(trajectory)
-    dtype = tensor.dtype
-    sizes = torch.as_tensor(box_size, dtype=dtype, device=tensor.device)
+    dtype = _output_dtype(tensor)
+    tensor = tensor.to(_work_dtype(dtype))
+    sizes = _as_sweep(box_size, tensor.device)
     swept = sizes.dim() > 0
     size_list = sizes.reshape(-1).tolist()
     batch_size = tensor.shape[0]
 
-    values = torch.empty(len(size_list), batch_size, dtype=dtype, device=tensor.device)
+    values = torch.empty(len(size_list), batch_size, dtype=tensor.dtype, device=tensor.device)
     for batch_index in range(batch_size):
         for size_index, size in enumerate(size_list):
             probability = box_occupation_probabilities(tensor[batch_index], size)
@@ -190,7 +191,7 @@ def box_counting_entropy(trajectory, box_size, order: float = 1.0) -> torch.Tens
         values = values.squeeze(0)
     if ndim != 3:
         values = values.squeeze(-1)
-    return values
+    return values.to(dtype)
 
 
 def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
@@ -225,5 +226,5 @@ def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
         ValueError: If ``box_size``/``entropy`` do not have the documented
             shapes with matching sweep lengths.
     """
-    neg_log_size = -_safe_log(torch.as_tensor(box_size, dtype=entropy.dtype, device=entropy.device))
+    neg_log_size = -_safe_log(_as_sweep(box_size, entropy.device))
     return _ols_slope(neg_log_size, entropy)

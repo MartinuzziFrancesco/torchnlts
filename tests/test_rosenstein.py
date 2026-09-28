@@ -437,3 +437,18 @@ def test_rosenstein_lyapunov_rejects_mismatched_sweep_shapes():
                                  (0, torch.tensor(1.))):
         with pytest.raises(ValueError, match='matching'):
             rosenstein_lyapunov(k_values, divergence)
+
+
+def test_rosenstein_zero_distance_row_does_not_poison_shared_gradient():
+    # Row 0 is constant: every nearest-neighbor distance is exactly 0, so its
+    # curve is -inf (documented) and its slope NaN. log(0)'s infinite
+    # gradient must not reach a parameter shared with row 1.
+    parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+    trajectories = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 5.0, 1.0, 6.0, 12.0]], dtype=torch.float64).unsqueeze(-1)
+    curve = rosenstein_divergence(parameter * trajectories, [0, 1], embedding_dim=1)
+    assert torch.isinf(curve[:, 0]).all()
+    result = rosenstein_lyapunov([0, 1], curve)
+    assert torch.isnan(result[0]) and torch.isfinite(result[1])
+    (gradient,) = torch.autograd.grad(result[1], parameter)
+    # The slope of log-distances is invariant to rescaling the trajectory.
+    assert torch.isclose(gradient, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)

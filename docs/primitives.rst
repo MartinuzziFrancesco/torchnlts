@@ -6,6 +6,12 @@ class (one of *exact*, *smooth*, *piecewise*,
 *implicit*, or *none*) and the reference(s) it's validated against.
 Updated in the same commit that adds or changes a primitive.
 
+Inputs within a few orders of magnitude of their dtype's largest finite
+value (about ``1e38`` for float32, ``1e308`` for float64) are not
+supported: intermediate sums, squares and differences can overflow and
+give ``inf``/``NaN`` results or gradients even when the exact answer is
+representable.
+
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.
 - The **Julia ground truth** column links the DynamicalSystems.jl
