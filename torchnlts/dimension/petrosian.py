@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched
+from torchnlts._shape import _ensure_batched, _output_dtype
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -52,7 +52,7 @@ def petrosian_dimension(trajectory) -> torch.Tensor:
         raise ValueError("petrosian_dimension does not support complex input")
     if not torch.isfinite(tensor).all():
         raise ValueError("petrosian_dimension requires a finite trajectory (no NaN/inf)")
-    dtype = tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
+    dtype = _output_dtype(tensor)
     values = tensor.squeeze(-1).to(dtype)  # [B, T]
 
     batch_size = values.shape[0]

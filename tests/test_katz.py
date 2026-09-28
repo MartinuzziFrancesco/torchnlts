@@ -227,7 +227,8 @@ def test_katz_dimension_extreme_amplitude():
     # Amplitude-only D is scale invariant; at these amplitudes the planar
     # index term is negligible, so both conventions give the same value.
     reference = katz_dimension(torch.tensor([0.0, 1.0, -1.0, 0.5], dtype=torch.float64), amplitude_only=True)
-    for dtype, amplitude in ((torch.float32, 1e38), (torch.float64, 1e308)):
+    # (Below the documented overflow range near the dtype maximum.)
+    for dtype, amplitude in ((torch.float32, 1e36), (torch.float64, 1e300)):
         values = torch.tensor([0.0, 1.0, -1.0, 0.5], dtype=dtype) * amplitude
         for amplitude_only in (True, False):
             assert torch.isclose(katz_dimension(values, amplitude_only=amplitude_only).double(), reference, atol=1e-5)
@@ -270,3 +271,4 @@ def test_katz_dimension_resolved_value_near_pole_is_kept():
     single = katz_dimension(trajectory, amplitude_only=True)
     double = katz_dimension(trajectory.double(), amplitude_only=True)
     assert torch.isfinite(single) and abs(single.item() / double.item() - 1) < 1e-3
+

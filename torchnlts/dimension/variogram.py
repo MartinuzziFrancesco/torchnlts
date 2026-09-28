@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _safe_scale, _work_dtype
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -39,8 +39,14 @@ def _variogram_single_lag(values: torch.Tensor, lag: int, power: float) -> torch
     # For power < 1, d|x|**p/dx is unbounded at x = 0 and autograd returns
     # NaN there; mask zero increments so they contribute a zero gradient.
     zero = magnitude == 0
-    term = torch.where(zero, torch.ones_like(magnitude), magnitude).pow(power)
-    return torch.where(zero, torch.zeros_like(term), term).sum(dim=-1) / (2 * num_terms)
+    # |dx|**p is summed as (|dx| / s)**p with s the (detached) largest
+    # increment, so the powers cannot overflow before the average is taken.
+    scale = _safe_scale(magnitude.detach().amax(dim=-1, keepdim=True))
+    term = (torch.where(zero, torch.ones_like(magnitude), magnitude) / scale).pow(power)
+    term_sum = torch.where(zero, torch.zeros_like(term), term).sum(dim=-1)
+    # The 1 / (2 (n - l)) factor goes inside the power: the largest scaled
+    # term is 1, so this factor is at most the result and cannot overflow first.
+    return term_sum * (scale.squeeze(-1) / (2 * num_terms) ** (1 / power)).pow(power)
 
 
 def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
@@ -82,9 +88,9 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
         raise ValueError("power_variogram requires a finite trajectory (no NaN/inf)")
     if not 0 < power < float("inf"):
         raise ValueError(f"power must be finite and > 0, got {power}")
-    dtype = tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
+    dtype = _output_dtype(tensor)
     # Half precision overflows |x|**p for p far from 1; work in float32.
-    work_dtype = torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
+    work_dtype = _work_dtype(dtype)
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
 
     lag_list, swept = _as_positive_int_list(lag, "lag")

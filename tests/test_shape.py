@@ -235,3 +235,23 @@ def test_distance_based_functions_accept_integer_and_half_input():
     # Integer input to box counting used to return a truncated int64 entropy.
     entropy = box_counting_entropy(torch.tensor([0, 1]), 1)
     assert entropy.is_floating_point() and torch.isclose(entropy.double(), torch.tensor(math.log(2), dtype=torch.float64))
+
+
+def test_ols_slope_large_and_small_sweeps_float32():
+    # The denominator squares the centered sweep: 1e20**2 overflows float32
+    # and 1e-25**2 underflows to 0.
+    for magnitude in (1e20, 1e-25):
+        sweep = torch.tensor([1.0, 2.0, 3.0]) * magnitude
+        assert torch.isclose(_ols_slope(sweep, sweep), torch.tensor(1.0))
+        assert torch.isclose(_ols_slope(sweep, 2 * sweep), torch.tensor(2.0))
+
+
+def test_complex_input_rejected_by_promoting_functions():
+    from torchnlts.dimension.correlation import correlation_sum
+    from torchnlts.dimension.generalized import box_counting_entropy
+    from torchnlts.lyapunov.rosenstein import rosenstein_divergence
+
+    trajectory = torch.tensor([0j, 1 + 1j, 2j, 3 + 0j, 1j, 2 + 2j])
+    for function in (lambda values: correlation_sum(values, 1.0), lambda values: box_counting_entropy(values, 1.0), lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1)):
+        with pytest.raises(ValueError):
+            function(trajectory)

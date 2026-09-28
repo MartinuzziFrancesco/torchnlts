@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _work_dtype
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -66,9 +66,9 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         raise ValueError("dfa_fluctuation does not support complex input")
     if not torch.isfinite(tensor).all():
         raise ValueError("dfa_fluctuation requires a finite trajectory (no NaN/inf)")
-    dtype = tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
+    dtype = _output_dtype(tensor)
     # Half precision has no CPU QR/matmul support and too little range; work in float32.
-    work_dtype = torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
+    work_dtype = _work_dtype(dtype)
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_samples = values.shape[-1]
     # F is homogeneous of degree 1 in the amplitude: compute it on values

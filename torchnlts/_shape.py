@@ -66,7 +66,14 @@ def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.T
 
 def _work_dtype(dtype: torch.dtype) -> torch.dtype:
     """Computation dtype for ``dtype``: default float for non-float input,
-    float32 for half precision, else ``dtype`` itself."""
+    float32 for half precision, else ``dtype`` itself.
+
+    Raises:
+        ValueError: If ``dtype`` is complex (converting would drop the
+            imaginary part).
+    """
+    if dtype.is_complex:
+        raise ValueError(f"complex input is not supported, got {dtype}")
     if not dtype.is_floating_point:
         return torch.get_default_dtype()
     return torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
@@ -121,8 +128,19 @@ def _as_positive_int_list(value, name: str) -> tuple[list[int], bool]:
 
 def _output_dtype(tensor: torch.Tensor) -> torch.dtype:
     """Result dtype for a computation on ``tensor``: its own floating dtype,
-    or the default dtype for non-float input."""
+    or the default dtype for non-float input.
+
+    Raises:
+        ValueError: If ``tensor`` is complex.
+    """
+    if tensor.is_complex():
+        raise ValueError(f"complex input is not supported, got {tensor.dtype}")
     return tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
+
+
+def _safe_scale(scale: torch.Tensor) -> torch.Tensor:
+    """``scale`` with zeros replaced by one, for use as a divisor."""
+    return torch.where(scale == 0, torch.ones_like(scale), scale)
 
 
 def _safe_log(values: torch.Tensor) -> torch.Tensor:
@@ -163,6 +181,8 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
         raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
     out_dtype = values.dtype if values.is_floating_point() else torch.get_default_dtype()
+    if sweep.shape[0] == 0:
+        return torch.full(values.shape[1:], float("nan"), dtype=out_dtype, device=values.device)
     # The wider of the two dtypes, so distinct float64 sweep points are not
     # merged when values are float32.
     work_dtype = torch.promote_types(_work_dtype(out_dtype), _work_dtype(sweep.dtype))
@@ -179,7 +199,15 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     safe_values = torch.where(column_valid, values, torch.zeros_like(values))
     sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
     values_centered = safe_values - safe_values.mean(dim=0, keepdim=True)
+    # Products of centered terms overflow at about the square root of the
+    # dtype's range; divide both by their (detached, hence exact) maxima
+    # first and put the ratio back at the end.
+    sweep_scale = _safe_scale(sweep_centered.detach().abs().amax(dim=0))
+    values_scale = _safe_scale(values_centered.detach().abs().amax(dim=0))
+    sweep_centered = sweep_centered / sweep_scale
+    values_centered = values_centered / values_scale
     slope = (sweep_centered * values_centered).sum(dim=0) / (sweep_centered * sweep_centered).sum(dim=0)
+    slope = slope * (values_scale / sweep_scale)
     return torch.where(column_valid, slope, torch.full_like(slope, float("nan"))).to(out_dtype)
 
 

@@ -403,3 +403,15 @@ def test_dfa_exponent_invalid_window_size_does_not_poison_shared_gradient():
     assert torch.isnan(exponent)
     (gradient,) = torch.autograd.grad(torch.nan_to_num(exponent) + parameter, parameter)
     assert gradient.item() == 1.0
+
+
+def test_dfa_fluctuation_bfloat16_is_computed_in_float32():
+    # A bfloat16 profile (8-bit mantissa) drifts over thousands of samples.
+    torch.manual_seed(11)
+    trajectory = torch.randn(4096).bfloat16()
+    result = dfa_fluctuation(trajectory, [8, 16])
+    assert result.dtype == torch.bfloat16
+    reference = dfa_fluctuation(trajectory.float(), [8, 16])
+    assert torch.allclose(result.float(), reference, rtol=1e-2)
+    # and the same must hold for a window where the profile is long
+    assert torch.allclose(dfa_fluctuation(trajectory, 1024).float(), dfa_fluctuation(trajectory.float(), 1024), rtol=1e-2)

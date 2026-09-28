@@ -20,7 +20,7 @@ import math
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch
+from torchnlts._shape import _ensure_batched, _output_dtype, _restore_batch, _safe_scale, _work_dtype
 
 
 def _validate(tensor: torch.Tensor) -> None:
@@ -32,24 +32,20 @@ def _validate(tensor: torch.Tensor) -> None:
         raise ValueError("katz_dimension requires a finite trajectory (no NaN/inf)")
 
 
-def _curve_length(values: torch.Tensor, index_step: torch.Tensor | None) -> torch.Tensor:
-    """L: sum of successive-point distances, ``[B, T]`` -> ``[B]``.
+def _curve_length(step: torch.Tensor, index_step: torch.Tensor | None) -> torch.Tensor:
+    """L from successive differences ``step`` ``[B, T-1]`` -> ``[B]``.
     ``index_step`` is the per-row index spacing ``[B]``, ``None`` for
     amplitude differences only."""
-    step = values[..., 1:] - values[..., :-1]
     step_length = step.abs() if index_step is None else torch.hypot(index_step[:, None].expand_as(step), step)
     return step_length.sum(dim=-1)
 
 
-def _planar_extent(values: torch.Tensor, index_step: torch.Tensor | None) -> torch.Tensor:
-    """d: largest distance from the first point, ``[B, T]`` -> ``[B]``."""
-    amplitude_gap = values[..., 1:] - values[..., :1]
+def _planar_extent(gap: torch.Tensor, index_step: torch.Tensor | None) -> torch.Tensor:
+    """d from displacements from the first point ``gap`` ``[B, T-1]`` -> ``[B]``."""
     if index_step is None:
-        distance_from_start = amplitude_gap.abs()
-    else:
-        index_gap = torch.arange(1, values.shape[-1], dtype=values.dtype, device=values.device) * index_step[:, None]
-        distance_from_start = torch.hypot(index_gap, amplitude_gap)
-    return distance_from_start.amax(dim=-1)
+        return gap.abs().amax(dim=-1)
+    index_gap = torch.arange(1, gap.shape[-1] + 1, dtype=gap.dtype, device=gap.device) * index_step[:, None]
+    return torch.hypot(index_gap, gap).amax(dim=-1)
 
 
 def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
@@ -80,9 +76,9 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     """
     tensor, ndim = _ensure_batched(trajectory)
     _validate(tensor)
-    dtype = tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()
+    dtype = _output_dtype(tensor)
     # Half precision overflows index**2 and log terms; work in float32.
-    work_dtype = torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
+    work_dtype = _work_dtype(dtype)
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_points = values.shape[-1]
 
@@ -90,19 +86,20 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
         result = torch.full(values.shape[:-1], float("nan"), dtype=work_dtype, device=values.device)
         return _restore_batch(result.to(dtype), ndim)
 
-    # Distances are unchanged by subtracting the first value (removes an
-    # offset that would cancel digits) and d / L by dividing both coordinates
-    # by one factor, so compute in coordinates scaled to at most 1: no
-    # distance or sum overflows. The factor is a constant, so detaching it is exact.
-    values = values - values[:, :1]
-    scale = values.detach().abs().amax(dim=-1)
+    # Steps come from adjacent raw values (subtracting the first value first
+    # could round away small steps far from it) and displacements from the
+    # first value. d / L is unchanged by dividing both coordinates by one
+    # factor, so both are scaled to at most 1: no distance or sum overflows.
+    # The factor is a constant, so detaching it keeps derivatives exact.
+    step = values[:, 1:] - values[:, :-1]
+    gap = values[:, 1:] - values[:, :1]
+    scale = gap.detach().abs().amax(dim=-1)
     if not amplitude_only:
         scale = scale.clamp(min=1.0)
-    scale = torch.where(scale == 0, torch.ones_like(scale), scale)
-    values = values / scale[:, None]
+    scale = _safe_scale(scale)
     index_step = None if amplitude_only else 1.0 / scale
-    length = _curve_length(values, index_step)
-    extent = _planar_extent(values, index_step)
+    length = _curve_length(step / scale[:, None], index_step)
+    extent = _planar_extent(gap / scale[:, None], index_step)
     num_steps = num_points - 1
     log_num_steps = torch.log10(torch.tensor(float(num_steps), dtype=work_dtype, device=values.device))
     # The denominator log10(n) + log10(d / L) = log10(1 + (n d - L) / L) has a

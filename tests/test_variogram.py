@@ -373,3 +373,10 @@ def test_fgn_generator_rejects_invalid_embedding():
     exec(source[: source.index("torch.manual_seed(0)")], namespace)
     with pytest.raises(AssertionError):
         namespace["fractional_gaussian_noise"](0.95, 16)
+
+
+def test_power_variogram_large_increments_float32():
+    # Squares of 1e19 increments overflow float32 before averaging.
+    trajectory = torch.arange(4.0) * 1e19
+    result = power_variogram(trajectory, [1, 2])
+    assert torch.allclose(result.double(), power_variogram(trajectory.double(), [1, 2]), rtol=1e-5)
