@@ -405,13 +405,48 @@ def test_dfa_exponent_invalid_window_size_does_not_poison_shared_gradient():
     assert gradient.item() == 1.0
 
 
-def test_dfa_fluctuation_bfloat16_is_computed_in_float32():
-    # A bfloat16 profile (8-bit mantissa) drifts over thousands of samples.
+def test_dfa_fluctuation_bfloat16_matches_float32():
     torch.manual_seed(11)
     trajectory = torch.randn(4096).bfloat16()
-    result = dfa_fluctuation(trajectory, [8, 16])
+    result = dfa_fluctuation(trajectory, [8, 16, 1024])
     assert result.dtype == torch.bfloat16
-    reference = dfa_fluctuation(trajectory.float(), [8, 16])
+    reference = dfa_fluctuation(trajectory.float(), [8, 16, 1024])
     assert torch.allclose(result.float(), reference, rtol=1e-2)
-    # and the same must hold for a window where the profile is long
-    assert torch.allclose(dfa_fluctuation(trajectory, 1024).float(), dfa_fluctuation(trajectory.float(), 1024), rtol=1e-2)
+
+
+def test_dfa_fluctuation_same_sign_dropped_tail():
+    # The dropped tail [1, 1] shifts the global mean to ~1/3; subtracting it
+    # before building a global profile erased the 1e-10 kept window (F came
+    # out 715x too large, with sign-flipped gradients).
+    trajectory = torch.tensor([1e-10, 2e-10, 1e-10, 3e-10, 1.0, 1.0], dtype=torch.float32, requires_grad=True)
+    result = dfa_fluctuation(trajectory, 4)
+    assert abs(result.item() / ((0.7 / 4) ** 0.5 * 1e-10) - 1) < 1e-4
+    (gradient,) = torch.autograd.grad(result, trajectory)
+    unit = torch.tensor([1.0, 2.0, 1.0, 3.0], dtype=torch.float64, requires_grad=True)
+    (unit_gradient,) = torch.autograd.grad(dfa_fluctuation(unit, 4), unit)
+    assert torch.allclose(gradient[:4].double(), unit_gradient, atol=1e-5)
+    assert (gradient[4:] == 0).all()
+
+
+@pytest.mark.parametrize("order", [0, 1, 2])
+def test_large_offset_matches_float64_reference(order):
+    # Samples near 1e6 are exact in float32; F must not lose their spread.
+    # The last sample makes the float32 mean inexact (sum 1217 over 512 samples).
+    series = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0]).repeat(64) + 1e6
+    series[-1] += 1.0
+    series.requires_grad_()
+    precise = series.detach().double().requires_grad_()
+    actual = dfa_fluctuation(series, 256, order=order)
+    expected = dfa_fluctuation(precise - 1e6, 256, order=order)
+    assert torch.allclose(actual.double(), expected, rtol=1e-4)
+    (actual_gradient,) = torch.autograd.grad(actual, series)
+    (expected_gradient,) = torch.autograd.grad(expected, precise)
+    assert torch.allclose(actual_gradient.double(), expected_gradient, atol=1e-5)
+
+
+def test_half_input_accumulates_in_float32():
+    # A half-precision cumulative sum over 8192 samples is off by ~2e-3.
+    generator = torch.Generator().manual_seed(0)
+    series = (torch.rand(8192, generator=generator) + 1.0).half()
+    result = dfa_fluctuation(series, 8192, order=0)
+    assert torch.isclose(result.double(), dfa_fluctuation(series.double(), 8192, order=0), rtol=1e-3)

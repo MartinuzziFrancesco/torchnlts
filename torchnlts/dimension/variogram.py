@@ -19,9 +19,11 @@ there is unbounded).
 
 from __future__ import annotations
 
+import math
+
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _safe_scale, _work_dtype
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _safe_log, _safe_scale, _work_dtype
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -44,9 +46,18 @@ def _variogram_single_lag(values: torch.Tensor, lag: int, power: float) -> torch
     scale = _safe_scale(magnitude.detach().amax(dim=-1, keepdim=True))
     term = (torch.where(zero, torch.ones_like(magnitude), magnitude) / scale).pow(power)
     term_sum = torch.where(zero, torch.zeros_like(term), term).sum(dim=-1)
-    # The 1 / (2 (n - l)) factor goes inside the power: the largest scaled
-    # term is 1, so this factor is at most the result and cannot overflow first.
-    return term_sum * (scale.squeeze(-1) / (2 * num_terms) ** (1 / power)).pow(power)
+    # V = term_sum * s**p / (2 (n - l)), assembled in the log domain so that
+    # neither s**p nor any power of the normalization can overflow when V
+    # itself is representable. term_sum is 0 only when every increment is 0.
+    empty = term_sum == 0
+    safe_sum = torch.where(empty, torch.ones_like(term_sum), term_sum)
+    log_variogram = torch.log(safe_sum) + power * torch.log(scale.squeeze(-1)) - math.log(2 * num_terms)
+    return torch.where(empty, torch.zeros_like(term_sum), torch.exp(log_variogram))
+
+
+def _validate_power(power) -> None:
+    if _is_complex(power) or (torch.is_tensor(power) and power.numel() != 1) or not 0 < power < float("inf"):
+        raise ValueError(f"power must be a finite real number > 0, got {power!r}")
 
 
 def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
@@ -86,8 +97,7 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
         raise ValueError("power_variogram does not support complex input")
     if not torch.isfinite(tensor).all():
         raise ValueError("power_variogram requires a finite trajectory (no NaN/inf)")
-    if not 0 < power < float("inf"):
-        raise ValueError(f"power must be finite and > 0, got {power}")
+    _validate_power(power)
     dtype = _output_dtype(tensor)
     # Half precision overflows |x|**p for p far from 1; work in float32.
     work_dtype = _work_dtype(dtype)
@@ -140,8 +150,7 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
         ValueError: If ``power`` is not a finite positive number, or ``lag``/``variogram`` do not
             have the documented shapes with matching sweep lengths.
     """
-    if not 0 < power < float("inf"):
-        raise ValueError(f"power must be finite and > 0, got {power}")
+    _validate_power(power)
     log_lag = _safe_log(_as_sweep(lag, variogram.device))
     slope = _ols_slope(log_lag, _safe_log(variogram))
     return (2.0 - slope / power).to(_output_dtype(variogram))

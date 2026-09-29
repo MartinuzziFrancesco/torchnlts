@@ -380,3 +380,27 @@ def test_power_variogram_large_increments_float32():
     trajectory = torch.arange(4.0) * 1e19
     result = power_variogram(trajectory, [1, 2])
     assert torch.allclose(result.double(), power_variogram(trajectory.double(), [1, 2]), rtol=1e-5)
+
+
+def test_power_variogram_small_powers_and_half():
+    # Unit increments: V_p(1) = 1 / 2 for every p > 0. (2n)**(1/p) overflowed
+    # at p = 0.01 and raised OverflowError at p = 0.001.
+    trajectory = torch.arange(8.0)
+    for power in (0.001, 0.01, 0.5, 2.0, 50.0):
+        assert torch.isclose(power_variogram(trajectory, 1, power=power), torch.tensor(0.5))
+    # Without float32 promotion, float16 gives 0 here.
+    assert power_variogram(torch.tensor([0.0, 1.0, 2.0], dtype=torch.float16), 1, power=0.05).item() == 0.5
+
+
+def test_power_must_be_a_real_scalar():
+    for power in (1 + 0j, torch.tensor([1.0, 2.0])):
+        with pytest.raises(ValueError, match="power"):
+            power_variogram(torch.arange(5.0), 1, power=power)
+        with pytest.raises(ValueError, match="power"):
+            variogram_dimension([1, 2], torch.tensor([1.0, 4.0]), power=power)
+
+
+def test_half_input_sums_in_float32():
+    # 1e5 unit terms overflow a float16 sum.
+    trajectory = (torch.arange(100000) % 2).half()
+    assert power_variogram(trajectory, 1) == 0.5

@@ -8,6 +8,7 @@ Dual ground truth:
      ``amplitude_only=True``, which reproduces it.
 """
 
+import decimal
 import math
 
 import pytest
@@ -213,10 +214,14 @@ def test_katz_dimension_pole_within_rounding_is_nan():
     # from the pole: all have a denominator at rounding level, D undetermined.
     for dtype, count, amplitude in ((torch.float32, 7, 0.3), (torch.float64, 10, 0.1)):
         assert torch.isnan(katz_dimension((torch.arange(count) % 2).to(dtype) * amplitude, amplitude_only=True))
-    for dtype in (torch.float32, torch.float64):
-        one = torch.tensor(1.0, dtype=dtype)
-        below = torch.nextafter(one, torch.zeros_like(one))
-        assert torch.isnan(katz_dimension(torch.stack([one * 0, one, one * 0, below]), amplitude_only=True))
+    # One float64 ulp from the pole is at rounding level: NaN. The same
+    # construction in float32 is resolved, since Katz computes in float64
+    # (D ~ 5.5e7, matching the float64 evaluation of the same data).
+    one = torch.tensor(1.0, dtype=torch.float64)
+    below = torch.nextafter(one, torch.zeros_like(one))
+    assert torch.isnan(katz_dimension(torch.stack([one * 0, one, one * 0, below]), amplitude_only=True))
+    single = torch.stack([one * 0, one, one * 0, torch.nextafter(one.float(), torch.zeros(())).double()]).float()
+    assert torch.isclose(katz_dimension(single, amplitude_only=True).double(), katz_dimension(single.double(), amplitude_only=True), rtol=1e-6)
     # A genuinely large but determined value is kept: [0, 1, 0, 0.9]
     # (amplitude only): L = 2.9, d = 1, n = 3.
     expected = math.log10(3) / (math.log10(3) + math.log10(1 / 2.9))
@@ -272,3 +277,44 @@ def test_katz_dimension_resolved_value_near_pole_is_kept():
     double = katz_dimension(trajectory.double(), amplitude_only=True)
     assert torch.isfinite(single) and abs(single.item() / double.item() - 1) < 1e-3
 
+
+
+def test_katz_dimension_exact_pole_needs_rounding_tolerance():
+    # [0, 3, -1, 1], amplitude only: L = 3 + 4 + 2 = 9 = 3 * d with d = 3.
+    # Rounding leaves a nonzero gap; with a zero tolerance D came out as
+    # -1.4e7 (float32) or 7.4e15 (float64) instead of NaN.
+    for dtype in (torch.float32, torch.float64):
+        assert torch.isnan(katz_dimension(torch.tensor([0.0, 3.0, -1.0, 1.0], dtype=dtype), amplitude_only=True))
+
+
+def test_katz_dimension_tolerance_is_at_rounding_level_float64():
+    # 1000-point alternating series, last value moved by 1e-9: relative gap
+    # ~1e-12, far above float64 rounding (~2e-14) -> determined and kept.
+    trajectory = (torch.arange(1000) % 2).to(torch.float64)
+    trajectory[-1] -= 1e-9
+    assert torch.isfinite(katz_dimension(trajectory, amplitude_only=True))
+    trajectory = (torch.arange(1000) % 2).to(torch.float32)
+    trajectory[-1] -= 1 / 256
+    single = katz_dimension(trajectory, amplitude_only=True)
+    assert torch.isclose(single.double(), katz_dimension(trajectory.double(), amplitude_only=True), rtol=1e-6)
+
+
+def test_katz_dimension_steps_from_raw_values():
+    # float64 spacing at 1e17 is 16: subtracting the first value (1e17)
+    # before differencing rounds the steps of 3 between later samples to 0.
+    trajectory = torch.cat([torch.tensor([1e17], dtype=torch.float64), (torch.arange(10000) % 2).to(torch.float64) * 3])
+    steps = trajectory[1:] - trajectory[:-1]
+    length = steps.abs().sum()
+    extent = (trajectory[1:] - trajectory[0]).abs().max()
+    num_steps = torch.tensor(float(trajectory.shape[0] - 1), dtype=torch.float64)
+    expected = torch.log10(num_steps) / (torch.log10(num_steps) + torch.log10(extent / length))
+    assert torch.isclose(katz_dimension(trajectory, amplitude_only=True), expected, rtol=1e-12)
+    assert katz_dimension(trajectory, amplitude_only=True).item() != 1.0
+
+
+def test_near_pole_matches_high_precision_oracle():
+    # Denominator log10(T d / L) ~ 1e-13 here; log10 of the ratio loses ~7e-5.
+    trajectory = torch.tensor([0.0, 1.0, 0.0, 1.0 - 2**-40], dtype=torch.float64)
+    decimal.getcontext().prec = 80
+    expected = float(decimal.Decimal(3).ln() / (decimal.Decimal(3) / (3 - decimal.Decimal(2) ** -40)).ln())
+    assert math.isclose(katz_dimension(trajectory, amplitude_only=True).item(), expected, rel_tol=1e-10)

@@ -452,3 +452,10 @@ def test_rosenstein_zero_distance_row_does_not_poison_shared_gradient():
     (gradient,) = torch.autograd.grad(result[1], parameter)
     # The slope of log-distances is invariant to rescaling the trajectory.
     assert torch.isclose(gradient, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)
+
+
+def test_rosenstein_divergence_rejects_complex_k_values():
+    trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0])
+    for k_values in (torch.tensor([0.0 + 2j, 1.0 + 3j]), [0, 1j]):
+        with pytest.raises(ValueError, match="real"):
+            rosenstein_divergence(trajectory, k_values)

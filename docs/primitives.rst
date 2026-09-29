@@ -10,7 +10,10 @@ Inputs within a few orders of magnitude of their dtype's largest finite
 value (about ``1e38`` for float32, ``1e308`` for float64) are not
 supported: intermediate sums, squares and differences can overflow and
 give ``inf``/``NaN`` results or gradients even when the exact answer is
-representable.
+representable. Distance-based primitives square coordinates: in float32
+a trajectory whose largest magnitude exceeds its smallest nonzero
+separation by more than about ``1e19`` loses the small distances to
+underflow; use float64 for such data.
 
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.

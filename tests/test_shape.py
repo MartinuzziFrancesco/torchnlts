@@ -255,3 +255,88 @@ def test_complex_input_rejected_by_promoting_functions():
     for function in (lambda values: correlation_sum(values, 1.0), lambda values: box_counting_entropy(values, 1.0), lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1)):
         with pytest.raises(ValueError):
             function(trajectory)
+
+
+def test_ols_slope_scale_ratio_does_not_overflow():
+    # Column 0 has values ~2**70 over a sweep ~2**-70; the ratio of the two
+    # scales (2**140) overflows float32 even though its slope is exactly 0.
+    parameter = torch.tensor(1.0, requires_grad=True)
+    sweep = torch.tensor([1.0, 2.0, 3.0]) * 2.0**-70
+    values = torch.stack([torch.tensor([1.0, -2.0, 1.0]) * 2.0**70, sweep], dim=1)
+    result = _ols_slope(sweep, parameter * values)
+    assert torch.allclose(result, torch.tensor([0.0, 1.0]))
+    (gradient,) = torch.autograd.grad(result[1], parameter)
+    assert torch.isclose(gradient, torch.tensor(1.0))
+
+
+def test_ols_slope_close_points_far_from_zero():
+    # 2**24 and 2**24 + 2 are exact in float32, their rounded mean is not.
+    sweep = torch.tensor([16777216.0, 16777218.0], requires_grad=True)
+    values = torch.tensor([1.0, 2.0], requires_grad=True)
+    result = _ols_slope(sweep, values)
+    assert torch.isclose(result, torch.tensor(0.5))
+    sweep_gradient, values_gradient = torch.autograd.grad(result, (sweep, values))
+    assert torch.allclose(sweep_gradient, torch.tensor([0.25, -0.25]))
+    assert torch.allclose(values_gradient, torch.tensor([-0.5, 0.5]))
+
+
+def test_ols_slope_rejects_complex_and_keeps_empty_graph():
+    with pytest.raises(ValueError):
+        _ols_slope(torch.tensor([1.0, 2.0, 3.0]), torch.tensor([1 + 1j, 2 + 2j, 3 + 3j]))
+    sweep = torch.empty(0, requires_grad=True)
+    values = torch.empty(0, requires_grad=True)
+    result = _ols_slope(sweep, values)
+    assert torch.isnan(result)
+    sweep_gradient, values_gradient = torch.autograd.grad(result, (sweep, values))
+    assert sweep_gradient.shape == (0,) and values_gradient.shape == (0,)
+
+
+def test_dtype_helpers_follow_default_dtype():
+    previous = torch.get_default_dtype()
+    try:
+        torch.set_default_dtype(torch.float64)
+        assert _work_dtype(torch.int64) == torch.float64
+        assert _output_dtype(torch.tensor([1, 2])) == torch.float64
+    finally:
+        torch.set_default_dtype(previous)
+    assert _output_dtype(torch.tensor([1.0]).half()) == torch.float16
+    for helper, argument in ((_work_dtype, torch.complex64), (_output_dtype, torch.tensor([1j]))):
+        with pytest.raises(ValueError):
+            helper(argument)
+
+
+def test_pairwise_distance_callers_at_moderate_extremes():
+    # cdist squares coordinates: 2**70 overflows and 2**-80 underflows float32.
+    from torchnlts.dimension.correlation import correlation_sum
+    from torchnlts.lyapunov.rosenstein import rosenstein_divergence
+
+    for magnitude in (2.0**70, 2.0**-80):
+        trajectory = torch.arange(1.0, 9.0) * magnitude
+        assert torch.isclose(correlation_sum(trajectory, 1.5 * magnitude), torch.tensor(0.25))
+        assert torch.isfinite(rosenstein_divergence(trajectory, [0, 1])).all()
+
+
+def test_pairwise_distance_scale_is_per_row():
+    # A shared batch scale would push the small row into float32 subnormals.
+    from torchnlts.lyapunov.rosenstein import rosenstein_divergence
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    small = torch.arange(1.0, 9.0) * 2.0**-60
+    trajectory = torch.stack([torch.arange(1.0, 9.0) * 2.0**60, small])[..., None]
+    distance = pairwise_distance(trajectory)
+    assert torch.equal(distance[1], pairwise_distance(small[:, None]))
+    batched = rosenstein_divergence(trajectory, [0, 1])
+    assert torch.allclose(batched[:, 1], rosenstein_divergence(small, [0, 1]))
+    assert torch.allclose(batched[:, 0] - batched[:, 1], torch.full((2,), 120 * math.log(2.0)))
+
+
+def test_pairwise_distance_zero_norm_counts_unequal_coordinates():
+    from torchnlts.lyapunov.rosenstein import rosenstein_divergence
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    assert pairwise_distance(torch.tensor([1.0, 2.0, 4.0]), norm_order=0)[0, 1] == 1
+    divergence = rosenstein_divergence(torch.tensor([1.0, 6.0, 2.0, 7.0, 13.0]), 0, embedding_dim=1, norm_order=0)
+    assert divergence == 0
+    for norm_order in (-1.0, float("nan")):
+        with pytest.raises(ValueError, match="norm_order"):
+            pairwise_distance(torch.arange(3.0), norm_order=norm_order)

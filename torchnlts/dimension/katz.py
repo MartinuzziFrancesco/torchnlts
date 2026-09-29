@@ -77,8 +77,10 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     tensor, ndim = _ensure_batched(trajectory)
     _validate(tensor)
     dtype = _output_dtype(tensor)
-    # Half precision overflows index**2 and log terms; work in float32.
-    work_dtype = _work_dtype(dtype)
+    # Always float64: the pole test then measures float32/half data at
+    # float64 precision, so values that are resolved in the input's own
+    # precision are not rejected as undetermined.
+    work_dtype = torch.float64
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_points = values.shape[-1]
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _work_dtype
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _power_of_two_scale, _safe_log, _work_dtype
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -72,13 +72,11 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_samples = values.shape[-1]
     # F is homogeneous of degree 1 in the amplitude: compute it on values
-    # scaled to [-1, 1] and scale back, so the profile cannot overflow. The
-    # scale is a constant (detached) factor, so derivatives of every order
-    # stay exact.
-    scale = values.detach().abs().amax(dim=-1) if num_samples > 0 else torch.ones(values.shape[0], dtype=work_dtype, device=values.device)
-    scale = torch.where(scale == 0, torch.ones_like(scale), scale)
+    # scaled to (-2, 2) and scale back, so the profile cannot overflow. The
+    # scale is a detached power of two: derivatives stay exact and the
+    # scaling is exact, so offsets cancel exactly below.
+    scale = _power_of_two_scale(values[..., None]).reshape(-1)
     values = values / scale[:, None]
-    profile = torch.cumsum(values - values.mean(dim=-1, keepdim=True), dim=-1)
     # A constant series has an identically zero profile; mean removal leaves
     # rounding error, so report F = 0 exactly instead of a roundoff value.
     constant = (values == values[..., :1]).all(dim=-1) if num_samples > 0 else None
@@ -89,7 +87,20 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         if num_windows == 0:
             fluctuations.append(torch.full(values.shape[:-1], float("nan"), dtype=values.dtype, device=values.device))
             continue
-        windows = profile[..., : num_windows * size].reshape(values.shape[0], num_windows, size)
+        # Each window's profile is the global profile minus a constant (the
+        # sum before the window) and a linear term (the mean times the
+        # position). Detrending of order >= 1 removes both, so integrating
+        # each window from its own start, after subtracting any per-window
+        # offset, gives the same residuals; the offset is subtracted in the
+        # input's units, where x - c is exact for nearby values, so a large
+        # common offset or dominant dropped samples cause no cancellation.
+        # Order 0 keeps the linear term: subtract the global mean in float64.
+        kept = values[..., : num_windows * size].reshape(values.shape[0], num_windows, size)
+        if order == 0:
+            kept = (kept.double() - values.double().mean(dim=-1)[:, None, None]).to(work_dtype)
+        else:
+            kept = kept - kept.mean(dim=-1, keepdim=True)
+        windows = torch.cumsum(kept, dim=-1)
         residual = windows @ _residual_projector(size, order, values)
         # Residuals are also rescaled by their own maximum: the kept windows
         # can be far smaller than the row maximum, and their squares underflow.

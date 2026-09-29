@@ -33,7 +33,7 @@ import operator
 
 import torch
 
-from torchnlts._shape import _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _work_dtype
+from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _power_of_two_scale, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
 from torchnlts.neighbors.theiler import _require_self_exclusion
@@ -92,7 +92,7 @@ def rosenstein_divergence(
         value.
 
     Raises:
-        ValueError: If ``k_values`` is empty, has more than one
+        ValueError: If ``k_values`` is complex, empty, has more than one
             dimension, or contains a negative, non-finite, or
             non-integer-valued entry, or if ``theiler_window < 0``
             (self-matches must be excluded unconditionally, or the
@@ -104,6 +104,8 @@ def rosenstein_divergence(
     # otherwise silently lose precision before validation even runs,
     # e.g. -1e-50 rounds to -0.0 in float32 (passing the >= 0 check) and
     # 1.00000001 rounds to exactly 1.0 (passing the integer check).
+    if _is_complex(k_values):
+        raise ValueError(f"k_values must be real, got {k_values!r}")
     k_values_tensor = torch.as_tensor(k_values, dtype=torch.float64)
     if k_values_tensor.numel() == 0:
         raise ValueError("k_values must not be empty")
@@ -138,6 +140,11 @@ def rosenstein_divergence(
     batched, ndim = _ensure_batched(embedded)
     dtype = _output_dtype(batched)
     batched = batched.to(_work_dtype(dtype))
+    # The divergence norm squares coordinates; work on inputs divided by an
+    # exact power-of-two scale and add its log back (ln(s d) = ln s + ln d).
+    # norm_order=0 counts unequal coordinates and is not rescaled.
+    scale = _power_of_two_scale(batched) if norm_order != 0 else torch.ones((1, 1, 1), dtype=batched.dtype, device=batched.device)
+    batched = batched / scale
     # Limitation: same OverflowError class, this time in
     # theiler_window_mask's `abs() > window` comparison against an
     # astronomically large Python int. Larger-than-the-trajectory
@@ -201,7 +208,7 @@ def rosenstein_divergence(
         safe_divergence = torch.where(usable, divergence, torch.ones_like(divergence))
         log_divergence = torch.where(valid & ~usable, torch.full_like(divergence, float("-inf")), torch.log(safe_divergence))
         masked_log_divergence = torch.where(valid, log_divergence, torch.zeros_like(log_divergence))
-        curve.append(masked_log_divergence.sum(dim=-1) / valid_count)
+        curve.append(masked_log_divergence.sum(dim=-1) / valid_count + torch.log(scale).flatten())
 
     result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
     # Not `_restore_batch` (which squeezes dim 0): a swept result is

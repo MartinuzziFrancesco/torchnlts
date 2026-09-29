@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import functools
 import numpy
+
 import torch
 
 from torchnlts.convert import as_tensor
@@ -180,9 +182,11 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     """
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
         raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
-    out_dtype = values.dtype if values.is_floating_point() else torch.get_default_dtype()
+    out_dtype = _output_dtype(values)
     if sweep.shape[0] == 0:
-        return torch.full(values.shape[1:], float("nan"), dtype=out_dtype, device=values.device)
+        # Zero-weighted sums keep the result connected to both inputs.
+        connected = values.to(out_dtype).sum(dim=0) * 0 + sweep.to(out_dtype).sum() * 0
+        return connected + float("nan")
     # The wider of the two dtypes, so distinct float64 sweep points are not
     # merged when values are float32.
     work_dtype = torch.promote_types(_work_dtype(out_dtype), _work_dtype(sweep.dtype))
@@ -197,6 +201,9 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     column_valid = torch.isfinite(values).all(dim=0) & sweep_valid
     safe_sweep = torch.where(sweep_valid, sweep, torch.arange(sweep.shape[0], dtype=work_dtype, device=sweep.device).view_as(sweep))
     safe_values = torch.where(column_valid, values, torch.zeros_like(values))
+    # Translating the sweep by its first point before centering keeps close points far
+    # from zero distinct (the rounded mean of 2**24 and 2**24 + 2 is not).
+    safe_sweep = safe_sweep - safe_sweep[:1]
     sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
     values_centered = safe_values - safe_values.mean(dim=0, keepdim=True)
     # Products of centered terms overflow at about the square root of the
@@ -207,7 +214,8 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     sweep_centered = sweep_centered / sweep_scale
     values_centered = values_centered / values_scale
     slope = (sweep_centered * values_centered).sum(dim=0) / (sweep_centered * sweep_centered).sum(dim=0)
-    slope = slope * (values_scale / sweep_scale)
+    # Multiply before dividing: the ratio of scales alone can overflow.
+    slope = slope * values_scale / sweep_scale
     return torch.where(column_valid, slope, torch.full_like(slope, float("nan"))).to(out_dtype)
 
 
@@ -266,3 +274,15 @@ def _validate_matching_batch(
         raise ValueError(f"batch size mismatch between trajectory ({trajectory.shape[0]}) and other ({other.shape[0]})")
     if check_feature_dim and trajectory.shape[-1] != other.shape[-1]:
         raise ValueError(f"feature dim mismatch between trajectory ({trajectory.shape[-1]}) and other ({other.shape[-1]})")
+
+
+def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
+    """Detached per-row power of two at most the largest finite magnitude (so
+    scaled magnitudes are below 2), else 1; shape ``[B, 1, 1]`` for ``[B, T, D]``."""
+    reference = tensors[0]
+    if not all(tensor.shape[-2] * tensor.shape[-1] > 0 for tensor in tensors):
+        return torch.ones((1, 1, 1), dtype=reference.dtype, device=reference.device)
+    magnitudes = [tensor.detach().abs().amax(dim=(-2, -1), keepdim=True) for tensor in tensors]
+    scale = functools.reduce(torch.maximum, magnitudes)
+    scale = torch.where(torch.isfinite(scale) & (scale > 0), scale, torch.ones_like(scale))
+    return torch.exp2(torch.floor(torch.log2(scale)))
