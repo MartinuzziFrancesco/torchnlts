@@ -201,9 +201,11 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     column_valid = torch.isfinite(values).all(dim=0) & sweep_valid
     safe_sweep = torch.where(sweep_valid, sweep, torch.arange(sweep.shape[0], dtype=work_dtype, device=sweep.device).view_as(sweep))
     safe_values = torch.where(column_valid, values, torch.zeros_like(values))
-    # Translating the sweep by its first point before centering keeps close points far
-    # from zero distinct (the rounded mean of 2**24 and 2**24 + 2 is not).
+    # Translating by the first point before centering keeps close points far
+    # from zero distinct (the rounded mean of 2**24 and 2**24 + 2 is not) and
+    # constant values exactly zero.
     safe_sweep = safe_sweep - safe_sweep[:1]
+    safe_values = safe_values - safe_values[:1]
     sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
     values_centered = safe_values - safe_values.mean(dim=0, keepdim=True)
     # Products of centered terms overflow at about the square root of the
@@ -277,8 +279,9 @@ def _validate_matching_batch(
 
 
 def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
-    """Detached per-row power of two at most the largest finite magnitude (so
-    scaled magnitudes are below 2), else 1; shape ``[B, 1, 1]`` for ``[B, T, D]``."""
+    """Detached per-row power of two within a factor of two of the largest
+    finite magnitude (scaled magnitudes are below 2), else 1; shape
+    ``[B, 1, 1]`` for ``[B, T, D]``."""
     reference = tensors[0]
     if not all(tensor.shape[-2] * tensor.shape[-1] > 0 for tensor in tensors):
         return torch.ones((1, 1, 1), dtype=reference.dtype, device=reference.device)

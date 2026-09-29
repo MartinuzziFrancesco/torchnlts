@@ -340,3 +340,21 @@ def test_pairwise_distance_zero_norm_counts_unequal_coordinates():
     for norm_order in (-1.0, float("nan")):
         with pytest.raises(ValueError, match="norm_order"):
             pairwise_distance(torch.arange(3.0), norm_order=norm_order)
+
+
+def test_ols_slope_of_constant_values_is_zero():
+    sweep = torch.randn(13, generator=torch.Generator().manual_seed(0)).sort().values
+    assert _ols_slope(sweep, torch.full((13,), 1e20)) == 0
+
+
+def test_pairwise_distance_high_norm_order_does_not_overflow():
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    assert pairwise_distance(torch.tensor([-3.0, 3.0]), norm_order=100)[0, 1] == 6
+
+
+def test_pairwise_distance_max_norm_propagates_nan():
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    distance = pairwise_distance(torch.tensor([[float("nan"), 1.0], [1.0, 2.0], [0.0, 0.0]]), norm_order=float("inf"))
+    assert distance[0].isnan().all() and distance[:, 0].isnan().all() and distance[1, 2] == 2

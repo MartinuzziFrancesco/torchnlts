@@ -17,6 +17,7 @@ Dual ground truth:
 
 import math
 
+import numpy
 import pytest
 import torch
 
@@ -404,3 +405,26 @@ def test_half_input_sums_in_float32():
     # 1e5 unit terms overflow a float16 sum.
     trajectory = (torch.arange(100000) % 2).half()
     assert power_variogram(trajectory, 1) == 0.5
+
+
+def test_small_increment_gradients_do_not_underflow():
+    # Scaled by the largest increment, (1e-10)**6 underflows float32.
+    values = torch.tensor([0.0, 1e-5, 0.0, 1e5], requires_grad=True)
+    (actual,) = torch.autograd.grad(power_variogram(values, 1, 6.0), values)
+    reference = (values[1:] - values[:-1]).double().abs().pow(6).sum() / 6
+    (expected,) = torch.autograd.grad(reference, values)
+    assert torch.allclose(actual[:2].double(), expected[:2].double(), rtol=1e-5, atol=0)
+
+
+def test_singleton_tensor_power_keeps_shapes():
+    assert power_variogram(torch.arange(5.0), [1, 2], power=torch.tensor([[2.0]])).shape == (2,)
+    assert variogram_dimension([1, 2], torch.tensor([0.5, 2.0]), power=torch.tensor([2.0])).shape == ()
+
+
+def test_power_validation_edge_cases():
+    power = torch.tensor(2.0, dtype=torch.float64, requires_grad=True)
+    power_variogram(torch.arange(6.0, dtype=torch.float64) ** 2, 1, power=power).backward()
+    assert power.grad is not None and torch.isfinite(power.grad)
+    for invalid in (10**400, numpy.array([1.0, 2.0])):
+        with pytest.raises(ValueError, match="power"):
+            power_variogram(torch.arange(5.0), 1, power=invalid)

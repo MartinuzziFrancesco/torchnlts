@@ -450,3 +450,13 @@ def test_half_input_accumulates_in_float32():
     series = (torch.rand(8192, generator=generator) + 1.0).half()
     result = dfa_fluctuation(series, 8192, order=0)
     assert torch.isclose(result.double(), dfa_fluctuation(series.double(), 8192, order=0), rtol=1e-3)
+
+
+def test_order_zero_large_float64_offset():
+    shifted = torch.tensor([0.0, 2.0, 0.0, 4.0], dtype=torch.float64) + 1e16
+    assert torch.isclose(dfa_fluctuation(shifted, 4, order=0), torch.tensor((13 / 16) ** 0.5, dtype=torch.float64))
+
+
+def test_bfloat16_input_is_computed_in_float32():
+    series = torch.randn(256, generator=torch.Generator().manual_seed(0)).bfloat16()
+    assert dfa_fluctuation(series, 16) == dfa_fluctuation(series.float(), 16).bfloat16()

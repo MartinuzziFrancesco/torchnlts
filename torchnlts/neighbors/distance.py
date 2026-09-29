@@ -57,8 +57,18 @@ def pairwise_distance(
     # them on inputs divided by a common scale. The scale is detached (exact
     # derivatives) and a power of two, so the division and multiplication
     # are exact and distances at a threshold (e.g. radius=2) stay exact.
-    # norm_order=0 counts unequal coordinates and is not rescaled.
-    scale = _power_of_two_scale(batched, other_batched) if norm_order != 0 else torch.ones((), dtype=batched.dtype, device=batched.device)
-    distance = torch.cdist(batched / scale, other_batched / scale, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist") * scale
+    # The extra factor 4 keeps coordinate differences below 1, so their
+    # norm_order-th powers cannot overflow. norm_order=0 counts unequal
+    # coordinates and is not rescaled.
+    if norm_order == 0:
+        distance = torch.cdist(batched, other_batched, p=0.0)
+    else:
+        scale = _power_of_two_scale(batched, other_batched)
+        scaled_distance = torch.cdist(batched / scale / 4, other_batched / scale / 4, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")
+        distance = scaled_distance * 4 * scale
+    # cdist's max-norm skips NaN coordinates; propagate them like other orders.
+    if norm_order == float("inf"):
+        nan_point = batched.isnan().any(dim=-1).unsqueeze(-1) | other_batched.isnan().any(dim=-1).unsqueeze(-2)
+        distance = distance.masked_fill(nan_point, float("nan"))
     return _restore_batch(distance, ndim)
 

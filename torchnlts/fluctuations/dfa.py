@@ -94,10 +94,12 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         # offset, gives the same residuals; the offset is subtracted in the
         # input's units, where x - c is exact for nearby values, so a large
         # common offset or dominant dropped samples cause no cancellation.
-        # Order 0 keeps the linear term: subtract the global mean in float64.
+        # Order 0 keeps the linear term: subtract the global mean in float64,
+        # after the first sample so a large common offset cancels exactly.
         kept = values[..., : num_windows * size].reshape(values.shape[0], num_windows, size)
         if order == 0:
-            kept = (kept.double() - values.double().mean(dim=-1)[:, None, None]).to(work_dtype)
+            shifted = values.double() - values[:, :1].double()
+            kept = (kept.double() - values[:, :1, None].double() - shifted.mean(dim=-1)[:, None, None]).to(work_dtype)
         else:
             kept = kept - kept.mean(dim=-1, keepdim=True)
         windows = torch.cumsum(kept, dim=-1)

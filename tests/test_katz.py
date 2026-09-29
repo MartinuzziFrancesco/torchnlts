@@ -318,3 +318,12 @@ def test_near_pole_matches_high_precision_oracle():
     decimal.getcontext().prec = 80
     expected = float(decimal.Decimal(3).ln() / (decimal.Decimal(3) / (3 - decimal.Decimal(2) ** -40)).ln())
     assert math.isclose(katz_dimension(trajectory, amplitude_only=True).item(), expected, rel_tol=1e-10)
+
+
+def test_pole_criterion_uses_relative_gap():
+    # Gap 2**-46 is resolved in float64; the denominator itself (~1e-14) is
+    # below the tolerance, so a denominator-based pole test wrongly gives NaN.
+    trajectory = torch.tensor([0.0, 1.0, 0.0, 1.0 - 2**-46], dtype=torch.float64)
+    decimal.getcontext().prec = 80
+    expected = float(decimal.Decimal(3).ln() / (decimal.Decimal(3) / (3 - decimal.Decimal(2) ** -46)).ln())
+    assert math.isclose(katz_dimension(trajectory, amplitude_only=True).item(), expected, rel_tol=1e-6)

@@ -33,7 +33,7 @@ import operator
 
 import torch
 
-from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _power_of_two_scale, _work_dtype
+from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
 from torchnlts.neighbors.theiler import _require_self_exclusion
@@ -140,11 +140,6 @@ def rosenstein_divergence(
     batched, ndim = _ensure_batched(embedded)
     dtype = _output_dtype(batched)
     batched = batched.to(_work_dtype(dtype))
-    # The divergence norm squares coordinates; work on inputs divided by an
-    # exact power-of-two scale and add its log back (ln(s d) = ln s + ln d).
-    # norm_order=0 counts unequal coordinates and is not rescaled.
-    scale = _power_of_two_scale(batched) if norm_order != 0 else torch.ones((1, 1, 1), dtype=batched.dtype, device=batched.device)
-    batched = batched / scale
     # Limitation: same OverflowError class, this time in
     # theiler_window_mask's `abs() > window` comparison against an
     # astronomically large Python int. Larger-than-the-trajectory
@@ -191,7 +186,13 @@ def rosenstein_divergence(
         neighbor_target_index = safe_neighbor_index + k
         reference_evolved = _gather_neighbors(batched, reference_index, valid)
         neighbor_evolved = _gather_neighbors(batched, neighbor_target_index, valid)
-        divergence = (reference_evolved - neighbor_evolved).norm(p=norm_order, dim=-1)
+        difference = reference_evolved - neighbor_evolved
+        # The norm raises differences to norm_order: compute it on each pair's
+        # differences divided by their largest magnitude (detached), so it
+        # neither overflows nor underflows. norm_order=0 counts nonzeros.
+        largest = difference.detach().abs().amax(dim=-1, keepdim=True)
+        largest = torch.where((largest > 0) & torch.isfinite(largest) & (norm_order != 0), largest, torch.ones_like(largest))
+        divergence = (difference / largest).norm(p=norm_order, dim=-1) * largest.squeeze(-1)
         # At an invalid (masked) position, both gathers fall back to the
         # same dummy row 0, so divergence is exactly 0 there -- an
         # artifact of the safe-index substitution, not real data. Left
@@ -208,7 +209,7 @@ def rosenstein_divergence(
         safe_divergence = torch.where(usable, divergence, torch.ones_like(divergence))
         log_divergence = torch.where(valid & ~usable, torch.full_like(divergence, float("-inf")), torch.log(safe_divergence))
         masked_log_divergence = torch.where(valid, log_divergence, torch.zeros_like(log_divergence))
-        curve.append(masked_log_divergence.sum(dim=-1) / valid_count + torch.log(scale).flatten())
+        curve.append(masked_log_divergence.sum(dim=-1) / valid_count)
 
     result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
     # Not `_restore_batch` (which squeezes dim 0): a swept result is

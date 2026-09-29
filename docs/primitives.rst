@@ -13,7 +13,9 @@ give ``inf``/``NaN`` results or gradients even when the exact answer is
 representable. Distance-based primitives square coordinates: in float32
 a trajectory whose largest magnitude exceeds its smallest nonzero
 separation by more than about ``1e19`` loses the small distances to
-underflow; use float64 for such data.
+underflow; use float64 for such data. A ``norm_order`` above 2 raises
+differences to that power and narrows this range further (use
+``norm_order=float('inf')`` for a max-norm).
 
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.
