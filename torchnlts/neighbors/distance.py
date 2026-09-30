@@ -63,10 +63,12 @@ def pairwise_distance(
     # derivatives) and a power of two, so the division and multiplication
     # are exact and distances at a threshold (e.g. radius=2) stay exact.
     # The extra factor 4 keeps coordinate differences below 1, so their
-    # norm_order-th powers cannot overflow. norm_order=0 counts unequal
-    # coordinates and is not rescaled.
-    if norm_order == 0:
-        distance = torch.cdist(batched, other_batched, p=0.0)
+    # norm_order-th powers cannot overflow. Below norm_order=1 those powers
+    # cannot overflow anyway and the sum's 1/norm_order-th power is the
+    # distance itself, so scaling would only risk overflow (and
+    # norm_order=0 counts unequal coordinates).
+    if norm_order < 1:
+        distance = torch.cdist(batched, other_batched, p=norm_order)
     else:
         scale = _power_of_two_scale(batched, other_batched)
         scaled_distance = torch.cdist(batched / scale / 4, other_batched / scale / 4, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")

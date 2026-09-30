@@ -192,9 +192,10 @@ def rosenstein_divergence(
         difference = reference_evolved - neighbor_evolved
         # The norm raises differences to norm_order: compute it on each pair's
         # differences divided by their largest magnitude (detached), so it
-        # neither overflows nor underflows. norm_order=0 counts nonzeros.
+        # neither overflows nor underflows. Not below norm_order=1, where the
+        # powers cannot overflow and scaling could (norm_order=0 counts nonzeros).
         largest = difference.detach().abs().amax(dim=-1, keepdim=True)
-        largest = torch.where((largest > 0) & torch.isfinite(largest) & (norm_order != 0), largest, torch.ones_like(largest))
+        largest = torch.where((largest > 0) & torch.isfinite(largest) & (norm_order >= 1), largest, torch.ones_like(largest))
         divergence = (difference / largest).norm(p=norm_order, dim=-1) * largest.squeeze(-1)
         # At an invalid (masked) position, both gathers fall back to the
         # same dummy row 0, so divergence is exactly 0 there -- an

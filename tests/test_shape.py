@@ -382,3 +382,17 @@ def test_pairwise_distance_nan_point_keeps_finite_pairs_scaled():
     for bad in (float("nan"), float("inf")):
         distance = pairwise_distance(torch.cat([torch.tensor([bad]), finite]))
         assert distance[1, 2] == pairwise_distance(finite)[0, 1]
+
+
+def test_small_norm_order_on_tiny_coordinates_does_not_overflow():
+    # For norm_order < 1 the distance exceeds the coordinates (3**100 here);
+    # scaling tiny coordinates up would overflow float32.
+    from torchnlts.lyapunov.rosenstein import rosenstein_divergence
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    amplitude = 2.0**-100
+    points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [5.0, 5.0, 5.0]]) * amplitude
+    expected = 3**100 * amplitude
+    assert math.isclose(pairwise_distance(points, norm_order=0.01)[0, 1].item(), expected, rel_tol=1e-4)
+    divergence = rosenstein_divergence(points, 0, embedding_dim=1, norm_order=0.01)
+    assert math.isclose(divergence.item(), (2 * math.log(expected) + math.log(4 * expected)) / 3, rel_tol=1e-5)

@@ -487,3 +487,11 @@ def test_large_float64_offset_needs_window_centering(order):
     base = torch.randn(1024, generator=torch.Generator().manual_seed(2), dtype=torch.float64)
     expected = dfa_fluctuation(base, 256, order=order)
     assert torch.isclose(dfa_fluctuation(base + 1e10, 256, order=order), expected, rtol=1e-6)
+
+
+def test_inexact_constant_series_has_zero_fluctuation_and_gradient():
+    # 0.1 is not binary-exact: window means round, so only the mask gives exact zeros.
+    series = torch.full((6,), 0.1, dtype=torch.float64, requires_grad=True)
+    result = dfa_fluctuation(series, 3)
+    (gradient,) = torch.autograd.grad(result, series)
+    assert result == 0 and torch.all(gradient == 0)
