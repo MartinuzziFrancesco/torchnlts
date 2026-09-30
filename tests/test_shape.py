@@ -373,3 +373,12 @@ def test_pairwise_distance_norm_order_must_be_real_scalar():
     for norm_order in (1j, torch.tensor(1j), torch.tensor([1.0, 2.0]), numpy.complex128(2 + 3j), torch.tensor(2 + 0j), None):
         with pytest.raises(ValueError, match="norm_order"):
             pairwise_distance(torch.arange(3.0), norm_order=norm_order)
+
+
+def test_pairwise_distance_nan_point_keeps_finite_pairs_scaled():
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    finite = torch.tensor([2.0**70, 2.0**71])
+    for bad in (float("nan"), float("inf")):
+        distance = pairwise_distance(torch.cat([torch.tensor([bad]), finite]))
+        assert distance[1, 2] == pairwise_distance(finite)[0, 1]

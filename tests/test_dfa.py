@@ -478,3 +478,12 @@ def test_dominant_dropped_tail_does_not_affect_detrended_windows():
     series = torch.cat([kept, torch.full((100,), 1e14, dtype=torch.float64)])
     for order in (1, 2):
         assert torch.isclose(dfa_fluctuation(series, 256, order=order), dfa_fluctuation(kept, 256, order=order), rtol=1e-10)
+
+
+@pytest.mark.parametrize("order", [1, 2])
+def test_large_float64_offset_needs_window_centering(order):
+    # An uncentered cumulative sum of 1e10-sized samples loses the unit-sized
+    # residual far beyond epsilon times the largest sample.
+    base = torch.randn(1024, generator=torch.Generator().manual_seed(2), dtype=torch.float64)
+    expected = dfa_fluctuation(base, 256, order=order)
+    assert torch.isclose(dfa_fluctuation(base + 1e10, 256, order=order), expected, rtol=1e-6)

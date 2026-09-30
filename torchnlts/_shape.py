@@ -285,7 +285,9 @@ def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
     reference = tensors[0]
     if not all(tensor.shape[-2] * tensor.shape[-1] > 0 for tensor in tensors):
         return torch.ones((1, 1, 1), dtype=reference.dtype, device=reference.device)
-    magnitudes = [tensor.detach().abs().amax(dim=(-2, -1), keepdim=True) for tensor in tensors]
+    # Finite coordinates only: a NaN/inf point must not disable the scaling
+    # of the finite pairs in its row.
+    magnitudes = [torch.where(torch.isfinite(tensor), tensor, 0).detach().abs().amax(dim=(-2, -1), keepdim=True) for tensor in tensors]
     scale = functools.reduce(torch.maximum, magnitudes)
     scale = torch.where(torch.isfinite(scale) & (scale > 0), scale, torch.ones_like(scale))
     return torch.exp2(torch.floor(torch.log2(scale)))
