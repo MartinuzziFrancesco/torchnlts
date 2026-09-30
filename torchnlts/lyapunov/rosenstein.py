@@ -35,6 +35,7 @@ import torch
 
 from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
+from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
 from torchnlts.neighbors.theiler import _require_self_exclusion
 
@@ -97,7 +98,8 @@ def rosenstein_divergence(
             non-integer-valued entry, or if ``theiler_window < 0``
             (self-matches must be excluded unconditionally, or the
             "nearest neighbor" is always the point itself at distance 0,
-            evolving trivially with it).
+            evolving trivially with it), or if ``norm_order`` is not a
+            real number >= 0.
     """
     # float64, not torch.as_tensor's default dtype (float32 unless
     # changed globally): a plain Python float/list argument would
@@ -118,6 +120,7 @@ def rosenstein_divergence(
     if torch.any(k_values_tensor != k_values_tensor.round()):
         raise ValueError("k_values must be integer-valued (they index discrete time steps)")
     _require_self_exclusion(theiler_window, "Rosenstein's Lyapunov estimator")
+    norm_order = _validate_norm_order(norm_order)
 
     embedding_dim = operator.index(embedding_dim)
     delay = operator.index(delay)

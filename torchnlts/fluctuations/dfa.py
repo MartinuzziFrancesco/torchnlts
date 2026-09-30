@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _power_of_two_scale, _safe_log
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -72,12 +72,6 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
     work_dtype = torch.float64
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_samples = values.shape[-1]
-    # F is homogeneous of degree 1 in the amplitude: compute it on values
-    # scaled to (-2, 2) and scale back, so the profile cannot overflow. The
-    # scale is a detached power of two: derivatives stay exact and the
-    # scaling is exact, so offsets cancel exactly below.
-    scale = _power_of_two_scale(values[..., None]).reshape(-1)
-    values = values / scale[:, None]
     # A constant series has an identically zero profile; mean removal leaves
     # rounding error, so report F = 0 exactly instead of a roundoff value.
     constant = (values == values[..., :1]).all(dim=-1) if num_samples > 0 else None
@@ -114,7 +108,7 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         mean_square = (residual / residual_scale[:, None, None]).pow(2).mean(dim=(-2, -1))
         safe_mean_square = torch.where(zero, torch.ones_like(mean_square), mean_square)
         normalized = torch.where(zero, torch.zeros_like(mean_square), safe_mean_square.sqrt() * residual_scale)
-        fluctuations.append(normalized * scale)
+        fluctuations.append(normalized)
 
     result = torch.stack(fluctuations, dim=0).to(dtype)  # [K, B]
     if not swept:

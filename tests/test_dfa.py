@@ -469,3 +469,12 @@ def test_spike_cancelled_by_detrending():
     (gradient,) = torch.autograd.grad(result, series)
     assert torch.isclose(result, torch.tensor(0.5))
     assert torch.allclose(gradient, torch.tensor([0.0, -0.25, 0.0, 0.25]), atol=1e-6)
+
+
+def test_dominant_dropped_tail_does_not_affect_detrended_windows():
+    # For order >= 1, F depends only on the kept samples; a global profile
+    # would carry the 1e14 tail's mean into every window.
+    kept = torch.randn(512, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
+    series = torch.cat([kept, torch.full((100,), 1e14, dtype=torch.float64)])
+    for order in (1, 2):
+        assert torch.isclose(dfa_fluctuation(series, 256, order=order), dfa_fluctuation(kept, 256, order=order), rtol=1e-10)

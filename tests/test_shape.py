@@ -1,5 +1,7 @@
 import math
 
+import numpy
+
 import pytest
 import torch
 
@@ -368,6 +370,6 @@ def test_ols_slope_rejects_empty_complex_sweep():
 def test_pairwise_distance_norm_order_must_be_real_scalar():
     from torchnlts.neighbors.distance import pairwise_distance
 
-    for norm_order in (1j, torch.tensor(1j), torch.tensor([1.0, 2.0])):
+    for norm_order in (1j, torch.tensor(1j), torch.tensor([1.0, 2.0]), numpy.complex128(2 + 3j), torch.tensor(2 + 0j), None):
         with pytest.raises(ValueError, match="norm_order"):
             pairwise_distance(torch.arange(3.0), norm_order=norm_order)

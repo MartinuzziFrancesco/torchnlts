@@ -425,9 +425,11 @@ def test_power_validation_edge_cases():
     power = torch.tensor(2.0, dtype=torch.float64, requires_grad=True)
     power_variogram(torch.arange(6.0, dtype=torch.float64) ** 2, 1, power=power).backward()
     assert power.grad is not None and torch.isfinite(power.grad)
-    for invalid in (10**400, numpy.array([1.0, 2.0])):
+    for invalid in (10**400, numpy.array([1.0, 2.0]), None):
         with pytest.raises(ValueError, match="power"):
             power_variogram(torch.arange(5.0), 1, power=invalid)
+        with pytest.raises(ValueError, match="power"):
+            variogram_dimension([1, 2], torch.tensor([1.0, 4.0]), power=invalid)
 
 
 def test_degenerate_column_keeps_power_gradient_finite():

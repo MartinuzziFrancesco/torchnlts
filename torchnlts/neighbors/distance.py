@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _power_of_two_scale, _restore_batch, _validate_matching_batch, _work_dtype
+from torchnlts._shape import _ensure_batched, _is_complex, _power_of_two_scale, _restore_batch, _validate_matching_batch, _work_dtype
 
 
 def pairwise_distance(
@@ -45,12 +45,7 @@ def pairwise_distance(
         ``2**(-126 / norm_order)`` in general (``1`` and ``inf`` are not
         affected). See the numerical range limits in :doc:`/primitives`.
     """
-    try:
-        norm_order = float(norm_order)
-    except (TypeError, ValueError, RuntimeError) as error:
-        raise ValueError(f"norm_order must be a real number >= 0, got {norm_order!r}") from error
-    if not norm_order >= 0:
-        raise ValueError(f"norm_order must be >= 0, got {norm_order}")
+    norm_order = _validate_norm_order(norm_order)
     batched, ndim = _ensure_batched(trajectory)
     if other is None:
         other_batched = batched
@@ -82,3 +77,13 @@ def pairwise_distance(
         distance = distance.masked_fill(nan_point, float("nan"))
     return _restore_batch(distance, ndim)
 
+
+def _validate_norm_order(norm_order) -> float:
+    """``norm_order`` as a Python float >= 0."""
+    try:
+        value = None if _is_complex(norm_order) else float(norm_order)
+    except (TypeError, ValueError, RuntimeError):
+        value = None
+    if value is None or not value >= 0:
+        raise ValueError(f"norm_order must be a real number >= 0, got {norm_order!r}")
+    return value

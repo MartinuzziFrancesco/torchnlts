@@ -64,6 +64,8 @@ def _validate_power(power):
         scalar = power.reshape(()) if torch.is_tensor(power) else float(power)
     except OverflowError:  # a huge Python int
         scalar = float("inf")
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"power must be a finite real number > 0, got {power!r}") from error
     if not 0 < scalar < float("inf"):
         raise ValueError(f"power must be a finite real number > 0, got {power!r}")
     return scalar

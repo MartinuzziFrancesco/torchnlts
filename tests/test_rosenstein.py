@@ -18,6 +18,8 @@ Dual ground truth:
 """
 
 import math
+
+import numpy
 import subprocess
 
 import pytest
@@ -467,3 +469,13 @@ def test_rosenstein_divergence_high_norm_order_small_separations():
     trajectory = torch.tensor([[0.0, 0.0], [1e-15, 1e-15], [10.0, 10.0], [10.0 + 2 * ulp, 10.0 + 2 * ulp]], dtype=torch.float64)
     expected = (math.log(1e-15) + math.log(2 * ulp)) / 2 + math.log(2.0) / 40
     assert math.isclose(rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12)
+    # Separations 1e-15 and 1 in one row: a row-wide scale still underflows.
+    trajectory = torch.tensor([[0.0, 0.0], [1e-15, 1e-15], [10.0, 10.0], [11.0, 11.0]], dtype=torch.float64)
+    expected = math.log(1e-15) / 2 + math.log(2.0) / 40
+    assert math.isclose(rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12)
+
+
+def test_rosenstein_divergence_accepts_numpy_norm_order():
+    trajectory = torch.arange(5.0)
+    for norm_order in (numpy.float32(2), numpy.float64(2)):
+        assert rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=norm_order) == 0
