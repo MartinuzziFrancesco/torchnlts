@@ -6,16 +6,24 @@ class (one of *exact*, *smooth*, *piecewise*,
 *implicit*, or *none*) and the reference(s) it's validated against.
 Updated in the same commit that adds or changes a primitive.
 
-Inputs within a few orders of magnitude of their dtype's largest finite
-value (about ``1e38`` for float32, ``1e308`` for float64) are not
-supported: intermediate sums, squares and differences can overflow and
-give ``inf``/``NaN`` results or gradients even when the exact answer is
-representable. Distance-based primitives square coordinates: in float32
-a trajectory whose largest magnitude exceeds its smallest nonzero
-separation by more than about ``1e19`` loses the small distances to
-underflow; use float64 for such data. A ``norm_order`` above 2 raises
-differences to that power and narrows this range further (use
-``norm_order=float('inf')`` for a max-norm).
+Numerical range limits. Outside these, results or gradients can be
+``inf``, ``NaN`` or inaccurate even when the exact answer is representable:
+
+- Magnitudes within a few orders of the dtype's largest finite value
+  (about ``1e38`` for float32, ``1e308`` for float64): intermediate sums,
+  squares and differences can overflow.
+- Magnitude ratios beyond about ``1e30`` within one series: the small
+  values are lost relative to the large ones.
+- Distance-based primitives (everything built on
+  :func:`~torchnlts.neighbors.distance.pairwise_distance`: neighbor
+  searches, recurrence, correlation sums, entropies, Lyapunov estimators,
+  ...) raise coordinate differences to the power ``norm_order``. In
+  float32 with ``norm_order=2``, distances more than about ``1e19`` times
+  smaller than the trajectory's largest magnitude underflow to zero; use
+  float64 for such data. Larger ``norm_order`` narrows this range to about
+  ``2**(-126 / norm_order)`` in float32 (``2**(-1022 / norm_order)`` in
+  float64); ``norm_order=float('inf')`` (max-norm) and ``norm_order=1``
+  are not affected.
 
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.

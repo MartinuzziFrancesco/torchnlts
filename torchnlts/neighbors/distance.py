@@ -38,6 +38,12 @@ def pairwise_distance(
     Raises:
         ValueError: If either trajectory is complex or ``norm_order`` is
             negative or NaN.
+
+    Note:
+        Distances far below the trajectory's largest magnitude underflow to
+        zero: in float32 below about ``1e-19`` times it for ``norm_order=2``,
+        ``2**(-126 / norm_order)`` in general (``1`` and ``inf`` are not
+        affected). See the numerical range limits in :doc:`/primitives`.
     """
     if not norm_order >= 0:
         raise ValueError(f"norm_order must be >= 0, got {norm_order}")
