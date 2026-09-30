@@ -24,6 +24,11 @@ Numerical range limits. Outside these, results or gradients can be
   ``2**(-126 / norm_order)`` in float32 (``2**(-1022 / norm_order)`` in
   float64); ``norm_order=float('inf')`` (max-norm) and ``norm_order=1``
   are not affected.
+- Absolute accuracy is about the working dtype's epsilon times the
+  series' largest magnitude. A result far smaller than that and resolved
+  only by cancellation (e.g. a DFA residual of ``0.5`` next to a ``1e20``
+  spike in float64) is not accurate. Katz, DFA and the variogram always
+  compute in float64.
 
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.

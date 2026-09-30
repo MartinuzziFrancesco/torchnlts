@@ -183,13 +183,13 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
         raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
     out_dtype = _output_dtype(values)
+    # The wider of the two dtypes, so distinct float64 sweep points are not
+    # merged when values are float32 (also rejects a complex sweep).
+    work_dtype = torch.promote_types(_work_dtype(out_dtype), _work_dtype(sweep.dtype))
     if sweep.shape[0] == 0:
         # Zero-weighted sums keep the result connected to both inputs.
         connected = values.to(out_dtype).sum(dim=0) * 0 + sweep.to(out_dtype).sum() * 0
         return connected + float("nan")
-    # The wider of the two dtypes, so distinct float64 sweep points are not
-    # merged when values are float32.
-    work_dtype = torch.promote_types(_work_dtype(out_dtype), _work_dtype(sweep.dtype))
     sweep = sweep.to(work_dtype).view((-1,) + (1,) * (values.dim() - 1))
     values = values.to(work_dtype)
     # Degenerate sweeps and invalid columns are replaced before any

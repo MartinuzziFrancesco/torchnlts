@@ -37,7 +37,7 @@ def pairwise_distance(
 
     Raises:
         ValueError: If either trajectory is complex or ``norm_order`` is
-            negative or NaN.
+            not a real number >= 0.
 
     Note:
         Distances far below the trajectory's largest magnitude underflow to
@@ -45,6 +45,10 @@ def pairwise_distance(
         ``2**(-126 / norm_order)`` in general (``1`` and ``inf`` are not
         affected). See the numerical range limits in :doc:`/primitives`.
     """
+    try:
+        norm_order = float(norm_order)
+    except (TypeError, ValueError, RuntimeError) as error:
+        raise ValueError(f"norm_order must be a real number >= 0, got {norm_order!r}") from error
     if not norm_order >= 0:
         raise ValueError(f"norm_order must be >= 0, got {norm_order}")
     batched, ndim = _ensure_batched(trajectory)

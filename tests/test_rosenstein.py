@@ -459,3 +459,11 @@ def test_rosenstein_divergence_rejects_complex_k_values():
     for k_values in (torch.tensor([0.0 + 2j, 1.0 + 3j]), [0, 1j]):
         with pytest.raises(ValueError, match="real"):
             rosenstein_divergence(trajectory, k_values)
+
+
+def test_rosenstein_divergence_high_norm_order_small_separations():
+    # (1e-15 / 10) ** 40 underflows float64 unless each pair is scaled by itself.
+    ulp = math.ulp(10.0)
+    trajectory = torch.tensor([[0.0, 0.0], [1e-15, 1e-15], [10.0, 10.0], [10.0 + 2 * ulp, 10.0 + 2 * ulp]], dtype=torch.float64)
+    expected = (math.log(1e-15) + math.log(2 * ulp)) / 2 + math.log(2.0) / 40
+    assert math.isclose(rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12)

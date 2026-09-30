@@ -460,3 +460,12 @@ def test_order_zero_large_float64_offset():
 def test_bfloat16_input_is_computed_in_float32():
     series = torch.randn(256, generator=torch.Generator().manual_seed(0)).bfloat16()
     assert dfa_fluctuation(series, 16) == dfa_fluctuation(series.float(), 16).bfloat16()
+
+
+def test_spike_cancelled_by_detrending():
+    # A first-sample spike adds a constant to the profile, which detrending removes.
+    series = torch.tensor([1e8, 1.0, 2.0, 3.0], requires_grad=True)
+    result = dfa_fluctuation(series, 4)
+    (gradient,) = torch.autograd.grad(result, series)
+    assert torch.isclose(result, torch.tensor(0.5))
+    assert torch.allclose(gradient, torch.tensor([0.0, -0.25, 0.0, 0.25]), atol=1e-6)

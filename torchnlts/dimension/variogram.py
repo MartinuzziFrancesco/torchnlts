@@ -164,4 +164,7 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
     power = _validate_power(power)
     log_lag = _safe_log(_as_sweep(lag, variogram.device))
     slope = _ols_slope(log_lag, _safe_log(variogram))
-    return (2.0 - slope / power).to(_output_dtype(variogram))
+    # A NaN slope divided by a differentiable power would put NaN into its gradient.
+    valid = torch.isfinite(slope)
+    dimension = 2.0 - torch.where(valid, slope, torch.zeros_like(slope)) / power
+    return torch.where(valid, dimension, torch.full_like(dimension, float("nan"))).to(_output_dtype(variogram))

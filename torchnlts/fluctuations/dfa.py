@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _power_of_two_scale, _safe_log, _work_dtype
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _power_of_two_scale, _safe_log
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -67,8 +67,9 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
     if not torch.isfinite(tensor).all():
         raise ValueError("dfa_fluctuation requires a finite trajectory (no NaN/inf)")
     dtype = _output_dtype(tensor)
-    # Half precision has no CPU QR/matmul support and too little range; work in float32.
-    work_dtype = _work_dtype(dtype)
+    # Always float64: detrending cancels the profile's polynomial part, and
+    # its rounding error scales with the largest sample, not the residual.
+    work_dtype = torch.float64
     values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
     num_samples = values.shape[-1]
     # F is homogeneous of degree 1 in the amplitude: compute it on values
@@ -94,12 +95,12 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         # offset, gives the same residuals; the offset is subtracted in the
         # input's units, where x - c is exact for nearby values, so a large
         # common offset or dominant dropped samples cause no cancellation.
-        # Order 0 keeps the linear term: subtract the global mean in float64,
-        # after the first sample so a large common offset cancels exactly.
+        # Order 0 keeps the linear term: subtract the global mean, after the
+        # first sample so a large common offset cancels exactly.
         kept = values[..., : num_windows * size].reshape(values.shape[0], num_windows, size)
         if order == 0:
-            shifted = values.double() - values[:, :1].double()
-            kept = (kept.double() - values[:, :1, None].double() - shifted.mean(dim=-1)[:, None, None]).to(work_dtype)
+            first = values[:, :1, None]
+            kept = kept - first - (values - values[:, :1]).mean(dim=-1)[:, None, None]
         else:
             kept = kept - kept.mean(dim=-1, keepdim=True)
         windows = torch.cumsum(kept, dim=-1)

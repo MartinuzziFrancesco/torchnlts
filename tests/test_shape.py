@@ -358,3 +358,16 @@ def test_pairwise_distance_max_norm_propagates_nan():
 
     distance = pairwise_distance(torch.tensor([[float("nan"), 1.0], [1.0, 2.0], [0.0, 0.0]]), norm_order=float("inf"))
     assert distance[0].isnan().all() and distance[:, 0].isnan().all() and distance[1, 2] == 2
+
+
+def test_ols_slope_rejects_empty_complex_sweep():
+    with pytest.raises(ValueError):
+        _ols_slope(torch.empty(0, dtype=torch.complex64), torch.empty(0))
+
+
+def test_pairwise_distance_norm_order_must_be_real_scalar():
+    from torchnlts.neighbors.distance import pairwise_distance
+
+    for norm_order in (1j, torch.tensor(1j), torch.tensor([1.0, 2.0])):
+        with pytest.raises(ValueError, match="norm_order"):
+            pairwise_distance(torch.arange(3.0), norm_order=norm_order)
