@@ -10,12 +10,11 @@ import torch
 
 def logistic_map_trajectory(num_points: int, x0: float = 0.4) -> torch.Tensor:
     """The r=4 logistic map, whose largest Lyapunov exponent is exactly
-    ln(2) -- the standard analytic benchmark
-    for this kind of estimator. Via ``dysts.maps.Logistic``
-    (not hand-rolled: the package does not hand-write
-    reference dynamical systems, torchnlts.systems' own thin wrapper
-    doesn't expose a custom ``r``/initial condition, so this imports
-    ``dysts`` directly rather than reimplementing the map's iteration).
+    ln(2) -- the standard analytic benchmark for this kind of estimator. Via
+    ``dysts.maps.Logistic`` (not hand-rolled: reference dynamical systems
+    come from dysts; torchnlts.systems' own thin wrapper doesn't expose a
+    custom ``r``/initial condition, so this imports ``dysts`` directly
+    rather than reimplementing the map's iteration).
     """
     import dysts.maps as maps
 

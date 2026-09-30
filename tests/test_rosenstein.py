@@ -7,8 +7,8 @@ Dual ground truth:
      torchnlts.dimension.correlation.correlation_dimension's own split
      test design), and the paper's own natural analytic benchmark: the
      logistic map at r=4, whose largest Lyapunov exponent is exactly
-     ln(2) (the standard
-     hand-derivable case for this kind of estimator).
+     ln(2) (the standard hand-derivable case for this kind of
+     estimator).
   2. Julia: ChaosTools.jl's `lyapunov_from_data`, compared at tight
      (float64-precision) tolerance -- matching it required discovering
      and replicating a real, confirmed convention (a reference-point set
@@ -280,8 +280,8 @@ def test_rosenstein_lyapunov_gradcheck_direct_k_and_divergence():
 
 
 def test_rosenstein_matches_analytic_logistic_map_lyapunov_exponent():
-    # Rosenstein, Collins & De Luca (1993)'s own natural benchmark:
-    # the logistic map x_{n+1} = 4 x_n (1 - x_n) has largest Lyapunov
+    # Rosenstein, Collins & De Luca (1993)'s own natural benchmark: the
+    # logistic map x_{n+1} = 4 x_n (1 - x_n) has largest Lyapunov
     # exponent exactly ln(2). A finite-sample kNN estimator won't hit
     # this exactly, so this uses a tolerance appropriate for that,
     # not an exact-value check.

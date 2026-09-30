@@ -1,20 +1,18 @@
 """Tests for torchnlts.sciml.losses.
 
-Note: each loss here composes
-primitives already implemented, tested, and dual-validated (paper +
-Julia) elsewhere in the package -- none introduces a new statistic, so
-none needs its own fresh paper/Julia ground truth. What these tests
+Each loss here composes primitives that are already implemented, tested,
+and dual-validated (paper + Julia) -- none introduces a new statistic, so
+none needs its own paper/Julia ground truth. What these tests
 validate instead is that each loss *correctly wires up* the primitive
 it reuses: hand-derived by computing the same primitive directly
 (outside the loss module) and comparing, exactly mirroring how
 ``kantz_divergence`` reusing ``rosenstein_lyapunov`` didn't need its own
 independent numerical ground truth either. ``AttractorLoss`` is the
 exception -- its MMD combination is genuinely new logic, not just a
-single reused call, and a review found (by direct
-counterexample) that it could go negative for a non-Euclidean
-``norm_order``, and that constructing a loss with a float64 target/
-temperature silently downcast it to the module's default dtype. Both
-are now locked in as regressions below, not just fixed silently.
+single reused call. Two earlier bugs are locked in as regressions below:
+it could go negative for a non-Euclidean ``norm_order``, and constructing
+a loss with a float64 target/temperature silently downcast it to the
+module's default dtype.
 """
 
 import torch

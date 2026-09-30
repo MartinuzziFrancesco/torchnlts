@@ -1,8 +1,7 @@
 """Tests for torchnlts.embedding.fractional_delay.fractional_delay_embedding.
 
 No Julia equivalent exists (DelayEmbeddings.jl's `embed` only accepts
-integer lags -- checked directly), so this validates
-against:
+integer lags -- checked directly), so this validates against:
   1. The paper: Laakso et al. (1996)'s linear-interpolation fractional
      delay, hand-derived.
   2. Internal consistency: for integer lags, must match

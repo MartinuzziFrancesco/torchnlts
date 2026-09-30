@@ -97,7 +97,7 @@ def test_soft_multiscale_entropy_gradcheck():
 
 
 def test_soft_multiscale_entropy_gradcheck_trajectory():
-    # Coverage gap: the temperature-only gradcheck above
+    # The temperature-only gradcheck above
     # never differentiates through coarse_grain's reshape/mean (the one
     # genuinely new piece of logic this module adds), since it holds
     # the trajectory fixed. This exercises that path directly.
@@ -111,11 +111,11 @@ def test_soft_multiscale_entropy_gradcheck_trajectory():
 
 
 def test_multiscale_entropy_too_coarse_scale_raises():
-    # Documentation gap: a scale coarse enough to leave the
+    # A scale coarse enough to leave the
     # coarse-grained series shorter than embedding_dim+1 samples raises
     # (propagated from delay_embedding via sample_entropy) rather than
     # degrading that entry to NaN like a merely-degenerate-but-still-
-    # embeddable scale does -- confirmed boundary, locked in here.
+    # embeddable scale does -- confirmed boundary.
     torch.manual_seed(7)
     trajectory = torch.randn(20, dtype=torch.float64)
     embedding_dim = 2

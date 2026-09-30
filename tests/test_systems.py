@@ -2,8 +2,7 @@
 
 Per systems/__init__.py's docstring: this module is data conversion, not
 a numerical algorithm, so there's no paper/Julia dual ground truth to
-validate against here (torchnlts deliberately
-avoids that: torchnlts wraps dysts rather than re-deriving its
+validate against here (torchnlts wraps dysts rather than re-deriving its
 dynamics). These tests instead check the wrapping is correct.
 """
 

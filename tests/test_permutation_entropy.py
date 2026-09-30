@@ -48,7 +48,7 @@ def test_ordinal_pattern_probabilities_matches_hand_derived_counts():
     # Same trajectory/pattern breakdown as test_permutation_entropy_hand_derived:
     # (0,1,2)x2, (2,0,1)x2, (1,0,2)x1 out of 5 -> Lehmer codes 0, 4, 1 with
     # counts 2, 2, 1 -- asserting the full vector, not just shape/sum/max
-    # (coverage gap: those three checks alone can't tell
+    # (those three checks alone can't tell
     # [0.4,0,0.2,0,0.4,0] apart from a differently-arranged permutation
     # with the same sum and max).
     trajectory = torch.tensor([4.0, 7.0, 9.0, 10.0, 6.0, 11.0, 3.0], dtype=torch.float64)

@@ -1,7 +1,7 @@
 """Tests for torchnlts.neighbors.kernels.trajectory_kernel.
 
-No Julia equivalent exists (see kernels.py docstring), so this
-validates against:
+No Julia equivalent exists (see kernels.py docstring), so this validates
+against:
   1. The defining paper formulas, hand-derived: Judd (1992) eq. for the
      Gaussian correlation-sum kernel, Sugihara et al. (2012) eq. for the
      CCM exponential weight.
@@ -118,7 +118,7 @@ def test_trajectory_kernel_huge_distance_no_nan_gradient():
 
 
 def test_trajectory_kernel_float32_subnormal_scale_known_ceiling():
-    # Documented ceiling (see kernels.py's "Limitation:" note): distance and
+    # Documented limitation (see kernels.py's module docstring): distance and
     # temperature both within ~1 order of magnitude of float32's
     # representable floor (~1.2e-38) can still blow up the temperature
     # gradient in float32, because temperature**2 underflows to exactly 0

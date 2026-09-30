@@ -260,7 +260,7 @@ def test_lyapunov_spectrum_gradcheck_w_r_t_initial_state():
 
 
 def test_lyapunov_spectrum_gradcheck_w_r_t_model_parameter():
-    # The actual target use case: step_fn's own parameters
+    # The target use case: step_fn's own parameters
     # (a differentiable dynamics model being trained) require grad, not
     # just the state. A fixed diagonal map is used instead of Hénon here
     # to keep the check numerically safe regardless of step count.

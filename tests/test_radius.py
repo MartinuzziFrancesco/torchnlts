@@ -33,7 +33,7 @@ def test_radius_neighbors_hand_derived():
 def test_radius_neighbors_infinite_radius_still_excludes_theiler():
     # inf <= inf is True in IEEE 754, so an r=inf search must not rely
     # on comparing against an inf-filled distance matrix to exclude
-    # Theiler pairs -- regression test for this bug.
+    # Theiler pairs -- regression test for that bug.
     x = torch.tensor([0.0, 1.0, 2.0])
     mask = radius_neighbors(x, radius=float("inf"), theiler_window=1)
     assert mask[1].sum() == 0

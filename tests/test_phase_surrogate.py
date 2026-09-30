@@ -105,7 +105,8 @@ def test_phase_randomized_surrogate_mean_approximately_preserved():
 
 
 def test_phase_randomized_surrogate_zero_phase_matches_hand_derived_formula():
-    # Hand-derived paper-formula check: force every drawn "random" phase to 0 (mocking
+    # Hand-derived paper-formula check: force every drawn "random" phase
+    # to 0 (mocking
     # torch.rand, which the production code multiplies by 2*pi to get
     # the phase actually used, so a 0 draw is a phase of exactly 0) --
     # shuffled_F is then just the real, non-negative magnitude at every

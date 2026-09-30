@@ -13,11 +13,10 @@ Dual ground truth:
      `q ≈ 1` tolerance window when k != 1 (see module docstring), locked
      in below.
 
-Also locks in three real numerical-stability bugs found
-in an earlier version of this module (exact-equality-only order-1
-special casing, and direct power-sum computation instead of
-`logsumexp`), each confirmed independently before fixing, plus a
-composition gap (NaN silently read as zero probability).
+Also locks in regressions for numerical-stability bugs in earlier versions
+of this module (exact-equality-only order-1 special casing, and direct
+power-sum computation instead of `logsumexp`), plus a composition gap (NaN
+silently read as zero probability).
 """
 
 import math
@@ -148,10 +147,9 @@ def test_renyi_entropy_batched():
 
 
 def test_renyi_entropy_stable_near_order_1_in_float32():
-    # Regression: an earlier version special-cased alpha=1
-    # only at *exact* equality, leaving a real floating-point
-    # cancellation gap nearby -- alpha=1.00000001 in float32 returned
-    # 0 instead of ~0.693147 (verified directly before this fix).
+    # Regression: an earlier version special-cased alpha=1 only at *exact*
+    # equality, leaving a floating-point cancellation gap nearby --
+    # alpha=1.00000001 in float32 returned 0 instead of ~0.693147.
     probability = torch.tensor([0.5, 0.5, 0.0], dtype=torch.float32)
     result = renyi_entropy(probability, 1.00000001)
     assert torch.isclose(result, torch.tensor(math.log(2.0), dtype=torch.float32), atol=1e-3)
@@ -164,15 +162,12 @@ def test_tsallis_entropy_stable_near_order_1_in_float32():
 
 
 def test_generalized_entropy_stable_near_order_1_outside_shannon_window_skewed_distribution():
-    # A later review found the fix above wasn't
-    # enough: a *skewed* float32 distribution at an order comfortably
-    # OUTSIDE the alpha=1 tolerance window (0.9996/1.0004, not
-    # 1.00000001) still suffered severe cancellation in the general
-    # formula itself -- an earlier logsumexp-only version of this
-    # module was off by ~93% here. Fixed via a separate, near-1-
-    # optimized expm1/log1p reformulation of the general formula (see
-    # module docstring) -- independent reference values computed via
-    # plain Python floats (double precision), not reusing this module.
+    # A *skewed* float32 distribution at an order outside the alpha=1
+    # tolerance window (0.9996/1.0004, not 1.00000001) still suffers severe
+    # cancellation in the general formula itself; a logsumexp-only version
+    # was off by ~93% here. The near-1 expm1/log1p reformulation (see
+    # module docstring) fixes it. Reference values are computed with plain
+    # Python floats (double precision), not this module.
     probability = torch.tensor([1 - 2**-20, 2**-20, 0.0], dtype=torch.float32)
     reference = {0.9996: 1.4211130565233943e-05, 1.0004: 1.4137819011059937e-05}
     for order, expected in reference.items():
@@ -183,15 +178,13 @@ def test_generalized_entropy_stable_near_order_1_outside_shannon_window_skewed_d
 
 
 def test_renyi_entropy_isclose_tolerance_does_not_scale_with_probability_dtype():
-    # Regression: an earlier version scaled the alpha ≈ 0/1
-    # tolerance by probability.dtype's own eps, matching Julia's
-    # convention for a *Float32* order but not for a plain Python
-    # float order (always double precision) -- silently and wrongly
-    # routing alpha=0.0003 on float32 data into the alpha=0 Hartley
-    # branch (losing both the correct value and the gradient path,
-    # confirmed directly before this fix). The order parameter's own
-    # (always-double) precision determines the tolerance now, not
-    # probability's dtype.
+    # Regression: an earlier version scaled the alpha ≈ 0/1 tolerance by
+    # probability.dtype's own eps, matching Julia's convention for a
+    # *Float32* order but not for a plain Python float order (always double
+    # precision), wrongly routing alpha=0.0003 on float32 data into the
+    # alpha=0 Hartley branch (losing both the value and the gradient path).
+    # The order parameter's own (double) precision determines the tolerance,
+    # not probability's dtype.
     probability = torch.tensor([1 - 2**-23, 2**-23], dtype=torch.float32, requires_grad=True)
     result = renyi_entropy(probability, 0.0003)
     assert result.requires_grad
@@ -199,12 +192,12 @@ def test_renyi_entropy_isclose_tolerance_does_not_scale_with_probability_dtype()
 
 
 def test_renyi_entropy_stable_at_extreme_alpha():
-    # Regression: an earlier version formed probability**alpha
-    # directly, overflowing to inf at alpha=200 (float32) or alpha=2000
-    # (float64) even though the true entropy (log(2), the min-entropy of
-    # a uniform 2-outcome distribution) is nowhere near either dtype's
-    # representable range -- fixed via a logsumexp reformulation that
-    # never forms probability**alpha in linear space.
+    # Regression: an earlier version formed probability**alpha directly,
+    # overflowing to inf at alpha=200 (float32) or alpha=2000 (float64)
+    # even though the true entropy (log(2), the min-entropy of a uniform
+    # 2-outcome distribution) is far from either dtype's representable
+    # range. The logsumexp reformulation never forms probability**alpha in
+    # linear space.
     expected = math.log(2.0)
     p32 = torch.tensor([0.5, 0.5], dtype=torch.float32)
     assert torch.isclose(renyi_entropy(p32, 200.0), torch.tensor(expected, dtype=torch.float32), atol=1e-3)
@@ -213,14 +206,12 @@ def test_renyi_entropy_stable_at_extreme_alpha():
 
 
 def test_tsallis_entropy_stable_at_extreme_q():
-    # A later review found the module's own stated impossibility
-    # claim here was too strong: a log-space shift of the 1/(order-1)
-    # scaling (applied *before* exponentiating, not after -- see module
-    # docstring) rescues q=-128 (float32) and q=-1024 (float64), cases
-    # that overflowed to inf even after the extreme-alpha fix above.
-    # Reference values from the module docstring's own derivation,
-    # cross-checked independently (not reused from this module) via
-    # exp(log(2) - log(|q-1|)) scaling by hand.
+    # A log-space shift of the 1/(order-1) scaling (applied *before*
+    # exponentiating, not after -- see module docstring) rescues q=-128
+    # (float32) and q=-1024 (float64), which overflow to inf with the
+    # extreme-alpha fix above alone. Reference values are from the module
+    # docstring's derivation, checked by hand via
+    # exp(log(2) - log(|q-1|)) scaling.
     p32 = torch.tensor([0.5, 0.5], dtype=torch.float32)
     assert torch.isclose(tsallis_entropy(p32, -128.0), torch.tensor(5.2757e36, dtype=torch.float32), rtol=1e-3)
     p64 = torch.tensor([0.5, 0.5], dtype=torch.float64)
@@ -228,49 +219,40 @@ def test_tsallis_entropy_stable_at_extreme_q():
 
 
 def test_tsallis_entropy_stable_at_extreme_q_and_k_together():
-    # A further review found the fix above still overflowed once k
-    # itself was also extreme (k multiplied in only after exponentiating,
-    # not shifted into the same log-space computation) -- fixed by
-    # folding k into that same shift. Reference value from the module
-    # docstring's own derivation.
+    # The shift above still overflows once k is also extreme if k is
+    # multiplied in after exponentiating, so k is folded into the same
+    # log-space shift. Reference value from the module docstring's
+    # derivation.
     probability = torch.tensor([0.5, 0.5], dtype=torch.float64)
     result = tsallis_entropy(probability, -1040.0, k=1e-300)
     assert torch.isclose(result, torch.tensor(2.2634700727e10, dtype=torch.float64), rtol=1e-3)
 
 
 def test_generalized_entropy_correct_value_for_extreme_order_and_near_subnormal_probability():
-    # Regression, more subtle than the others: an initial
-    # fix for the gradient-poisoning bug (clamping the near-1 formula's
-    # own internal exponent before exp/expm1, to keep its local
-    # gradient finite even when discarded) broke the *forward value* in
-    # exactly the cases it was meant to protect -- clamping the exponent
-    # also silently changed u itself, which the saturation check relied
-    # on to decide whether to trust this branch at all, so a genuinely
-    # saturated case could look artificially well-behaved and get the
-    # wrong (clamped-away, not properly discarded) branch selected.
-    # Fixed by detecting saturation from the *unclamped* exponent,
-    # computed separately, not from the (by-then-safe) u alone.
+    # Regression: clamping the near-1 formula's internal exponent before
+    # exp/expm1 (to keep its local gradient finite when discarded) broke
+    # the *forward value* in the cases it was meant to protect. The clamp
+    # also changed u itself, which the saturation check uses to decide
+    # whether to trust this branch, so a saturated case could look
+    # well-behaved and select the wrong branch. Saturation is detected
+    # from the *unclamped* exponent, computed separately, not from the
+    # (already safe) u alone.
     probability = torch.softmax(torch.tensor([0.0, -310 * math.log(10.0)], dtype=torch.float64), dim=-1)
     result = renyi_entropy(probability, 0.001)
     assert torch.isclose(result, torch.tensor(0.3990266880503495, dtype=torch.float64), rtol=1e-6)
 
 
 def test_generalized_entropy_gradcheck_across_extreme_orders():
-    # Locks in a genuinely tricky bug a later review's own
-    # gradcheck stress-testing surfaced (not from reasoning about it in
-    # advance): torch.where backprops through BOTH branches of the
-    # near-1/extreme-order hybrid above regardless of which is
-    # selected, and each branch's own local gradient can blow up
-    # exactly where the *other* branch is selected, poisoning the
-    # total gradient via 0*inf=NaN even though the forward VALUE was
-    # already correct -- the same class of bug as this codebase's own
-    # rosenstein.py lesson. Confirmed directly: before the fix (safe-
-    # dummy substitution into whichever branch is about to be
-    # discarded), this exact sweep had failures at roughly 1 in 6
-    # (order, seed) combinations; a broader 675-combination sweep run
-    # during development found zero failures after the fix -- this
-    # test keeps a representative slice of that sweep as a permanent
-    # regression lock, not the full sweep (too slow for routine runs).
+    # torch.where backprops through BOTH branches of the near-1/extreme-
+    # order hybrid above regardless of which is selected, and each
+    # branch's local gradient can blow up exactly where the *other* branch
+    # is selected, poisoning the total gradient via 0*inf=NaN even though
+    # the forward VALUE is correct (same class of bug as in rosenstein.py).
+    # The fix substitutes a safe dummy into whichever branch is discarded.
+    # Without it, this sweep failed for roughly 1 in 6 (order, seed)
+    # combinations. This test keeps a representative slice of a broader
+    # 675-combination sweep (which had zero failures after the fix); the
+    # full sweep is too slow for routine runs.
     def make_prob(raw):
         return raw / raw.sum()
 
@@ -291,12 +273,11 @@ def test_generalized_entropy_gradcheck_across_extreme_orders():
 
 
 def test_renyi_entropy_propagates_nan_probability_row():
-    # Composition gap: NaN > 0 is False in IEEE 754, so the
-    # zero-probability masking logic silently treated a NaN row (e.g.
-    # ordinal_pattern_probabilities's own convention for a degenerate
-    # trajectory) as "every outcome has zero probability" instead of
-    # propagating NaN -- confirmed directly (inf/-inf/wrong finite
-    # values depending on alpha) before this fix.
+    # Regression: NaN > 0 is False in IEEE 754, so the zero-probability
+    # masking logic treated a NaN row (e.g. ordinal_pattern_probabilities's
+    # convention for a degenerate trajectory) as "every outcome has zero
+    # probability" instead of propagating NaN (giving inf/-inf/wrong finite
+    # values depending on alpha).
     probability = torch.full((5,), float("nan"), dtype=torch.float64)
     for alpha in (0.0, 0.5, 1.0, 2.0, float("inf")):
         assert torch.isnan(renyi_entropy(probability, alpha))
@@ -320,13 +301,12 @@ def test_renyi_entropy_nan_does_not_poison_other_batch_rows():
 
 
 def test_renyi_masked_zero_gradient_is_not_the_true_limiting_derivative():
-    # Documentation gap: the masked gradient of 0 at an
-    # exact-zero probability entry is a *convention* (this outcome's
-    # probability is fixed at zero), not the general one-sided limiting
-    # derivative as that outcome's probability grows from zero -- for
-    # order < 1, that true limit is unbounded. Confirmed directly by
-    # numerically estimating (H(eps) - H(0)) / eps as eps shrinks: it
-    # diverges rather than converging to the masked gradient's value.
+    # The masked gradient of 0 at an exact-zero probability entry is a
+    # *convention* (this outcome's probability is fixed at zero), not the
+    # one-sided limiting derivative as that outcome's probability grows
+    # from zero -- for order < 1 that limit is unbounded. Numerically,
+    # (H(eps) - H(0)) / eps diverges as eps shrinks rather than converging
+    # to the masked gradient's value.
     base = torch.tensor([0.5, 0.5, 0.0], dtype=torch.float64)
     h0 = renyi_entropy(base, 0.5)
     slopes = []
@@ -344,9 +324,7 @@ def test_renyi_masked_zero_gradient_is_not_the_true_limiting_derivative():
 
 def test_tsallis_masked_zero_gradient_is_not_the_true_limiting_derivative():
     # Same property, checked independently for Tsallis rather than
-    # assumed to carry over from Renyi's own check above
-    # (coverage gap: an earlier version of this test file had a name
-    # claiming to cover both functions but only ever exercised Renyi).
+    # assumed to carry over from Renyi's own check above.
     base = torch.tensor([0.5, 0.5, 0.0], dtype=torch.float64)
     h0 = tsallis_entropy(base, 0.5)
     slopes = []

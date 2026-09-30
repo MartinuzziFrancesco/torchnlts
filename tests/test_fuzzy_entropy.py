@@ -214,9 +214,7 @@ def test_fuzzy_entropy_univariate_embedding_dim_1_fractional_power_gradient_is_n
     # (norm_order=2.0) backward already returns a finite gradient at a
     # zero distance on its own, so a norm_order=2.0 version of this
     # test would pass whether or not the fix (or even the original
-    # bug) were present -- caught only because a mutation
-    # check removed the fix in memory and reran this test's
-    # earlier norm_order=2.0 form, which didn't catch it.
+    # bug) were present.
     #
     # Chebyshev also carries the module docstring's *separate*,
     # already-covered long-branch tie caveat, so this only asserts
@@ -254,10 +252,8 @@ def test_fuzzy_entropy_multivariate_embedding_dim_1_not_short_circuited():
     # go through the general pipeline. Asserts the forward value
     # itself matches an independent reconstruction of the general
     # pipeline (not just finiteness/nonzero-gradient, which a wrong
-    # embedding_dim==1-only condition would also satisfy -- caught by
-    # a mutation check, which restored that wrong condition
-    # in memory and found this test's earlier finiteness-only form
-    # still passed with a materially different forward value).
+    # embedding_dim==1-only condition would also satisfy; such a
+    # condition gives a materially different forward value).
     from torchnlts.entropy.fuzzy import _fuzzy_correlation
     from torchnlts.entropy.sample import _matched_length_templates
 
