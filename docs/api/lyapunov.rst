@@ -24,7 +24,7 @@ variance is zero. Distances are not clamped or regularized.
 This does *not* mean gradients through these functions are always
 well-behaved: if ``trajectory`` is itself the output of rolling out a
 model over many steps (e.g. computing a Lyapunov-based loss for training
-a differentiable dynamics model, the planned
+a differentiable dynamics model, as in
 ``sciml.losses.LyapunovLoss``), backpropagating through *that* rollout
 inherits the same exploding-variance risk regardless of what's computed
 on top of it -- these functions neither cause nor fix that, and offer no

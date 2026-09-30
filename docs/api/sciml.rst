@@ -3,7 +3,7 @@ SciML Reference
 
 Invariant-matching training losses for differentiable dynamics models --
 the ``torchnlts.sciml`` subpackage. Most of these losses compose
-primitives already validated elsewhere in the package; see the module
+primitives already validated elsewhere in the library; see the module
 docstring for why those don't need their own fresh paper/Julia
 validation, for :class:`~torchnlts.sciml.losses.LyapunovLoss`'s
 inherited gradient-stability caveat, and for why

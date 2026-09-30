@@ -2,7 +2,7 @@ Primitives
 ==========
 
 This page lists every public torchnlts primitive with its gradient
-class (one of *exact*, *smooth*, *piecewise*,
+class (*exact*, *smooth*, *piecewise*,
 *implicit*, or *none*) and the reference(s) it's validated against.
 Updated in the same commit that adds or changes a primitive.
 
