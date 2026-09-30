@@ -15,8 +15,8 @@ it raises, since its internal step-size-selection routes through an
 ``torch.func`` transforms require. This module otherwise makes no
 assumption beyond "differentiable ``[D] -> [D]`` function" -- it does not
 itself roll out a trajectory, and has no dependency on ``dysts`` or
-``torchdiffeq`` (this package doesn't
-reimplement ODE solvers or reference systems).
+``torchdiffeq`` (this package doesn't reimplement ODE solvers or
+reference systems).
 """
 
 from __future__ import annotations

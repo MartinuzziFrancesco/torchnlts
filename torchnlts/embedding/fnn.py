@@ -2,8 +2,8 @@
 
 Gradient class: none (hard threshold comparisons, boolean output).
 A differentiable relaxation would be a separately-named ``soft_fnn``
-built on :mod:`torchnlts.neighbors.kernels`, never a hidden swap here.
-Not yet needed, so not added.
+built on :mod:`torchnlts.neighbors.kernels`, never a hidden swap here --
+not yet needed, so not added.
 
 Reference: Kennel, Brown & Abarbanel (1992), Phys. Rev. A 45, 3403,
 eq. 4-5. A neighbor pair found at embedding dimension ``d`` is false if
@@ -80,7 +80,7 @@ def hard_fnn(
 
     batched_trajectory, ndim = _ensure_batched(trajectory)
     # Per-channel std, then combined via an L2 norm across channels --
-    # not the neighbor-search norm_order, since Kennel's R_A is a
+    # not ``norm_order``, since Kennel's R_A is a
     # sum-of-squares attractor size regardless of the neighbor-search
     # norm. Computing std on data flattened across time *and* channel
     # would mix each channel's mean into every other channel's spread.

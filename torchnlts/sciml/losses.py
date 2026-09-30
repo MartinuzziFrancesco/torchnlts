@@ -1,7 +1,7 @@
 """Invariant-matching training losses for differentiable dynamics models.
 
 Each loss in this module composes primitives already implemented and
-validated elsewhere in the package -- none of them introduces a new
+validated elsewhere in the library -- none of them introduces a new
 *statistic* of its own, so none needs a fresh paper/Julia validation of
 the underlying quantity being matched. That's not the whole correctness
 story for all five, though: three (``LyapunovLoss``,
@@ -22,11 +22,10 @@ regularization shrinks, its cost must converge to the exact (regularization-free
 optimal transport cost between two equal-size point clouds, computed via
 ``scipy.optimize.linear_sum_assignment`` (the exact discrete-OT solution
 when both marginals are uniform and equinumerous -- an optimal transport
-plan between equal-size uniform distributions is a permutation). The shared motivation:
-training a
-differentiable dynamics model on pointwise MSE alone can fit short-term
-trajectories well while still producing a qualitatively wrong
-long-term/statistical behavior (wrong Lyapunov exponent, wrong fractal
+plan between equal-size uniform distributions is a permutation). The shared
+motivation: training a differentiable dynamics model on pointwise MSE alone
+can fit short-term trajectories well while still producing a qualitatively
+wrong long-term/statistical behavior (wrong Lyapunov exponent, wrong fractal
 dimension, wrong recurrence structure, wrong attractor shape) -- these
 losses let a training loop penalize that directly, added to (not
 instead of) an ordinary MSE term.
@@ -76,12 +75,12 @@ that class.
   (Theiler-window) exclusion of nearby-in-time point pairs is applied
   to the same-trajectory terms -- the simpler, standard biased MMD
   estimator, not the temporally-debiased version a genuinely rigorous
-  treatment might want. ``Limitation: biased V-statistic MMD, no Theiler
+  treatment might want. Limitation: biased V-statistic MMD, no Theiler
   exclusion on the P,P/Q,Q terms; add if a workload shows the omission
   measurably biasing training (the self-similarity terms' diagonal
   contribution is a model-independent constant either way, so this
   mainly risks nearby-in-time-but-distinct points inflating apparent
-  self-similarity, not a gradient sign error).``
+  self-similarity, not a gradient sign error).
 - :class:`SinkhornLoss` -- same purpose as ``AttractorLoss`` (whole-
   attractor point-cloud matching) but the two-sample distance is a
   debiased Sinkhorn divergence [Feydy2019]_ (entropy-regularized

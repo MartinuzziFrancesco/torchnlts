@@ -62,9 +62,9 @@ reading its source:
   channel and per batch element* (since this module is batched and
   Julia's isn't) is real added complexity for a compute-time optimization,
   not a numerical-quality one.
-  ``Limitation: fixed iteration count, no per-channel early stopping; add
+  Limitation: fixed iteration count, no per-channel early stopping; add
   a convergence check (e.g. per-channel relative spectral-error
-  plateauing) if the default max_iterations proves wasteful in practice.``
+  plateauing) if the default max_iterations proves wasteful in practice.
 """
 
 from __future__ import annotations

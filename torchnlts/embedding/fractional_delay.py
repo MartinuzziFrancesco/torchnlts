@@ -75,7 +75,7 @@ def fractional_delay_embedding(trajectory, delays) -> torch.Tensor:
     # num_embedded into the trace as a Python int, so torch.compile
     # recompiles whenever delays' value changes and vmap can't batch over
     # per-sample delays. Fixed-size output (a max-lag bound plus
-    # padding/masking) would remove this ceiling; not built since nothing
+    # padding/masking) would remove this limit; not built since nothing
     # here yet needs compile/vmap over a *batch of different* delays.
     max_delay = delays.detach().max().item()
     num_embedded = math.floor((num_points - 1) - max_delay) + 1

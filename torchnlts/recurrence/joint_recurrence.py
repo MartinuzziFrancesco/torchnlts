@@ -24,7 +24,7 @@ epsilon_y))`` directly -- confirmed to match the single-threshold
 ``epsilon_x == epsilon_y``, and it's the same element-wise-AND definition
 the package's own docstring gives for ``JointRecurrenceMatrix``.
 
-Limitation: known ceiling -- both variants compute the full ``T_full x
+Limitation: both variants compute the full ``T_full x
 T_full`` recurrence matrix on each trajectory before slicing down to
 ``T_min x T_min`` when ``x`` and ``y`` differ in length, rather than
 truncating the raw trajectories first. O(T_full^2) compute/memory instead

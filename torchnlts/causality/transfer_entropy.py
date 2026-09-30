@@ -56,9 +56,9 @@ dimensions keep the two embeddings' raw-time alignment identical (see
 why this codebase's forward-offset ``delay_embedding`` needs this
 re-derivation at all); independent dimensions would need two different
 offsets reconciled against a shared "current time", which this module
-doesn't implement. ``Limitation: single shared embedding_dim; add
-independent source/target embedding dimensions if asymmetric embeddings
-turn out to matter for a real workload.``
+doesn't implement. Limitation: single shared ``embedding_dim``; independent
+source/target embedding dimensions would be the upgrade if asymmetric
+embeddings matter for a real workload.
 """
 
 from __future__ import annotations

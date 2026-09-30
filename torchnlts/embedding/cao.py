@@ -24,7 +24,7 @@ that function's denominator is the embedded length at each dimension
 rather than the number of terms actually summed (an asymmetric
 tree/query truncation leaves those two counts different), which looks
 like an implementation quirk rather than a deliberate reading of eq. 5.
-``cao_e2`` instead follows eq. 5
+``cao_e2`` therefore follows eq. 5
 directly and is validated against an independent brute-force transcription
 of it plus the paper's own random-vs-deterministic qualitative claim.
 """

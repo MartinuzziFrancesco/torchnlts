@@ -5,9 +5,8 @@ Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6),
 
 The hard variant reuses :func:`torchnlts.neighbors.distance.pairwise_distance`
 and is validated against RecurrenceAnalysis.jl's ``RecurrenceMatrix``. The
-soft variant reuses :func:`torchnlts.neighbors.kernels.trajectory_kernel`,
-which is the
-primitive soft recurrence is built on -- ``temperature`` plays the role of
+soft variant reuses :func:`torchnlts.neighbors.kernels.trajectory_kernel` as
+its base primitive -- ``temperature`` plays the role of
 ``epsilon``'s smooth analogue, not a relaxed threshold at a fixed epsilon.
 """
 

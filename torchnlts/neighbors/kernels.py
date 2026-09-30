@@ -6,7 +6,7 @@ stand-in for the Grassberger-Procaccia Heaviside step); Sugihara et al.
 (2012), Science 338(6106), 496-500 (exponential, CCM's neighbor weight
 ``u_i = exp(-d_i / d_1)``, recovered by passing ``d_1`` as ``temperature``).
 
-Limitation: known ceiling -- distance and temperature both within about one
+Limitation: distance and temperature both within about one
 order of magnitude of float32's representable floor (~1.2e-38) can still
 give an infinite temperature gradient (temperature**2 underflows to 0
 independent of formulation). float64 is unaffected; upgrade path for

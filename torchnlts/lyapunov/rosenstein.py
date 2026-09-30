@@ -133,8 +133,7 @@ def rosenstein_divergence(
     # depends on delay -- confirmed: num_embedded = num_points -
     # (embedding_dim-1)*delay = num_points exactly at embedding_dim=1).
     # Worked around locally here rather than fixed at the root in
-    # delay_embedding, since delay_embedding is an already-shipped,
-    # already-tested shared primitive used across the package, and
+    # delay_embedding, since delay_embedding is a shared primitive and
     # this is far outside any realistic delay value. Upgrade path: guard
     # the tensor-scalar conversion in delay_embedding itself if another
     # caller hits the same crash with a non-degenerate embedding_dim.

@@ -119,9 +119,9 @@ def box_occupation_probabilities(trajectory, box_size: float) -> torch.Tensor:
         as this codebase's own ``rosenstein.py`` int64 overflow lesson
         (an absurdly small ``box_size`` relative to the data's range
         silently wrapping to a plausible-looking but meaningless box
-        coordinate instead), guarded against proactively here. The comparison uses the exact power of
-        two ``2**63`` (exactly representable in every float dtype used
-        here), not ``torch.iinfo(torch.int64).max`` (``2**63 - 1``,
+        coordinate instead), guarded against explicitly here. The comparison
+        uses the exact power of two ``2**63`` (exactly representable in
+        every float dtype used here), not ``torch.iinfo(torch.int64).max`` (``2**63 - 1``,
         which isn't exactly representable in ``float64`` and silently
         rounds *up* to ``2**63`` when compared against a float tensor
         -- confirmed directly: comparing against it let a scaled value
