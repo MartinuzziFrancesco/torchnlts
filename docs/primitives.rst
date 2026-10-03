@@ -30,10 +30,15 @@ Numerical range limits. Outside these, results or gradients can be
   spike in float64) is not accurate. Katz, DFA and the variogram always
   compute in float64.
 
-Non-finite input. Higuchi, Katz, Petrosian, DFA and the variogram return
-``NaN`` for any batch row containing ``NaN`` or ``inf`` instead of raising,
-so they work under ``torch.vmap``. The other rows and their gradients are
-unaffected; the gradient for a non-finite row is zero.
+Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram and
+Rosenstein return ``NaN`` for any batch row containing ``NaN`` or ``inf``
+instead of raising, so they work under ``torch.vmap``.
+:func:`~torchnlts.neighbors.distance.pairwise_distance` returns ``NaN`` for
+every pair involving a point with a ``NaN``/``inf`` coordinate. Other rows
+(or pairs) and their gradients are unaffected, and a non-finite row
+receives a zero gradient. Exceptions: Petrosian has no gradient at all, and
+a result that is ``NaN`` for another reason (e.g. a series too short for
+the requested sweep) is not connected to the input's graph.
 
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.

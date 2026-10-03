@@ -33,7 +33,8 @@ def pairwise_distance(
     Returns:
         Distance matrix of shape ``[T, T']`` or ``[B, T, T']``, in the
         input's floating dtype (the default dtype for integer input,
-        float32 for half precision).
+        float32 for half precision). ``NaN`` for every pair involving a
+        point with a NaN/inf coordinate.
 
     Raises:
         ValueError: If either trajectory is complex or ``norm_order`` is
@@ -55,6 +56,13 @@ def pairwise_distance(
     # cdist supports neither integer nor (on CPU) half precision.
     batched = batched.to(_work_dtype(batched.dtype))
     other_batched = other_batched.to(_work_dtype(other_batched.dtype))
+    # Points with a NaN/inf coordinate are zeroed before cdist, so its
+    # backward cannot put NaN into the gradients of other pairs, and their
+    # distances are set to NaN afterwards.
+    nonfinite = ~torch.isfinite(batched).all(dim=-1)
+    other_nonfinite = ~torch.isfinite(other_batched).all(dim=-1)
+    batched = torch.where(nonfinite[..., None], torch.zeros_like(batched), batched)
+    other_batched = torch.where(other_nonfinite[..., None], torch.zeros_like(other_batched), other_batched)
     # compute_mode forced: torch.cdist's default matmul path for p=2
     # loses precision in float32 for points sharing a large offset.
     # cdist squares coordinates for p=2, overflowing at about the square root
@@ -73,10 +81,7 @@ def pairwise_distance(
         scale = _power_of_two_scale(batched, other_batched)
         scaled_distance = torch.cdist(batched / scale / 4, other_batched / scale / 4, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")
         distance = scaled_distance * 4 * scale
-    # cdist's max-norm skips NaN coordinates; propagate them like other orders.
-    if norm_order == float("inf"):
-        nan_point = batched.isnan().any(dim=-1).unsqueeze(-1) | other_batched.isnan().any(dim=-1).unsqueeze(-2)
-        distance = distance.masked_fill(nan_point, float("nan"))
+    distance = distance.masked_fill(nonfinite.unsqueeze(-1) | other_nonfinite.unsqueeze(-2), float("nan"))
     return _restore_batch(distance, ndim)
 
 

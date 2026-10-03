@@ -33,7 +33,7 @@ import operator
 
 import torch
 
-from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _work_dtype
+from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
@@ -90,7 +90,7 @@ def rosenstein_divergence(
         reference point's evolved divergence happens to be exactly
         ``0`` (e.g. exact duplicate points in ``trajectory``), matching
         ``log(0)`` rather than silently flooring it to a large finite
-        value.
+        value. ``NaN`` for any row containing NaN/inf.
 
     Raises:
         ValueError: If ``k_values`` is complex, empty, has more than one
@@ -141,7 +141,7 @@ def rosenstein_divergence(
     embedded = delay_embedding(trajectory, embedding_dim, embedding_delay)
     batched, ndim = _ensure_batched(embedded)
     dtype = _output_dtype(batched)
-    batched = batched.to(_work_dtype(dtype))
+    batched, nonfinite = _mask_nonfinite_rows(batched.to(_work_dtype(dtype)))
     # Limitation: same OverflowError class, this time in
     # theiler_window_mask's `abs() > window` comparison against an
     # astronomically large Python int. Larger-than-the-trajectory
@@ -215,6 +215,7 @@ def rosenstein_divergence(
         curve.append(masked_log_divergence.sum(dim=-1) / valid_count)
 
     result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
+    result = torch.where(nonfinite, float("nan"), result)
     # Not `_restore_batch` (which squeezes dim 0): a swept result is
     # `[K, B]`, batch trailing rather than leading, matching
     # `correlation_sum`'s own sweep convention -- so the batch axis to

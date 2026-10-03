@@ -146,12 +146,13 @@ def _safe_scale(scale: torch.Tensor) -> torch.Tensor:
 
 
 def _mask_nonfinite_rows(values: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """``values`` ``[B, T]`` with every row containing NaN/inf set to zero,
+    """``values`` ``[B, ...]`` with every row containing NaN/inf set to zero,
     and the ``[B]`` mask of those rows. The zeroed rows cannot put NaN into
     backward; callers set their results to ``NaN`` with the mask. No
     data-dependent control flow, so ``torch.vmap`` works."""
-    nonfinite = ~torch.isfinite(values).all(dim=-1)
-    return torch.where(nonfinite[:, None], torch.zeros_like(values), values), nonfinite
+    nonfinite = ~torch.isfinite(values).reshape(values.shape[0], -1).all(dim=-1)
+    row_mask = nonfinite.reshape(-1, *([1] * (values.dim() - 1)))
+    return torch.where(row_mask, torch.zeros_like(values), values), nonfinite
 
 
 def _safe_log(values: torch.Tensor) -> torch.Tensor:
