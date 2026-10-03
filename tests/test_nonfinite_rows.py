@@ -92,3 +92,21 @@ def test_pairwise_distance_nonfinite_points():
         assert torch.equal(distance[0, 1:, 1:], torch.tensor([[0.0, 1.0], [1.0, 0.0]]))
         gradient = torch.autograd.grad(distance[0, 1:, 1:].sum(), parameter)[0]
         assert gradient.item() == 2.0
+
+
+def test_rosenstein_nonfinite_sample_outside_embedding():
+    # Regression: with embedding_dim=2 and delay=30 on 50 samples, samples
+    # 20-29 enter no embedded point; a NaN there must still mark the row.
+    torch.manual_seed(1)
+    batch = torch.randn(2, 50, 1, dtype=torch.float64)
+    batch[1, 25] = float("nan")
+    result = rosenstein_divergence(batch, [0, 1], embedding_dim=2, delay=30, theiler_window=1)
+    assert torch.isnan(result[:, 1]).all()
+    assert torch.equal(result[:, 0], rosenstein_divergence(batch[0], [0, 1], embedding_dim=2, delay=30, theiler_window=1))
+
+
+def test_mask_nonfinite_rows_empty_batch():
+    from torchnlts._shape import _mask_nonfinite_rows
+
+    values, nonfinite = _mask_nonfinite_rows(torch.zeros(0, 5))
+    assert values.shape == (0, 5) and nonfinite.shape == (0,)

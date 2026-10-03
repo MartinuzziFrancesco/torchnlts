@@ -150,7 +150,7 @@ def _mask_nonfinite_rows(values: torch.Tensor) -> tuple[torch.Tensor, torch.Tens
     and the ``[B]`` mask of those rows. The zeroed rows cannot put NaN into
     backward; callers set their results to ``NaN`` with the mask. No
     data-dependent control flow, so ``torch.vmap`` works."""
-    nonfinite = ~torch.isfinite(values).reshape(values.shape[0], -1).all(dim=-1)
+    nonfinite = ~torch.isfinite(values).flatten(1).all(dim=-1)
     row_mask = nonfinite.reshape(-1, *([1] * (values.dim() - 1)))
     return torch.where(row_mask, torch.zeros_like(values), values), nonfinite
 

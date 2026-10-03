@@ -36,7 +36,11 @@ series with a large offset; the first sample is subtracted before the mean).
 Limitation: ``B`` comes from differences of prefix sums, so its absolute error
 is about ``eps * T * max|psi|``, and the lag loop is a Python loop
 (``O(max_lag * T)`` per frequency and row); an FFT autocorrelation would remove
-the loop at the price of more cancellation error. The computation is always in
+the loop at the price of more cancellation error. Limitation: the derivative of
+``sin(n c / 2) / sin(c / 2)`` with respect to ``c`` cancels for small ``c``
+(about 3% relative error at ``c = 1e-8``, accurate from ``c = 1e-6``), so
+gradients with respect to frequencies far below the recommended range are
+inaccurate; values are not affected. The computation is always in
 float64. Constant series are ``NaN`` (detected exactly); other rows are ``NaN``
 when ``D(n)`` varies by no more than rounding of its own terms.
 

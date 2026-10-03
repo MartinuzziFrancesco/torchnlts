@@ -138,10 +138,12 @@ def rosenstein_divergence(
     # the tensor-scalar conversion in delay_embedding itself if another
     # caller hits the same crash with a non-degenerate embedding_dim.
     embedding_delay = 1 if embedding_dim == 1 and delay >= 1 else delay
-    embedded = delay_embedding(trajectory, embedding_dim, embedding_delay)
-    batched, ndim = _ensure_batched(embedded)
-    dtype = _output_dtype(batched)
-    batched, nonfinite = _mask_nonfinite_rows(batched.to(_work_dtype(dtype)))
+    # Masked before embedding: a large delay can leave samples out of every
+    # embedded point, and a row containing NaN/inf is NaN regardless.
+    raw, ndim = _ensure_batched(trajectory)
+    dtype = _output_dtype(raw)
+    raw, nonfinite = _mask_nonfinite_rows(raw.to(_work_dtype(dtype)))
+    batched = delay_embedding(raw, embedding_dim, embedding_delay)
     # Limitation: same OverflowError class, this time in
     # theiler_window_mask's `abs() > window` comparison against an
     # astronomically large Python int. Larger-than-the-trajectory
