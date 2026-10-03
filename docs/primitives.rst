@@ -27,10 +27,10 @@ Numerical range limits. Outside these, results or gradients can be
 - Absolute accuracy is about the working dtype's epsilon times the
   series' largest magnitude. A result far smaller than that and resolved
   only by cancellation (e.g. a DFA residual of ``0.5`` next to a ``1e20``
-  spike in float64) is not accurate. Katz, DFA and the variogram always
+  spike in float64) is not accurate. Katz, DFA, the variogram and the 0-1 test always
   compute in float64.
 
-Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram and
+Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test and
 Rosenstein return ``NaN`` for any batch row containing ``NaN`` or ``inf``
 instead of raising, so they work under ``torch.vmap``.
 :func:`~torchnlts.neighbors.distance.pairwise_distance` returns ``NaN`` for
@@ -329,6 +329,21 @@ the requested sweep) is not connected to the input's graph.
      - exact
      - `Benettin, Galgani, Giorgilli & Strelcyn (1980) <https://doi.org/10.1007/BF02128236>`__; Geist, Parlitz & Lauterborn (1990), *Prog. Theor. Phys.* 83(5), 875-893 (QR "H2" variant)
      - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunovspectrum``, run live via subprocess in the test suite, not hardcoded; matches ``PredefinedDynamicalSystems.henon()`` to float64 precision, including its ``Ttr`` transient convention; confirmed to share this method's non-generic non-descending-order edge case on an unsorted diagonal linear map rather than diverge from it -- see module docstring)
+
+   * - :doc:`zero_one_growth_rate <generated/torchnlts.chaos.zero_one.zero_one_growth_rate>`
+     - smooth
+     - `Gottwald & Melbourne (2009) <https://doi.org/10.1137/080718851>`__ (correlation method on the modified mean square displacement); first version: `Gottwald & Melbourne (2004) <https://doi.org/10.1098/rspa.2003.1183>`__
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``testchaos01(x, c, N0)``, run live via subprocess in the test suite; exact match per frequency when ChaosTools is given ``[x[2:N]; x[1]]``, because it starts its sums at ``p(1) = 0`` and never uses the last sample while this module follows the paper's window convention -- see module docstring)
+
+   * - :doc:`zero_one_test <generated/torchnlts.chaos.zero_one.zero_one_test>`
+     - piecewise
+     - `Gottwald & Melbourne (2009) <https://doi.org/10.1137/080718851>`__ (median of ``K_c`` over frequencies)
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``testchaos01(x, cs, N0)`` returns only ``median(K_c) > 0.5``, so the per-frequency ``K_c`` comparison above is the ground truth; the median here averages the two middle values for an even count, as Julia's ``median`` does)
+
+   * - :doc:`eckmann_spectrum <generated/torchnlts.lyapunov.eckmann.eckmann_spectrum>`
+     - piecewise
+     - `Eckmann, Kamphorst, Ruelle & Ciliberto (1986) <https://doi.org/10.1103/PhysRevA.34.4971>`__
+     - `nolds <https://github.com/CSchoel/nolds>`__ (``lyap_e``, run live in the test suite; matches to float64 precision for matrix step 1 on well-conditioned fits. For matrix step > 1 nolds composes the fitted maps at every consecutive point where the paper's Sec. 2c composes them at stride ``m``, so this follows the paper instead, checked against an independent NumPy implementation; degenerate/rank-deficient rows are ``NaN``, ties beyond ``num_neighbors`` are dropped -- see module docstring); no Julia equivalent
 
    * - :doc:`phase_randomized_surrogate <generated/torchnlts.surrogate.phase.phase_randomized_surrogate>`
      - none

@@ -13,6 +13,7 @@ Full API reference, one page per subpackage.
    fluctuations
    entropy
    lyapunov
+   chaos
    surrogate
    causality
    sciml

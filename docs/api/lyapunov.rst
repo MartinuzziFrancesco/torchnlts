@@ -63,3 +63,4 @@ this implementation and its reference.
    torchnlts.lyapunov.kantz.kantz_divergence
    torchnlts.lyapunov.jacobian.step_jacobian
    torchnlts.lyapunov.spectrum.lyapunov_spectrum
+   torchnlts.lyapunov.eckmann.eckmann_spectrum

@@ -32,6 +32,10 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `lyapunov_spectrum_henon.py`: Benettin, Galgani, Giorgilli & Strelcyn
   (1980) + Geist, Parlitz & Lauterborn (1990) -- the full Lyapunov
   spectrum of a differentiable map, via `torch.func`.
+- `eckmann_spectrum_henon.py`: Eckmann, Kamphorst, Ruelle & Ciliberto
+  (1986) -- the Henon map's Lyapunov spectrum from its x-series alone,
+  checked against the known exponents and `lyapunov_spectrum`, with the
+  spurious exponents that a larger matrix dimension adds.
 - `surrogate_data_testing.py`: Theiler, Eubank, Longtin, Galdrikian &
   Farmer (1992) + Schreiber & Schmitz (1996) -- the surrogate data
   hypothesis-testing methodology, using IAAFT surrogates and a
@@ -111,3 +115,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `dfa_noise_scaling.py`: Peng et al. (1994) / Kantelhardt et al. (2001) --
   `torchnlts.fluctuations.dfa`'s exponent on white, 1/f, and Brownian noise,
   near the asymptotic 0.5 / 1.0 / 1.5.
+- `zero_one_test_logistic_map.py`: Gottwald & Melbourne (2009) --
+  `torchnlts.chaos.zero_one`'s 0-1 test on the logistic map: K near 0 in the
+  periodic windows and near 1 for chaos, agreeing with the sign of the
+  Lyapunov exponent (Fig. 4), and K growing slowly with N just above the
+  edge of chaos (K = 0.029 at N = 2000, as they report 0.027).
