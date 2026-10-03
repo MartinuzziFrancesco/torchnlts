@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _output_dtype
+from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows, _output_dtype
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -40,20 +40,18 @@ def petrosian_dimension(trajectory) -> torch.Tensor:
     Returns:
         Petrosian dimension estimate(s), shape ``[]`` for an unbatched
         trajectory or ``[B]`` for a batched one. NaN if the series is
-        too short (N < 2).
+        too short (N < 2). ``NaN`` for any row containing NaN/inf.
 
     Raises:
-        ValueError: If trajectory has feature dim other than 1, is
-            complex, or contains NaN/inf.
+        ValueError: If trajectory has feature dim other than 1, or is
+            complex.
     """
     tensor, ndim = _ensure_batched(trajectory)
     _require_univariate(tensor)
     if tensor.is_complex():
         raise ValueError("petrosian_dimension does not support complex input")
-    if not torch.isfinite(tensor).all():
-        raise ValueError("petrosian_dimension requires a finite trajectory (no NaN/inf)")
     dtype = _output_dtype(tensor)
-    values = tensor.squeeze(-1).to(dtype)  # [B, T]
+    values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(dtype))  # [B, T]
 
     batch_size = values.shape[0]
     series_length = values.shape[1]
@@ -75,6 +73,6 @@ def petrosian_dimension(trajectory) -> torch.Tensor:
         num_sign_changes = sign_changes.to(torch.float64)
         log_points = torch.log10(torch.tensor(float(series_length), dtype=torch.float64, device=values.device))
         result = log_points / (log_points + torch.log10(series_length / (series_length + 0.4 * num_sign_changes)))
-        result = result.to(dtype)
+        result = torch.where(nonfinite, float("nan"), result).to(dtype)
 
     return result if ndim == 3 else result.squeeze(0)

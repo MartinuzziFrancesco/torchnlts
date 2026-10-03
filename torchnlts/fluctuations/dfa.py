@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _mask_nonfinite_rows, _ols_slope, _output_dtype, _safe_log
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -45,9 +45,10 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         F(n), shape ``[]``/``[K]`` unbatched or ``[B]``/``[K, B]`` batched.
         ``NaN`` at any ``window_size > T``. Exactly ``0`` for a constant series,
         with a zero (not ``NaN``) gradient wherever F(n) is exactly ``0``.
+        ``NaN`` for any row containing NaN/inf.
 
     Raises:
-        ValueError: If the trajectory is complex or non-finite, the
+        ValueError: If the trajectory is complex, the
             feature dim is not 1, ``order`` is not a
             non-negative integer, ``window_size`` is empty, or any
             ``window_size`` is non-integer or ``<= order + 1`` (the fit
@@ -64,13 +65,11 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
 
     if tensor.is_complex():
         raise ValueError("dfa_fluctuation does not support complex input")
-    if not torch.isfinite(tensor).all():
-        raise ValueError("dfa_fluctuation requires a finite trajectory (no NaN/inf)")
     dtype = _output_dtype(tensor)
     # Always float64: detrending cancels the profile's polynomial part, and
     # its rounding error scales with the largest sample, not the residual.
     work_dtype = torch.float64
-    values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
+    values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
     num_samples = values.shape[-1]
     # A constant series has an identically zero profile; mean removal leaves
     # rounding error, so report F = 0 exactly instead of a roundoff value.
@@ -110,7 +109,7 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         normalized = torch.where(zero, torch.zeros_like(mean_square), safe_mean_square.sqrt() * residual_scale)
         fluctuations.append(normalized)
 
-    result = torch.stack(fluctuations, dim=0).to(dtype)  # [K, B]
+    result = torch.where(nonfinite, float("nan"), torch.stack(fluctuations, dim=0)).to(dtype)  # [K, B]
     if not swept:
         result = result.squeeze(0)
     if ndim != 3:

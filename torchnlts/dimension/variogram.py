@@ -24,7 +24,7 @@ import math
 import numpy
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _is_complex, _ols_slope, _output_dtype, _safe_log, _safe_scale
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _safe_log, _safe_scale
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -95,30 +95,29 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
     Returns:
         ``V_p(l)``, shape ``[]``/``[K]`` for an unbatched trajectory or
         ``[B]``/``[K, B]`` for a batched one. ``NaN`` at any lag with
-        fewer than one valid term (``l >= n``).
+        fewer than one valid term (``l >= n``). ``NaN`` for any row containing NaN/inf.
 
     Raises:
         ValueError: If the feature dim is not 1, the trajectory is
-            complex or contains NaN/inf, ``power`` is not a finite positive number, ``lag`` is
+            complex, ``power`` is not a finite positive number, ``lag`` is
             empty or complex, or any ``lag`` value is ``< 1`` or non-integer.
     """
     tensor, ndim = _ensure_batched(trajectory)
     _require_univariate(tensor)
     if tensor.is_complex():
         raise ValueError("power_variogram does not support complex input")
-    if not torch.isfinite(tensor).all():
-        raise ValueError("power_variogram requires a finite trajectory (no NaN/inf)")
     power = _validate_power(power)
     dtype = _output_dtype(tensor)
     # Always float64: increments are raised to power after scaling by the
     # largest one, and in float32 the small ones (and their gradients)
     # underflow long before the result does.
     work_dtype = torch.float64
-    values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
+    values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
 
     lag_list, swept = _as_positive_int_list(lag, "lag")
 
     results = torch.stack([_variogram_single_lag(values, value, power) for value in lag_list], dim=0)  # [K, B]
+    results = torch.where(nonfinite, float("nan"), results)
     if not swept:
         results = results.squeeze(0)
     if ndim != 3:

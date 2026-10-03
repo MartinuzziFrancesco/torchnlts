@@ -233,12 +233,6 @@ def test_dfa_fluctuation_heterogeneous_batch_matches_individual():
         assert torch.allclose(result[:, index], dfa_fluctuation(series, window_sizes, order=2))
 
 
-def test_dfa_fluctuation_non_finite_raises():
-    for bad in (torch.tensor([1.0, 2.0, 3.0, float("nan")]), torch.full((8,), float("inf"))):
-        with pytest.raises(ValueError):
-            dfa_fluctuation(bad, 4)
-
-
 def test_dfa_fluctuation_integer_and_half_input():
     integer = torch.arange(8) ** 2
     assert torch.isclose(dfa_fluctuation(integer, 4).double(), dfa_fluctuation(integer.double(), 4), atol=1e-5)

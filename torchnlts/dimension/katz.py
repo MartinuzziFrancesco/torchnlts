@@ -20,7 +20,7 @@ import math
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _output_dtype, _restore_batch, _safe_scale, _work_dtype
+from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows, _output_dtype, _restore_batch, _safe_scale, _work_dtype
 
 
 def _validate(tensor: torch.Tensor) -> None:
@@ -28,8 +28,6 @@ def _validate(tensor: torch.Tensor) -> None:
         raise ValueError(f"katz_dimension only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
     if tensor.is_complex():
         raise ValueError("katz_dimension does not support complex input")
-    if not torch.isfinite(tensor).all():
-        raise ValueError("katz_dimension requires a finite trajectory (no NaN/inf)")
 
 
 def _curve_length(step: torch.Tensor, index_step: torch.Tensor | None) -> torch.Tensor:
@@ -68,11 +66,11 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
         series with ``amplitude_only=True``), or a denominator that is zero
         to within rounding (``|n d - L| / L`` below ``8 * log2(T) * eps``, where
         ``D`` is not determined by the data). A constant series gives ``D = 1`` in the
-        plane (a straight line).
+        plane (a straight line). ``NaN`` for any row containing NaN/inf.
 
     Raises:
         ValueError: If the feature dim is not 1, or the trajectory is
-            complex or contains NaN/inf.
+            complex.
     """
     tensor, ndim = _ensure_batched(trajectory)
     _validate(tensor)
@@ -81,7 +79,7 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     # float64 precision, so values that are resolved in the input's own
     # precision are not rejected as undetermined.
     work_dtype = torch.float64
-    values = tensor.squeeze(-1).to(work_dtype)  # [B, T]
+    values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
     num_points = values.shape[-1]
 
     if num_points < 3:
@@ -114,7 +112,7 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     with torch.no_grad():
         zero_length = length == 0
         relative_gap = (extent * num_steps - length) / torch.where(zero_length, torch.ones_like(length), length)
-        degenerate = zero_length | (relative_gap.abs() <= 8 * math.log2(num_points) * torch.finfo(work_dtype).eps)
+        degenerate = nonfinite | zero_length | (relative_gap.abs() <= 8 * math.log2(num_points) * torch.finfo(work_dtype).eps)
     safe_extent = torch.where(degenerate, torch.ones_like(extent), extent)
     safe_length = torch.where(degenerate, torch.ones_like(length), length)
     denominator = torch.log1p((safe_extent * num_steps - safe_length) / safe_length) / math.log(10)

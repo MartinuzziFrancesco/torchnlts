@@ -30,6 +30,11 @@ Numerical range limits. Outside these, results or gradients can be
   spike in float64) is not accurate. Katz, DFA and the variogram always
   compute in float64.
 
+Non-finite input. Higuchi, Katz, Petrosian, DFA and the variogram return
+``NaN`` for any batch row containing ``NaN`` or ``inf`` instead of raising,
+so they work under ``torch.vmap``. The other rows and their gradients are
+unaffected; the gradient for a non-finite row is zero.
+
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.
 - The **Julia ground truth** column links the DynamicalSystems.jl

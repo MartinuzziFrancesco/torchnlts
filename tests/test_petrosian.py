@@ -150,15 +150,6 @@ def test_petrosian_heterogeneous_batch_matches_individual():
     assert torch.allclose(result, torch.tensor([1.0, 1.1371052], dtype=torch.float64), atol=1e-6)
 
 
-def test_petrosian_non_finite_raises():
-    for bad in (float("nan"), float("inf")):
-        try:
-            petrosian_dimension(torch.tensor([0.0, bad, 1.0]))
-            assert False, "expected ValueError"
-        except ValueError:
-            pass
-
-
 def test_petrosian_integer_input_matches_float():
     # int8 subtraction would overflow (127 - -128); input is cast to float first.
     integer = torch.tensor([0, 127, -128], dtype=torch.int8)

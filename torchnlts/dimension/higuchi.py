@@ -60,7 +60,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _ols_slope, _output_dtype, _safe_log, _work_dtype
+from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _mask_nonfinite_rows, _ols_slope, _output_dtype, _safe_log, _work_dtype
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
@@ -116,25 +116,24 @@ def higuchi_length(trajectory, k) -> torch.Tensor:
         ``0.0`` (not ``NaN``) for a literally empty input, a confirmed
         deviation this module doesn't replicate (matches this
         subpackage's general preference for ``NaN`` over a
-        finite-looking placeholder on a degenerate input).
+        finite-looking placeholder on a degenerate input). ``NaN`` for any row containing NaN/inf.
 
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1,
-            the trajectory is complex or contains NaN/inf, ``k`` is
+            the trajectory is complex, ``k`` is
             empty or complex, or any ``k`` value is ``< 1`` or non-integer.
     """
     tensor, ndim = _ensure_batched(trajectory)
     _require_univariate(tensor)
     if tensor.is_complex():
         raise ValueError("higuchi_length does not support complex input")
-    if not torch.isfinite(tensor).all():
-        raise ValueError("higuchi_length requires a finite trajectory (no NaN/inf)")
     dtype = _output_dtype(tensor)
-    values = tensor.squeeze(-1).to(_work_dtype(dtype))  # [B, T]
+    values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(_work_dtype(dtype)))  # [B, T]
 
     k_list, swept = _as_positive_int_list(k, "k")
 
     lengths = torch.stack([_higuchi_length_single_k(values, value) for value in k_list], dim=0)  # [K, B]
+    lengths = torch.where(nonfinite, float("nan"), lengths)
     if not swept:
         lengths = lengths.squeeze(0)
     if ndim != 3:
