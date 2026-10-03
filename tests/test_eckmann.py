@@ -14,7 +14,6 @@ Dual ground truth:
      and ``lyapunov_spectrum`` on the map itself.
 """
 
-import collections
 import math
 
 import numpy
@@ -22,6 +21,7 @@ import pytest
 import torch
 
 from tests.conftest import logistic_map_trajectory
+import torchnlts.lyapunov.eckmann as eckmann_module
 from torchnlts.lyapunov.eckmann import eckmann_spectrum
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
 from torchnlts.neighbors.knn import knn_search
@@ -292,28 +292,17 @@ def test_short_series_gradient_is_finite_zero():
     assert short.grad.abs().sum() == 0
 
 
-_Solution = collections.namedtuple("_Solution", "solution")
-
-
-def _patched_rows(monkeypatch, name, patch):
-    """Wrap ``torch.linalg.<name>`` so ``patch`` edits the output of the batch row 1 only."""
-    original = getattr(torch.linalg, name)
-
-    def wrapper(*args, **kwargs):
-        return patch(original(*args, **kwargs))
-
-    monkeypatch.setattr(torch.linalg, name, wrapper)
-
-
 def test_zero_leading_coefficient_row_is_nan_without_leaking(monkeypatch):
     # The companion matrix has determinant +-coefficients[..., 0]; an exactly
     # zero entry makes it singular. Force that in row 1 only.
-    def zero_leading(result):
-        solution = result.solution.clone()
-        solution[1, ..., 0, 0] = 0.0
-        return _Solution(solution)
+    original = eckmann_module._least_squares
 
-    _patched_rows(monkeypatch, "lstsq", zero_leading)
+    def zero_leading(design, response):
+        solution = original(design, response).clone()
+        solution[1, ..., 0] = 0.0
+        return solution
+
+    monkeypatch.setattr(eckmann_module, "_least_squares", zero_leading)
     rows = torch.stack([_henon_series(300, 0.1), _henon_series(300, 0.3)])[..., None]
     scale = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
     result = eckmann_spectrum(scale * rows, 2, 2)
@@ -323,13 +312,51 @@ def test_zero_leading_coefficient_row_is_nan_without_leaking(monkeypatch):
 
 
 def test_zero_growth_factor_row_is_nan(monkeypatch):
-    def zero_growth(result):
-        orthonormal, upper = result
+    original = torch.linalg.qr
+
+    def zero_growth(matrix):
+        orthonormal, upper = original(matrix)
+        if matrix.shape[-2] != matrix.shape[-1]:  # the tangent fit, not the chain
+            return orthonormal, upper
         mask = torch.ones_like(upper)
         mask[1, ..., 0, 0] = 0.0
         return orthonormal, upper * mask
 
-    _patched_rows(monkeypatch, "qr", zero_growth)
+    monkeypatch.setattr(torch.linalg, "qr", zero_growth)
     rows = torch.stack([_henon_series(300, 0.1), _henon_series(300, 0.3)])[..., None]
     result = eckmann_spectrum(rows, 2, 2)
     assert result[0].isfinite().all() and result[1].isnan().all()
+
+
+def test_mixed_valid_and_rejected_points_keep_shared_gradient():
+    # Regression: a row with some rejected fits used a singular fallback tangent
+    # ([[0, 1], [0, 1]]) whose QR backward put NaN into a shared parameter.
+    clean = _henon_series(30)
+    damaged = clean.clone()
+    damaged[:10] = 1.0
+    scale = torch.tensor(1.5, dtype=torch.float64, requires_grad=True)
+    result = eckmann_spectrum(scale * torch.stack([clean, damaged])[..., None], 3, 2, delay=2)
+    assert result[0].isfinite().all() and result[1].isnan().all()
+    gradient = torch.autograd.grad(result.nan_to_num().sum(), scale)[0]
+    scale_alone = torch.tensor(1.5, dtype=torch.float64, requires_grad=True)
+    expected = torch.autograd.grad(eckmann_spectrum(scale_alone * clean, 3, 2, delay=2).sum(), scale_alone)[0]
+    assert torch.isfinite(gradient) and torch.allclose(gradient, expected)
+
+
+def test_ill_conditioned_fit_gradient_matches_finite_difference():
+    # Regression: lstsq's backward was ~1000x off for a design with condition
+    # number ~4e9 (ramp plus 1e-9 noise); the QR solve matches a central difference.
+    noise = torch.randn(40, generator=torch.Generator().manual_seed(731), dtype=torch.float64)
+    series = (torch.arange(40, dtype=torch.float64) + 1e-9 * noise).requires_grad_()
+    gradient = torch.autograd.grad(eckmann_spectrum(series, 2, 2).sum(), series)[0]
+    step = 1e-11
+    plus, minus = series.detach().clone(), series.detach().clone()
+    plus[0] += step
+    minus[0] -= step
+    difference = (eckmann_spectrum(plus, 2, 2).sum() - eckmann_spectrum(minus, 2, 2).sum()) / (2 * step)
+    assert torch.isclose(gradient[0], difference, rtol=1e-3)
+
+
+def test_gradcheck_well_conditioned():
+    series = _henon_series(60).requires_grad_()
+    assert torch.autograd.gradcheck(lambda values: eckmann_spectrum(values, 3, 3), (series,))

@@ -28,7 +28,8 @@ def hard_recurrence_matrix(trajectory, epsilon: float, norm_order: float = 2.0) 
             numpy array, or pandas Series/DataFrame.
         epsilon: Recurrence threshold. Points ``i``, ``j`` recur when
             their distance is ``<= epsilon``, matching RecurrenceAnalysis.jl's
-            ``RecurrenceMatrix`` (including the always-recurrent diagonal).
+            ``RecurrenceMatrix`` (including the always-recurrent diagonal,
+            except at points with a NaN/inf coordinate, which recur with nothing).
         norm_order: Minkowski norm order.
 
     Returns:
@@ -59,7 +60,8 @@ def soft_recurrence_matrix(
         norm_order: Minkowski norm order.
 
     Returns:
-        Weight tensor in ``(0, 1]``, same shape as ``hard_recurrence_matrix``.
+        Weight tensor in ``(0, 1]``, same shape as ``hard_recurrence_matrix``;
+        ``0`` for pairs involving a point with a NaN/inf coordinate.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     return trajectory_kernel(distance, temperature, kind=kind)

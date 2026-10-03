@@ -341,3 +341,16 @@ def test_short_series_backward_is_connected():
     assert torch.isnan(result).all() and result.requires_grad
     result.sum().backward()
     assert series.grad is not None and frequencies.grad is not None
+
+
+def test_nonconstant_series_with_exactly_zero_modified_displacement_is_nan():
+    # Regression: for [-199, 1, ..., 1] the mean is exactly -1 and every window
+    # holds only ones, so D(n) = M(n) - V_osc(n) is exactly 0 although the series
+    # is not constant; only the rounding guard catches it.
+    series = torch.ones(100, dtype=torch.float64)
+    series[0] = -199.0
+    series.requires_grad_()
+    result = zero_one_growth_rate(series, torch.tensor([1.0, 1.7, 2.4], dtype=torch.float64))
+    assert torch.isnan(result).all()
+    result.nan_to_num().sum().backward()
+    assert (series.grad == 0).all()

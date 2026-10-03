@@ -39,7 +39,7 @@ import operator
 
 import torch
 
-from torchnlts._shape import _ensure_batched
+from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.theiler import _require_self_exclusion, theiler_window_mask
@@ -93,7 +93,8 @@ def kantz_divergence(
         happens to be exactly ``0`` (e.g. its whole neighborhood is
         exact duplicate points) -- one such point suffices to make the
         whole average ``-inf``, matching ``log(0)`` rather than silently
-        flooring it to a large finite value.
+        flooring it to a large finite value. ``NaN`` for any row containing
+        NaN/inf.
 
     Raises:
         ValueError: If ``k_values`` is empty, has more than one
@@ -123,8 +124,11 @@ def kantz_divergence(
     # delay_embedding and theiler_window_mask can raise OverflowError
     # converting an astronomically large Python int to a tensor scalar.
     embedding_delay = 1 if embedding_dim == 1 and delay >= 1 else delay
-    embedded = delay_embedding(trajectory, embedding_dim, embedding_delay)
-    batched, ndim = _ensure_batched(embedded)
+    # Rows containing NaN/inf are zeroed before embedding, so their evolved
+    # distances cannot put NaN into backward, and are NaN in the result.
+    raw, ndim = _ensure_batched(trajectory)
+    raw, nonfinite = _mask_nonfinite_rows(raw)
+    batched = delay_embedding(raw, embedding_dim, embedding_delay)
     num_points = batched.shape[-2]
     theiler_window = min(theiler_window, num_points)
 
@@ -170,6 +174,7 @@ def kantz_divergence(
         curve.append(masked_log.sum(dim=-1) / row_valid_count)
 
     result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
+    result = torch.where(nonfinite, float("nan"), result)
     # See rosenstein_divergence: a swept result is `[K, B]`, batch
     # trailing, so the axis to drop for an unbatched trajectory is the
     # last one, not dim 0 (`_restore_batch` assumes the latter).

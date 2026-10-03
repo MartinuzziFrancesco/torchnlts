@@ -6,6 +6,7 @@ from torchnlts.dimension.katz import katz_dimension
 from torchnlts.dimension.petrosian import petrosian_dimension
 from torchnlts.dimension.variogram import power_variogram, variogram_dimension
 from torchnlts.fluctuations.dfa import dfa_exponent, dfa_fluctuation
+from torchnlts.lyapunov.kantz import kantz_divergence
 from torchnlts.lyapunov.rosenstein import rosenstein_divergence, rosenstein_lyapunov
 from torchnlts.neighbors.distance import pairwise_distance
 
@@ -18,6 +19,7 @@ FUNCTIONS = {
     "variogram": lambda batch: power_variogram(batch, [1, 2], power=0.5),
     "dfa": lambda batch: dfa_fluctuation(batch, [8, 16]),
     "rosenstein": lambda batch: rosenstein_divergence(batch, [0, 1, 2], embedding_dim=2, theiler_window=2),
+    "kantz": lambda batch: kantz_divergence(batch, [0, 1, 2], radius=1.0, embedding_dim=2, theiler_window=2),
     "higuchi_dimension": lambda batch: higuchi_dimension([1, 2, 4], higuchi_length(batch, [1, 2, 4])),
     "variogram_dimension": lambda batch: variogram_dimension([1, 2], power_variogram(batch, [1, 2])),
     "dfa_exponent": lambda batch: dfa_exponent([8, 16], dfa_fluctuation(batch, [8, 16])),
@@ -80,6 +82,18 @@ def test_nonfinite_rows_vmap(name):
     assert torch.allclose(mapped.squeeze(-1).movedim(0, -1), function(batch), equal_nan=True)
 
 
+def test_pairwise_distance_nonfinite_points_multivariate_cross():
+    # Points with a single non-finite coordinate are invalid; other pairs keep
+    # their norm-specific distances, including norm_order=0 and a separate other.
+    trajectory = torch.tensor([[0.0, 0.0], [3.0, 4.0], [1.0, float("nan")]], dtype=torch.float64)
+    other = torch.tensor([[0.0, 1.0], [float("inf"), 2.0]], dtype=torch.float64)
+    expected = {0: [1.0, 2.0], 1: [1.0, 6.0], 2: [1.0, 18.0**0.5], float("inf"): [1.0, 3.0]}
+    for norm_order, finite_column in expected.items():
+        distance = pairwise_distance(trajectory, other, norm_order=norm_order)
+        assert torch.isnan(distance[2]).all() and torch.isnan(distance[:, 1]).all()
+        assert torch.allclose(distance[:2, 0], torch.tensor(finite_column, dtype=torch.float64))
+
+
 def test_pairwise_distance_nonfinite_points():
     parameter = torch.tensor(1.0, requires_grad=True)
     for norm_order in (0.5, 1, 2, float("inf")):
@@ -110,3 +124,10 @@ def test_mask_nonfinite_rows_empty_batch():
 
     values, nonfinite = _mask_nonfinite_rows(torch.zeros(0, 5))
     assert values.shape == (0, 5) and nonfinite.shape == (0,)
+
+
+def test_knn_search_nonfinite_candidates_are_unavailable():
+    from torchnlts.neighbors.knn import knn_search
+
+    distances, indices = knn_search(torch.tensor([0.0]), 2, other=torch.tensor([float("inf"), 1.0]))
+    assert distances.tolist() == [[1.0, float("inf")]] and indices.tolist() == [[1, -1]]

@@ -36,12 +36,15 @@ def knn_search(
     Returns:
         ``(distances, indices)``, each of shape ``[..., T, num_neighbors]``,
         sorted ascending by distance. Slots with no valid candidate
-        (``num_neighbors`` exceeds what's available, or Theiler-excluded)
-        come back with distance ``inf`` and index ``-1``.
+        (``num_neighbors`` exceeds what's available, Theiler-excluded, or a
+        point with a NaN/inf coordinate) come back with distance ``inf`` and
+        index ``-1``.
     """
     distance = pairwise_distance(trajectory, other, norm_order=norm_order)
     if other is None:
         distance = apply_theiler_window(distance, theiler_window, fill_value=float("inf"))
+    # Pairs involving a non-finite point are NaN; rank them as unavailable.
+    distance = torch.where(torch.isnan(distance), float("inf"), distance)
     num_points = distance.shape[-1]
     if num_neighbors > num_points:
         distance = torch.nn.functional.pad(distance, (0, num_neighbors - num_points), value=float("inf"))

@@ -66,7 +66,8 @@ def soft_cross_recurrence_matrix(
         norm_order: Minkowski norm order.
 
     Returns:
-        Weight tensor in ``(0, 1]``, same shape as ``hard_cross_recurrence_matrix``.
+        Weight tensor in ``(0, 1]``, same shape as ``hard_cross_recurrence_matrix``;
+        ``0`` for pairs involving a point with a NaN/inf coordinate.
     """
     distance = pairwise_distance(trajectory, other=other, norm_order=norm_order)
     return trajectory_kernel(distance, temperature, kind=kind)

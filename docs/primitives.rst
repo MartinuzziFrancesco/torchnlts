@@ -30,8 +30,8 @@ Numerical range limits. Outside these, results or gradients can be
   spike in float64) is not accurate. Katz, DFA, the variogram and the 0-1 test always
   compute in float64.
 
-Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test and
-Rosenstein return ``NaN`` for any batch row containing ``NaN`` or ``inf``
+Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test,
+Rosenstein, Kantz and Eckmann return ``NaN`` for any batch row containing ``NaN`` or ``inf``
 instead of raising, so they work under ``torch.vmap``.
 :func:`~torchnlts.neighbors.distance.pairwise_distance` returns ``NaN`` for
 every pair involving a point with a ``NaN``/``inf`` coordinate. Other rows

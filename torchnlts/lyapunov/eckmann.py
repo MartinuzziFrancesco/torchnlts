@@ -40,8 +40,8 @@ per-unit-time values. Deviations:
   zero (singular companion matrix), or a zero growth factor. Constant and
   exactly periodic series are therefore ``NaN``, not ``-inf``. nolds
   instead takes the minimum-norm solution of a rank-deficient fit.
-  Because every accepted system has full rank, the least-squares driver
-  (CPU ``gelsy``, CUDA ``gels``) does not matter.
+  Every accepted system has full rank and is solved through its QR
+  factorization, on every device.
 - ``d_M`` exponents are returned in the order QR produces them (generally
   descending). Only the first few are meaningful; with ``d_M`` above the
   system's dimension the others are spurious (see the paper, Sec. 4).
@@ -83,6 +83,16 @@ def _as_int(value, name: str) -> int:
         return operator.index(value)
     except TypeError:
         raise ValueError(f"{name} must be an integer, got {value!r}") from None
+
+
+def _least_squares(design: torch.Tensor, response: torch.Tensor) -> torch.Tensor:
+    """Solution of full-rank ``design @ x = response`` in the least-squares
+    sense, ``[..., k, d]`` and ``[..., k]`` -> ``[..., d]``. Solved through a
+    reduced QR factorization: its backward stays accurate for ill-conditioned
+    designs, where ``torch.linalg.lstsq``'s is off by orders of magnitude."""
+    orthonormal, upper = torch.linalg.qr(design)
+    projected = orthonormal.transpose(-2, -1) @ response.unsqueeze(-1)
+    return torch.linalg.solve_triangular(upper, projected, upper=True).squeeze(-1)
 
 
 def eckmann_spectrum(
@@ -181,20 +191,22 @@ def eckmann_spectrum(
     response = neighbor_target - target.unsqueeze(2)
 
     # Degeneracy is decided here, without autograd, and degenerate points
-    # get placeholder operands, so no singular system reaches lstsq or QR.
+    # get placeholder operands, so no singular system reaches either QR.
     with torch.no_grad():
         full_rank = torch.linalg.matrix_rank(torch.where(has_neighbors.unsqueeze(-1).unsqueeze(-1), design, torch.zeros_like(design))) == matrix_dim
     fit_ok = has_neighbors & full_rank
     placeholder = torch.eye(num_neighbors, matrix_dim, dtype=series.dtype, device=device)
     design = torch.where(fit_ok.unsqueeze(-1).unsqueeze(-1), design, placeholder)
     response = torch.where(fit_ok.unsqueeze(-1), response, torch.zeros_like(response))
-    coefficients = torch.linalg.lstsq(design, response.unsqueeze(-1)).solution.squeeze(-1)  # [B, N, d_M]
+    coefficients = _least_squares(design, response)  # [B, N, d_M]
 
-    # The companion matrix has determinant +-coefficients[..., 0].
+    # The companion matrix has determinant +-coefficients[..., 0]. Rejected
+    # points get coefficients e_0, which make it a cyclic permutation
+    # (determinant +-1), so the QR chain never sees a singular matrix.
     with torch.no_grad():
         tangent_ok = fit_ok & (coefficients[..., 0] != 0) & torch.isfinite(coefficients).all(dim=-1)
     identity = torch.eye(matrix_dim, dtype=series.dtype, device=device)
-    coefficients = torch.where(tangent_ok.unsqueeze(-1), coefficients, identity[-1])
+    coefficients = torch.where(tangent_ok.unsqueeze(-1), coefficients, identity[0])
     tangent = torch.cat([identity[1:].expand(batch_size, num_points, -1, -1), coefficients.unsqueeze(-2)], dim=-2)  # [B, N, d_M, d_M]
 
     # One chain per starting phase, advancing `shift` orbit points per map.
