@@ -54,6 +54,12 @@ radius-growing search is the upgrade path.
 Limitation: the neighbor search builds the full ``[N, N]`` distance
 matrix; a tree or chunked search is the upgrade path for long series.
 
+Limitation: half and bfloat16 input is computed in float32, but its
+gradient is cast back to the input dtype; for moderately ill-conditioned
+fits (condition ~1e3) the input gradient can exceed half's range and
+become ``inf``. Keep the trainable computation upstream in float32 when
+gradients are needed.
+
 Gradient class: piecewise. Neighbor selection is discrete; the
 least-squares fit and QR are differentiable while the neighbor
 differences have full rank and the tangent maps are nonsingular (QR's

@@ -404,3 +404,11 @@ def test_chain_product_singular_to_rounding_keeps_shared_gradient():
     parameter_alone = torch.tensor(0.8, requires_grad=True)
     expected = torch.autograd.grad(eckmann_spectrum(parameter_alone * rows[0], 2, 2, num_neighbors=2, delay=2).sum(), parameter_alone)[0]
     assert torch.isfinite(gradient) and torch.allclose(gradient, expected, atol=1e-6)
+
+
+def test_qr_chain_rejects_zero_and_subnormal_growth():
+    smallest_normal = torch.finfo(torch.float32).tiny
+    for growth, rejected in ((0.0, True), (smallest_normal / 2, True), (smallest_normal, False)):
+        tangent = torch.eye(2).reshape(1, 1, 2, 2).clone()
+        tangent[0, 0, 0, 0] = growth
+        assert eckmann_module._qr_chain(tangent, 1)[1].item() == rejected
