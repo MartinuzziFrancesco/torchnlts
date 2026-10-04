@@ -35,11 +35,9 @@ quirk to reconcile away. See the locked disagreement test in
 
 from __future__ import annotations
 
-import operator
-
 import torch
 
-from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows
+from torchnlts._shape import _as_int, _ensure_batched, _is_complex, _mask_nonfinite_rows
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.theiler import _require_self_exclusion, theiler_window_mask
@@ -99,11 +97,15 @@ def kantz_divergence(
     Raises:
         ValueError: If ``k_values`` is empty, has more than one
             dimension, or contains a negative, non-finite, or
-            non-integer-valued entry, or if ``theiler_window < 0``.
+            non-integer-valued entry, if ``k_values`` is complex,
+            ``radius`` is not a real number ``>= 0``, ``embedding_dim``/``delay``
+            are not integers, or ``theiler_window < 0``.
     """
     # See rosenstein_divergence for why float64 validation matters (a
     # plain Python float/list argument would otherwise silently lose
     # precision to torch.as_tensor's default dtype before validation).
+    if _is_complex(k_values):
+        raise ValueError(f"k_values must be real, got {k_values!r}")
     k_values_tensor = torch.as_tensor(k_values, dtype=torch.float64)
     if k_values_tensor.numel() == 0:
         raise ValueError("k_values must not be empty")
@@ -116,10 +118,16 @@ def kantz_divergence(
     if torch.any(k_values_tensor != k_values_tensor.round()):
         raise ValueError("k_values must be integer-valued (they index discrete time steps)")
     _require_self_exclusion(theiler_window, "Kantz's Lyapunov estimator")
+    try:
+        radius_value = None if _is_complex(radius) else float(radius)
+    except (TypeError, ValueError, RuntimeError):
+        radius_value = None
+    if radius_value is None or not radius_value >= 0:
+        raise ValueError(f"radius must be a real number >= 0, got {radius!r}")
 
-    embedding_dim = operator.index(embedding_dim)
-    delay = operator.index(delay)
-    theiler_window = operator.index(theiler_window)
+    embedding_dim = _as_int(embedding_dim, "embedding_dim")
+    delay = _as_int(delay, "delay")
+    theiler_window = _as_int(theiler_window, "theiler_window")
     # Limitation: see rosenstein.py's identical workaround/comment -- both
     # delay_embedding and theiler_window_mask can raise OverflowError
     # converting an astronomically large Python int to a tensor scalar.
@@ -168,8 +176,12 @@ def kantz_divergence(
         # torch.where's *unselected* branch below never needs a
         # gradient through log(0)'s 1/0, even though its forward value
         # is discarded either way.
-        safe_mean_distance = torch.where(row_valid, mean_distance, torch.ones_like(mean_distance))
-        log_mean_distance = torch.log(safe_mean_distance)
+        # A valid row with zero mean distance keeps its -inf forward value
+        # (see Returns) but also gets a safe operand, so log(0)'s infinite
+        # gradient cannot reach a parameter shared with other rows.
+        usable = row_valid & (mean_distance > 0)
+        safe_mean_distance = torch.where(usable, mean_distance, torch.ones_like(mean_distance))
+        log_mean_distance = torch.where(row_valid & ~usable, float("-inf"), torch.log(safe_mean_distance))
         masked_log = torch.where(row_valid, log_mean_distance, torch.zeros_like(log_mean_distance))
         curve.append(masked_log.sum(dim=-1) / row_valid_count)
 

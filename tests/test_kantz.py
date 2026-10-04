@@ -372,3 +372,28 @@ def test_kantz_divergence_disagrees_with_chaostools_jl():
     # their ~0.09 gap demonstrates the disagreement is real and stable,
     # not incidental.
     assert not torch.isclose(torch_divergence, julia_divergence, atol=0.05)
+
+
+def test_kantz_zero_distance_row_keeps_shared_gradient():
+    # Regression: a row whose neighborhoods are all at distance 0 is -inf, and
+    # log(0)'s infinite gradient reached a parameter shared with other rows.
+    values = torch.tensor([[1.0, 2.0, 3.0, 4.0], [0.0, 0.0, 0.0, 0.0]], dtype=torch.float64)
+    for norm_order in (1.0, 2.0, float("inf")):
+        parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+        result = kantz_divergence((values * parameter)[..., None], 0, radius=1.1, embedding_dim=1, norm_order=norm_order)
+        assert result[1] == float("-inf")
+        gradient = torch.autograd.grad(result[0], parameter)[0]
+        parameter_alone = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+        alone = kantz_divergence(values[0] * parameter_alone, 0, radius=1.1, embedding_dim=1, norm_order=norm_order)
+        assert torch.allclose(gradient, torch.autograd.grad(alone, parameter_alone)[0])
+
+
+def test_kantz_invalid_arguments_raise_value_error():
+    import pytest
+
+    series = torch.arange(10.0)
+    for override in ({"k_values": torch.tensor(1 + 2j)}, {"radius": -1.0}, {"radius": float("nan")}, {"embedding_dim": 1.5}, {"delay": 1.5}):
+        arguments = dict(k_values=1, radius=2.0, embedding_dim=1)
+        arguments.update(override)
+        with pytest.raises(ValueError):
+            kantz_divergence(series, **arguments)

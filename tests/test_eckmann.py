@@ -360,3 +360,26 @@ def test_ill_conditioned_fit_gradient_matches_finite_difference():
 def test_gradcheck_well_conditioned():
     series = _henon_series(60).requires_grad_()
     assert torch.autograd.gradcheck(lambda values: eckmann_spectrum(values, 3, 3), (series,))
+
+
+def test_tangent_singular_to_rounding_keeps_shared_gradient():
+    # Regression: this row fits a leading coefficient of ~1.7e-16, not exactly
+    # 0; the chain QR then had an exactly zero diagonal and its backward put NaN
+    # into the shared parameter even though only the clean row was used.
+    damaged = torch.tensor(
+        [1, -1, 0, 0, -1, 1, 0, 0, 0, 2, 0, 0, 0, -1, -1, 2, 1, -1, -2, 2, -1, 1, 1, 2, 1, 0, 1, -1, 1, 0],
+        dtype=torch.float64,
+    )
+    clean = torch.randn(30, generator=torch.Generator().manual_seed(12), dtype=torch.float64)
+    parameter = torch.tensor(0.8, dtype=torch.float64, requires_grad=True)
+    result = eckmann_spectrum(parameter * torch.stack([clean, damaged])[..., None], 3, 2, delay=2)
+    assert result[0].isfinite().all() and result[1].isnan().all()
+    gradient = torch.autograd.grad(result[0].sum(), parameter)[0]
+    parameter_alone = torch.tensor(0.8, dtype=torch.float64, requires_grad=True)
+    expected = torch.autograd.grad(eckmann_spectrum(parameter_alone * clean, 3, 2, delay=2).sum(), parameter_alone)[0]
+    assert torch.isfinite(gradient) and torch.allclose(gradient, expected, atol=1e-12)
+
+
+def test_half_precision_is_computed_in_float32():
+    series = _henon_series(300).to(torch.float16)
+    assert torch.equal(eckmann_spectrum(series, 2, 2), eckmann_spectrum(series.float(), 2, 2).half())

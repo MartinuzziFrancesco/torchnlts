@@ -5,6 +5,8 @@ from __future__ import annotations
 import functools
 import numpy
 
+import operator
+
 import torch
 
 from torchnlts.convert import as_tensor
@@ -143,6 +145,14 @@ def _output_dtype(tensor: torch.Tensor) -> torch.dtype:
 def _safe_scale(scale: torch.Tensor) -> torch.Tensor:
     """``scale`` with zeros replaced by one, for use as a divisor."""
     return torch.where(scale == 0, torch.ones_like(scale), scale)
+
+
+def _as_int(value, name: str) -> int:
+    """``value`` as a Python int (``operator.index``); ``ValueError`` otherwise."""
+    try:
+        return operator.index(value)
+    except TypeError:
+        raise ValueError(f"{name} must be an integer, got {value!r}") from None
 
 
 def _mask_nonfinite_rows(values: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

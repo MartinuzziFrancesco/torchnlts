@@ -29,11 +29,9 @@ slope step doesn't care which method produced ``divergence``.
 
 from __future__ import annotations
 
-import operator
-
 import torch
 
-from torchnlts._shape import _as_sweep, _ensure_batched, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _work_dtype
+from torchnlts._shape import _as_int, _as_sweep, _ensure_batched, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
@@ -122,9 +120,9 @@ def rosenstein_divergence(
     _require_self_exclusion(theiler_window, "Rosenstein's Lyapunov estimator")
     norm_order = _validate_norm_order(norm_order)
 
-    embedding_dim = operator.index(embedding_dim)
-    delay = operator.index(delay)
-    theiler_window = operator.index(theiler_window)
+    embedding_dim = _as_int(embedding_dim, "embedding_dim")
+    delay = _as_int(delay, "delay")
+    theiler_window = _as_int(theiler_window, "theiler_window")
     # Limitation: delay_embedding's `torch.arange(embedding_dim) * delay`
     # raises OverflowError converting an astronomically large Python int
     # `delay` to a tensor scalar, even when embedding_dim=1 makes the

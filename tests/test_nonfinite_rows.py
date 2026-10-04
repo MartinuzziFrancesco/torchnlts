@@ -131,3 +131,17 @@ def test_knn_search_nonfinite_candidates_are_unavailable():
 
     distances, indices = knn_search(torch.tensor([0.0]), 2, other=torch.tensor([float("inf"), 1.0]))
     assert distances.tolist() == [[1.0, float("inf")]] and indices.tolist() == [[1, -1]]
+
+
+def test_kantz_nonfinite_sample_outside_embedding():
+    # Samples 20-29 enter no embedded point for embedding_dim=2, delay=30.
+    series = torch.arange(50, dtype=torch.float64)
+    series[25] = float("nan")
+    assert torch.isnan(kantz_divergence(series, 0, radius=100.0, embedding_dim=2, delay=30))
+
+
+def test_knn_search_nonfinite_self_query():
+    from torchnlts.neighbors.knn import knn_search
+
+    distances, indices = knn_search(torch.tensor([0.0, float("nan"), 1.0]), 2)
+    assert torch.isinf(distances[1]).all() and (indices[1] == -1).all()

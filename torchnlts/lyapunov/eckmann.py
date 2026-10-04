@@ -36,8 +36,9 @@ per-unit-time values. Deviations:
   series too short, an orbit point with fewer than ``num_neighbors``
   admissible neighbors, a neighbor difference matrix of rank below
   ``matrix_dim`` (numerical rank, ``torch.linalg.matrix_rank`` default
-  tolerance), a fitted tangent map with last-row first entry exactly
-  zero (singular companion matrix), or a zero growth factor. Constant and
+  tolerance), a fitted tangent map whose last-row first entry ``a_0`` is
+  zero to rounding (``|a_0| <= 8 d_M eps max(1, max|a|)``; the companion
+  matrix is then singular to working precision), or a zero growth factor. Constant and
   exactly periodic series are therefore ``NaN``, not ``-inf``. nolds
   instead takes the minimum-norm solution of a rank-deficient fit.
   Every accepted system has full rank and is solved through its QR
@@ -67,22 +68,13 @@ products of Jacobians (Metz et al. 2021) for long series.
 
 from __future__ import annotations
 
-import operator
-
 import torch
 
-from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows, _output_dtype, _work_dtype
+from torchnlts._shape import _as_int, _ensure_batched, _mask_nonfinite_rows, _output_dtype, _work_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import knn_search
 from torchnlts.neighbors.theiler import _require_self_exclusion
-
-
-def _as_int(value, name: str) -> int:
-    try:
-        return operator.index(value)
-    except TypeError:
-        raise ValueError(f"{name} must be an integer, got {value!r}") from None
 
 
 def _least_squares(design: torch.Tensor, response: torch.Tensor) -> torch.Tensor:
@@ -204,7 +196,12 @@ def eckmann_spectrum(
     # points get coefficients e_0, which make it a cyclic permutation
     # (determinant +-1), so the QR chain never sees a singular matrix.
     with torch.no_grad():
-        tangent_ok = fit_ok & (coefficients[..., 0] != 0) & torch.isfinite(coefficients).all(dim=-1)
+        # Singular to rounding, not only exactly: an |a_0| at rounding level
+        # relative to the largest coefficient (and 1, the companion's other
+        # entries) gives a zero R diagonal in the chain, whose QR backward is NaN.
+        coefficient_scale = coefficients.abs().amax(dim=-1).clamp(min=1.0)
+        nonsingular = coefficients[..., 0].abs() > 8 * matrix_dim * torch.finfo(coefficients.dtype).eps * coefficient_scale
+        tangent_ok = fit_ok & nonsingular & torch.isfinite(coefficients).all(dim=-1)
     identity = torch.eye(matrix_dim, dtype=series.dtype, device=device)
     coefficients = torch.where(tangent_ok.unsqueeze(-1), coefficients, identity[0])
     tangent = torch.cat([identity[1:].expand(batch_size, num_points, -1, -1), coefficients.unsqueeze(-2)], dim=-2)  # [B, N, d_M, d_M]
