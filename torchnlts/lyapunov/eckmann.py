@@ -36,9 +36,8 @@ per-unit-time values. Deviations:
   series too short, an orbit point with fewer than ``num_neighbors``
   admissible neighbors, a neighbor difference matrix of rank below
   ``matrix_dim`` (numerical rank, ``torch.linalg.matrix_rank`` default
-  tolerance), a fitted tangent map whose last-row first entry ``a_0`` is
-  zero to rounding (``|a_0| <= 8 d_M eps max(1, max|a|)``; the companion
-  matrix is then singular to working precision), or a zero growth factor. Constant and
+  tolerance), or a zero or subnormal growth factor in the QR chain (a
+  singular tangent map, or a product singular to rounding). Constant and
   exactly periodic series are therefore ``NaN``, not ``-inf``. nolds
   instead takes the minimum-norm solution of a rank-deficient fit.
   Every accepted system has full rank and is solved through its QR
@@ -85,6 +84,33 @@ def _least_squares(design: torch.Tensor, response: torch.Tensor) -> torch.Tensor
     orthonormal, upper = torch.linalg.qr(design)
     projected = orthonormal.transpose(-2, -1) @ response.unsqueeze(-1)
     return torch.linalg.solve_triangular(upper, projected, upper=True).squeeze(-1)
+
+
+def _qr_chain(tangent: torch.Tensor, shift: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """Summed ``log |diag R|`` ``[B, d_M]`` of the QR-reorthonormalized
+    products of ``tangent`` ``[B, N, d_M, d_M]``, one chain per starting
+    phase advancing ``shift`` points per map, and the ``[B]`` rows where a
+    growth factor is zero or subnormal (QR's backward divides by it)."""
+    batch_size, num_points, matrix_dim, _ = tangent.shape
+    identity = torch.eye(matrix_dim, dtype=tangent.dtype, device=tangent.device)
+    num_chains = min(shift, num_points)
+    chain_start = torch.arange(num_chains, device=tangent.device)
+    orthonormal = identity.expand(batch_size, num_chains, -1, -1)
+    total = torch.zeros(batch_size, matrix_dim, dtype=tangent.dtype, device=tangent.device)
+    degenerate = torch.zeros(batch_size, dtype=torch.bool, device=tangent.device)
+    smallest_normal = torch.finfo(tangent.dtype).tiny
+    for step in range(-(-num_points // shift)):
+        point = chain_start + step * shift  # [C]
+        in_range = point < num_points
+        step_tangent = tangent[:, point.clamp(max=num_points - 1)]
+        step_tangent = torch.where(in_range.view(1, -1, 1, 1), step_tangent, identity)
+        orthonormal, upper = torch.linalg.qr(step_tangent @ orthonormal)
+        growth = torch.diagonal(upper, dim1=-2, dim2=-1).abs()  # [B, C, d_M]
+        usable = in_range.view(1, -1, 1) & (growth >= smallest_normal) & torch.isfinite(growth)
+        degenerate = degenerate | (in_range.view(1, -1, 1) & ~usable).flatten(1).any(dim=-1)
+        log_growth = torch.log(torch.where(usable, growth, torch.ones_like(growth)))
+        total = total + log_growth.sum(dim=1)
+    return total, degenerate
 
 
 def eckmann_spectrum(
@@ -192,40 +218,22 @@ def eckmann_spectrum(
     response = torch.where(fit_ok.unsqueeze(-1), response, torch.zeros_like(response))
     coefficients = _least_squares(design, response)  # [B, N, d_M]
 
-    # The companion matrix has determinant +-coefficients[..., 0]. Rejected
-    # points get coefficients e_0, which make it a cyclic permutation
-    # (determinant +-1), so the QR chain never sees a singular matrix.
+    # Singular tangent maps are caught by the chain check below.
     with torch.no_grad():
-        # Singular to rounding, not only exactly: an |a_0| at rounding level
-        # relative to the largest coefficient (and 1, the companion's other
-        # entries) gives a zero R diagonal in the chain, whose QR backward is NaN.
-        coefficient_scale = coefficients.abs().amax(dim=-1).clamp(min=1.0)
-        nonsingular = coefficients[..., 0].abs() > 8 * matrix_dim * torch.finfo(coefficients.dtype).eps * coefficient_scale
-        tangent_ok = fit_ok & nonsingular & torch.isfinite(coefficients).all(dim=-1)
+        tangent_ok = fit_ok & torch.isfinite(coefficients).all(dim=-1)
     identity = torch.eye(matrix_dim, dtype=series.dtype, device=device)
-    coefficients = torch.where(tangent_ok.unsqueeze(-1), coefficients, identity[0])
     tangent = torch.cat([identity[1:].expand(batch_size, num_points, -1, -1), coefficients.unsqueeze(-2)], dim=-2)  # [B, N, d_M, d_M]
 
-    # One chain per starting phase, advancing `shift` orbit points per map.
-    num_chains = min(shift, num_points)
-    num_steps = -(-num_points // shift)
-    chain_start = torch.arange(num_chains, device=device)
-    orthonormal = identity.expand(batch_size, num_chains, -1, -1)
-    total = torch.zeros(batch_size, matrix_dim, dtype=series.dtype, device=device)
-    degenerate = torch.zeros(batch_size, dtype=torch.bool, device=device)
-    for step in range(num_steps):
-        point = chain_start + step * shift  # [C]
-        in_range = point < num_points
-        step_tangent = tangent[:, point.clamp(max=num_points - 1)]
-        step_tangent = torch.where(in_range.view(1, -1, 1, 1), step_tangent, identity)
-        orthonormal, upper = torch.linalg.qr(step_tangent @ orthonormal)
-        growth = torch.diagonal(upper, dim1=-2, dim2=-1).abs()  # [B, C, d_M]
-        counted = in_range.view(1, -1, 1)
-        usable = counted & (growth > 0) & torch.isfinite(growth)
-        degenerate = degenerate | (counted & ~usable).flatten(1).any(dim=-1)
-        log_growth = torch.log(torch.where(usable, growth, torch.ones_like(growth)))
-        total = total + log_growth.sum(dim=1)
+    # The chain product can be singular to rounding even when every tangent
+    # map is not (an exactly zero R diagonal), and QR's backward is NaN there. A first pass without
+    # autograd finds such rows; they, and rows with a rejected tangent map,
+    # run the differentiable pass on identity maps and are NaN.
+    with torch.no_grad():
+        _, chain_degenerate = _qr_chain(tangent.detach(), shift)
+    bad = nonfinite | ~tangent_ok.all(dim=-1) | chain_degenerate
+    tangent = torch.where(bad.view(-1, 1, 1, 1), identity, tangent)
+    total, degenerate = _qr_chain(tangent, shift)
     exponents = total / (num_points * shift)
-    bad = nonfinite | ~tangent_ok.all(dim=-1) | degenerate
+    bad = bad | degenerate
     exponents = torch.where(bad.unsqueeze(-1), nan_result, exponents)
     return (exponents.squeeze(0) if ndim != 3 else exponents).to(dtype)

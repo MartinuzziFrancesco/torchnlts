@@ -151,7 +151,7 @@ def _as_int(value, name: str) -> int:
     """``value`` as a Python int (``operator.index``); ``ValueError`` otherwise."""
     try:
         return operator.index(value)
-    except TypeError:
+    except (TypeError, ValueError, RuntimeError):
         raise ValueError(f"{name} must be an integer, got {value!r}") from None
 
 

@@ -117,17 +117,17 @@ def kantz_divergence(
         raise ValueError("k_values must be non-negative (evolution steps forward in time)")
     if torch.any(k_values_tensor != k_values_tensor.round()):
         raise ValueError("k_values must be integer-valued (they index discrete time steps)")
+    theiler_window = _as_int(theiler_window, "theiler_window")
     _require_self_exclusion(theiler_window, "Kantz's Lyapunov estimator")
     try:
-        radius_value = None if _is_complex(radius) else float(radius)
-    except (TypeError, ValueError, RuntimeError):
+        radius_value = None if _is_complex(radius) or isinstance(radius, str) else float(radius)
+    except (TypeError, ValueError, RuntimeError, OverflowError):
         radius_value = None
     if radius_value is None or not radius_value >= 0:
         raise ValueError(f"radius must be a real number >= 0, got {radius!r}")
 
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     delay = _as_int(delay, "delay")
-    theiler_window = _as_int(theiler_window, "theiler_window")
     # Limitation: see rosenstein.py's identical workaround/comment -- both
     # delay_embedding and theiler_window_mask can raise OverflowError
     # converting an astronomically large Python int to a tensor scalar.
@@ -152,7 +152,7 @@ def kantz_divergence(
     # single-neighbor-per-row indexing (there, a different neighbor is
     # selected per row, so a plain shifted slice can't express it).
     distance = pairwise_distance(batched, norm_order=norm_order)
-    neighbor_mask = (distance <= radius) & theiler_window_mask(num_points, theiler_window, device=batched.device)
+    neighbor_mask = (distance <= radius_value) & theiler_window_mask(num_points, theiler_window, device=batched.device)
 
     if max_k >= num_points:
         num_usable = 0

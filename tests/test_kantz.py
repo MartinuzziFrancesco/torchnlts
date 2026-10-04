@@ -22,7 +22,7 @@ import torch
 
 from tests.conftest import logistic_map_trajectory
 from torchnlts.lyapunov.kantz import kantz_divergence
-from torchnlts.lyapunov.rosenstein import rosenstein_lyapunov
+from torchnlts.lyapunov.rosenstein import rosenstein_divergence, rosenstein_lyapunov
 
 JULIA_PROJECT = "juliaenv"
 
@@ -397,3 +397,18 @@ def test_kantz_invalid_arguments_raise_value_error():
         arguments.update(override)
         with pytest.raises(ValueError):
             kantz_divergence(series, **arguments)
+
+
+def test_kantz_radius_and_theiler_window_validation():
+    import pytest
+
+    series = torch.arange(5.0)
+    for radius in ("2", 10**400):
+        with pytest.raises(ValueError):
+            kantz_divergence(series, 0, radius, embedding_dim=1)
+    assert kantz_divergence(series, 0, torch.tensor([[[2.0]]]), embedding_dim=1).shape == ()
+    for window in (1 + 0j, torch.tensor(1 + 0j), torch.tensor([1, 2]), None, 1.5):
+        with pytest.raises(ValueError):
+            kantz_divergence(series, 0, 2.0, embedding_dim=1, theiler_window=window)
+        with pytest.raises(ValueError):
+            rosenstein_divergence(series, 0, embedding_dim=1, theiler_window=window)

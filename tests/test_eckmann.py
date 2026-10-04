@@ -324,8 +324,10 @@ def test_zero_growth_factor_row_is_nan(monkeypatch):
 
     monkeypatch.setattr(torch.linalg, "qr", zero_growth)
     rows = torch.stack([_henon_series(300, 0.1), _henon_series(300, 0.3)])[..., None]
-    result = eckmann_spectrum(rows, 2, 2)
+    scale = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+    result = eckmann_spectrum(scale * rows, 2, 2)
     assert result[0].isfinite().all() and result[1].isnan().all()
+    assert torch.isfinite(torch.autograd.grad(result[0].sum(), scale)[0])
 
 
 def test_mixed_valid_and_rejected_points_keep_shared_gradient():
@@ -383,3 +385,22 @@ def test_tangent_singular_to_rounding_keeps_shared_gradient():
 def test_half_precision_is_computed_in_float32():
     series = _henon_series(300).to(torch.float16)
     assert torch.equal(eckmann_spectrum(series, 2, 2), eckmann_spectrum(series.float(), 2, 2).half())
+
+
+def test_chain_product_singular_to_rounding_keeps_shared_gradient():
+    # Regression: in float32 every tangent map of row 1 passes its own checks
+    # (fit condition ~1.6e4), but a chain product is singular to rounding (R
+    # diagonal [19720, 0]); QR's backward then put NaN into the shared
+    # parameter although only row 0 was used.
+    generator = torch.Generator().manual_seed(981)
+    for trial in range(4):
+        length = (2 + trial % 3) * (1 + trial // 3 % 2) * (1 + trial // 6 % 2) + 20
+        rows = torch.randn(129, length, generator=generator)
+        rows[1:] *= 10 ** (torch.rand(128, length, generator=generator) * (2 + trial % 11))
+    parameter = torch.tensor(0.8, requires_grad=True)
+    result = eckmann_spectrum(parameter * rows[[0, 25], :, None], 2, 2, num_neighbors=2, delay=2)
+    assert result[0].isfinite().all() and result[1].isnan().all()
+    gradient = torch.autograd.grad(result[0].sum(), parameter)[0]
+    parameter_alone = torch.tensor(0.8, requires_grad=True)
+    expected = torch.autograd.grad(eckmann_spectrum(parameter_alone * rows[0], 2, 2, num_neighbors=2, delay=2).sum(), parameter_alone)[0]
+    assert torch.isfinite(gradient) and torch.allclose(gradient, expected, atol=1e-6)

@@ -117,12 +117,12 @@ def rosenstein_divergence(
         raise ValueError("k_values must be non-negative (evolution steps forward in time)")
     if torch.any(k_values_tensor != k_values_tensor.round()):
         raise ValueError("k_values must be integer-valued (they index discrete time steps)")
+    theiler_window = _as_int(theiler_window, "theiler_window")
     _require_self_exclusion(theiler_window, "Rosenstein's Lyapunov estimator")
     norm_order = _validate_norm_order(norm_order)
 
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     delay = _as_int(delay, "delay")
-    theiler_window = _as_int(theiler_window, "theiler_window")
     # Limitation: delay_embedding's `torch.arange(embedding_dim) * delay`
     # raises OverflowError converting an astronomically large Python int
     # `delay` to a tensor scalar, even when embedding_dim=1 makes the
