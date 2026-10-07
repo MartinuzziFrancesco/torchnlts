@@ -62,6 +62,15 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   single-scale sample entropy ranks white noise as more "complex" than
   1/f noise, and multiscale entropy (`torchnlts.entropy.multiscale`)
   reverses that ranking by the largest coarse-graining scale swept.
+- `composite_multiscale_entropy_noise.py`: Wu, Wu, Lin, Wang & Lee (2013) --
+  white vs 1/f noise over many realizations; composite multiscale
+  entropy has a smaller spread across realizations than plain multiscale
+  entropy at large scales.
+- `weighted_permutation_entropy_spikes.py`: Fadlallah et al. (2013) +
+  Azami & Escudero (2016) -- ordinary permutation entropy barely changes
+  when sparse large-amplitude bursts are added to white noise, while the
+  variance-weighted and amplitude-aware variants
+  (`permutation_entropy(..., weighting=...)`) drop clearly.
 - `lempel_ziv_logistic_map.py`: Lempel & Ziv (1976) + Kaspar & Schuster
   (1987) -- Lempel-Ziv complexity across the logistic map's
   period-doubling route to chaos: near-minimal at periodic parameters

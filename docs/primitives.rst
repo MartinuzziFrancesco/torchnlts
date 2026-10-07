@@ -251,14 +251,14 @@ the requested sweep) is not connected to the input's graph.
      - none (see module docstring; consistency-checked against ``approximate_entropy``'s radius=0 hard limit)
 
    * - :doc:`ordinal_pattern_probabilities <generated/torchnlts.entropy.permutation.ordinal_pattern_probabilities>`
-     - none
+     - none; piecewise smooth with ``weighting="variance"``/``"amplitude"`` (pattern assignment piecewise constant, weights smooth; jumps at ties, kinks at zero differences)
      - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``OrdinalPatterns``; validated via ``permutation_entropy``'s own tests plus a direct composition check)
 
    * - :doc:`permutation_entropy <generated/torchnlts.entropy.permutation.permutation_entropy>`
-     - none
-     - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``OrdinalPatterns`` + ``Shannon``)
+     - none; piecewise smooth with ``weighting="variance"``/``"amplitude"`` (pattern assignment piecewise constant, weights smooth; jumps at ties, kinks at zero differences)
+     - `Bandt & Pompe (2002) <https://doi.org/10.1103/PhysRevLett.88.174102>`__, Sec. II-III; `Fadlallah et al. (2013) <https://doi.org/10.1103/PhysRevE.87.022911>`__ (variance weights); `Azami & Escudero (2016) <https://doi.org/10.1016/j.cmpb.2016.02.008>`__ (amplitude-aware weights)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``OrdinalPatterns``, ``WeightedOrdinalPatterns``, ``AmplitudeAwareOrdinalPatterns`` + ``Shannon``; weighted variants match to 1e-9)
 
    * - :doc:`mutual_information <generated/torchnlts.entropy.mutual_information.mutual_information>`
      - none
@@ -279,6 +279,16 @@ the requested sweep) is not connected to the input's graph.
      - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
      - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (kernel-relaxed via ``soft_sample_entropy``)
      - none (no direct test of this function's own hard-limit behavior -- inherits ``soft_sample_entropy``'s own correctness story instead, which traces to ``soft_correlation_sum``'s radius=0 hard-limit validation, see that row above; gradcheck-verified for both temperature and trajectory)
+
+   * - :doc:`composite_multiscale_entropy <generated/torchnlts.entropy.multiscale.composite_multiscale_entropy>`
+     - none (inherits ``sample_entropy``'s)
+     - `Wu, Wu, Lin, Wang & Lee (2013) <https://doi.org/10.3390/e15031069>`__, sample entropy averaged over all coarse-graining offsets (``coarse_grain(..., offset=)``)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``multiscale(CompositeDownsampling, SampleEntropy)``; matches to 2e-16. Julia truncates every offset series to the common length ``(N - s + 1) // s``, this function keeps each offset's natural length ``(N - offset) // s``; the test uses a length where both agree. Inherits ``sample_entropy``'s boundary-handling deviation, neutralized with far outliers at the end of the series)
+
+   * - :doc:`soft_composite_multiscale_entropy <generated/torchnlts.entropy.multiscale.soft_composite_multiscale_entropy>`
+     - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
+     - `Wu, Wu, Lin, Wang & Lee (2013) <https://doi.org/10.3390/e15031069>`__ (kernel-relaxed via ``soft_sample_entropy``)
+     - none (composition of ``coarse_grain`` offsets and ``soft_sample_entropy``; gradcheck-verified for both temperature and trajectory)
 
    * - :doc:`lempel_ziv_complexity <generated/torchnlts.entropy.lempel_ziv.lempel_ziv_complexity>`
      - none (sequential incremental-parsing algorithm, no soft variant -- see module docstring)

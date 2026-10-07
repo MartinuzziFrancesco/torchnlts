@@ -242,3 +242,16 @@ def test_sample_entropy_matches_complexitymeasures_jl():
     julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
     torch_entropy = sample_entropy(trajectory, radius=radius, embedding_dim=embedding_dim, delay=1)
     assert torch.isclose(torch_entropy, julia_entropy, atol=1e-9)
+
+
+def test_soft_sample_entropy_shared_input_backward_is_finite():
+    # Regression: a row whose kernel sums underflow to 0 (value NaN) must not
+    # put NaN into gradients of an input shared with other batch rows.
+    torch.manual_seed(1)
+    base = torch.randn(30, dtype=torch.float64, requires_grad=True)
+    batch = torch.stack([base, base + 100 * torch.arange(30)]).unsqueeze(-1)
+    temperature = torch.tensor(0.5, dtype=torch.float64, requires_grad=True)
+    entropy = soft_sample_entropy(batch, temperature)
+    assert torch.isnan(entropy[1]) and torch.isfinite(entropy[0])
+    grad_base, grad_temperature = torch.autograd.grad(entropy[0], (base, temperature))
+    assert torch.isfinite(grad_base).all() and torch.isfinite(grad_temperature)

@@ -27,15 +27,19 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_shape_preserving
+from torchnlts.convert import as_tensor
+from torchnlts._shape import _as_int, _ensure_batched, _output_dtype, _restore_shape_preserving, _work_dtype
 from torchnlts.entropy.sample import sample_entropy, soft_sample_entropy
 
 
-def coarse_grain(trajectory, scale: int) -> torch.Tensor:
+def coarse_grain(trajectory, scale: int, offset: int = 0) -> torch.Tensor:
     """Costa et al.'s regular coarse-graining: non-overlapping length-``scale``
     window means along the time axis.
 
     Gradient class: exact (a reshape + mean).
+
+    Non-float input is converted to the default dtype; half precision is
+    averaged in float32 and cast back.
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A
@@ -43,26 +47,34 @@ def coarse_grain(trajectory, scale: int) -> torch.Tensor:
         scale: Window length. ``scale=1`` returns ``trajectory``
             unchanged (mean of length-1 windows is the identity). Must
             be a positive integer.
+        offset: Number of leading samples skipped before windowing
+            (Wu et al. (2013)'s ``k - 1``), ``0 <= offset < scale``.
 
     Returns:
         Coarse-grained trajectory, same shape convention as
         ``trajectory`` (``[T']``, ``[T', D]``, or ``[B, T', D]``) with
-        ``T' = T // scale``, trailing ``T % scale`` samples dropped --
+        ``T' = (T - offset) // scale``, trailing ``(T - offset) % scale`` samples dropped --
         unlike :func:`torchnlts.embedding.delay.delay_embedding`, the
         feature axis keeps its original meaning here (still ``D``
         channels, not a new ``embedding_dim``-sized axis), so a scalar
         ``[T]`` input stays ``[T']``, not ``[T', 1]``.
 
     Raises:
-        ValueError: If ``scale < 1``.
+        ValueError: If ``scale`` is not a positive integer or ``offset`` is not an integer in ``[0, scale)``.
     """
+    scale = _as_int(scale, "scale")
+    offset = _as_int(offset, "offset")
     if scale < 1:
         raise ValueError(f"scale must be a positive integer, got {scale!r}")
+    if not 0 <= offset < scale:
+        raise ValueError(f"offset must satisfy 0 <= offset < scale, got offset={offset!r}, scale={scale!r}")
     batched, ndim = _ensure_batched(trajectory)
+    out_dtype = _output_dtype(batched)
+    batched = batched[..., offset:, :].to(_work_dtype(batched.dtype))
     num_windows = batched.shape[-2] // scale
     truncated = batched[..., : num_windows * scale, :]
     windows = truncated.reshape(*truncated.shape[:-2], num_windows, scale, truncated.shape[-1])
-    return _restore_shape_preserving(windows.mean(dim=-2), ndim)
+    return _restore_shape_preserving(windows.mean(dim=-2).to(out_dtype), ndim)
 
 
 def multiscale_entropy(
@@ -166,4 +178,113 @@ def soft_multiscale_entropy(
             soft_sample_entropy(coarse_grain(trajectory, scale), temperature, embedding_dim, delay, kind, theiler_window, norm_order)
             for scale in scales
         ]
+    )
+
+
+def _composite_curve(trajectory, scales, entropy) -> torch.Tensor:
+    """Average ``entropy`` over all window offsets at each scale (half input is computed in float32)."""
+    try:
+        scales = [_as_int(scale, "scale") for scale in scales]
+    except TypeError:
+        raise ValueError(f"scales must be an iterable of positive integers, got {scales!r}") from None
+    if not scales or any(scale < 1 for scale in scales):
+        raise ValueError(f"scales must be a non-empty iterable of positive integers, got {scales!r}")
+    trajectory = as_tensor(trajectory)
+    out_dtype = _output_dtype(trajectory)
+    trajectory = trajectory.to(_work_dtype(trajectory.dtype))
+    curve = torch.stack(
+        [
+            torch.stack([entropy(coarse_grain(trajectory, scale, offset)) for offset in range(scale)]).mean(dim=0)
+            for scale in scales
+        ]
+    )
+    return curve.to(out_dtype)
+
+
+def composite_multiscale_entropy(
+    trajectory,
+    scales,
+    radius,
+    embedding_dim: int = 2,
+    delay: int = 1,
+    theiler_window: int = 0,
+    norm_order: float = float("inf"),
+) -> torch.Tensor:
+    """Composite multiscale entropy: sample entropy averaged over all window offsets at each scale.
+
+    Reference: Wu, Wu, Lin, Wang & Lee (2013), "Time series analysis using
+    composite multiscale entropy", Entropy 15(3), 1069-1084,
+    doi:10.3390/e15031069. At scale ``s`` the ``s`` coarse-grained series
+    ``coarse_grain(trajectory, s, offset)``, ``offset = 0..s-1``, each get a
+    sample entropy, and the ``s`` values are averaged.
+
+    Gradient class: none (inherits :func:`torchnlts.entropy.sample.sample_entropy`'s).
+
+    Args:
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
+        scales: Iterable of positive integers (``scales=[1]`` recovers
+            plain ``sample_entropy``).
+        radius: Tolerance r, forwarded unchanged to every offset and scale.
+        embedding_dim: Template length m, forwarded to ``sample_entropy``.
+        delay: Embedding lag, forwarded to ``sample_entropy``.
+        theiler_window: Forwarded to ``sample_entropy``.
+        norm_order: Forwarded to ``sample_entropy``.
+
+    Returns:
+        Entropy curve with the same shape convention as
+        :func:`multiscale_entropy`. The per-offset values are combined by a
+        plain mean, so an entry is ``NaN``/``inf`` if any offset's sample
+        entropy is (Wu et al. average without exclusion; the same holds in
+        ComplexityMeasures.jl). Offsets keep their natural lengths
+        ``(T - offset) // scale`` (as in the paper), so they can differ by
+        one window.
+
+    Raises:
+        ValueError: If ``scales`` is empty or holds a non-positive or
+            non-integer scale, or if any offset's coarse-grained series is
+            too short to embed (fewer than ``embedding_dim * delay + 1`` samples).
+    """
+    return _composite_curve(
+        trajectory,
+        scales,
+        lambda series: sample_entropy(series, radius, embedding_dim, delay, theiler_window, norm_order),
+    )
+
+
+def soft_composite_multiscale_entropy(
+    trajectory,
+    scales,
+    temperature,
+    embedding_dim: int = 2,
+    delay: int = 1,
+    kind: str = "gaussian",
+    theiler_window: int = 0,
+    norm_order: float = float("inf"),
+) -> torch.Tensor:
+    """Kernel-weighted composite multiscale entropy, a smooth stand-in for :func:`composite_multiscale_entropy`.
+
+    Gradient class: smooth (inherits :func:`torchnlts.entropy.sample.soft_sample_entropy`'s,
+    including its Chebyshev-tie caveat).
+
+    Args:
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
+        scales: Iterable of positive integers.
+        temperature: Kernel bandwidth, forwarded to ``soft_sample_entropy``.
+        embedding_dim: Template length m, forwarded to ``soft_sample_entropy``.
+        delay: Embedding lag, forwarded to ``soft_sample_entropy``.
+        kind: ``"gaussian"`` or ``"exponential"``, forwarded to ``soft_sample_entropy``.
+        theiler_window: Forwarded to ``soft_sample_entropy``.
+        norm_order: Forwarded to ``soft_sample_entropy``.
+
+    Returns:
+        Entropy curve, same shape convention and offset averaging as
+        :func:`composite_multiscale_entropy`.
+
+    Raises:
+        ValueError: Same conditions as :func:`composite_multiscale_entropy`.
+    """
+    return _composite_curve(
+        trajectory,
+        scales,
+        lambda series: soft_sample_entropy(series, temperature, embedding_dim, delay, kind, theiler_window, norm_order),
     )

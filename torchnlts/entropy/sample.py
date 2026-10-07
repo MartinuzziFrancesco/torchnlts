@@ -134,9 +134,10 @@ def soft_sample_entropy(
         ``NaN`` if ``temperature`` is small enough relative to the
         template distances that both the numerator and denominator
         kernel-weight sums underflow to exactly ``0`` (``0/0``, the
-        smooth analogue of :func:`sample_entropy`'s ``B(r) = 0`` case;
-        gradients are ``NaN`` too in this regime, in the usual
-        PyTorch sense).
+        smooth analogue of :func:`sample_entropy`'s ``B(r) = 0`` case);
+        ``inf`` if only the numerator underflows. Gradients of such
+        entries are ``NaN``/zero but do not leak into other batch rows
+        that share an input.
 
     Raises:
         ValueError: If ``theiler_window < 0``.
@@ -149,4 +150,12 @@ def soft_sample_entropy(
     a = soft_correlation_sum(
         long_embed, temperature=temperature, kind=kind, theiler_window=theiler_window, norm_order=norm_order
     )
-    return -torch.log(a / b)
+    # Substitute safe operands before the log so a degenerate row's
+    # backward pass stays finite for other rows sharing an input.
+    no_match = b == 0
+    no_extension = (a == 0) & ~no_match
+    safe_a = torch.where(no_match | no_extension, torch.ones_like(a), a)
+    safe_b = torch.where(no_match, torch.ones_like(b), b)
+    entropy = -torch.log(safe_a / safe_b)
+    entropy = torch.where(no_extension, torch.full_like(entropy, float("inf")), entropy)
+    return torch.where(no_match, torch.full_like(entropy, float("nan")), entropy)
