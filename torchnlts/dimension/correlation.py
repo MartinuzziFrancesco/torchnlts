@@ -27,6 +27,13 @@ from torchnlts.neighbors.kernels import trajectory_kernel
 from torchnlts.neighbors.theiler import theiler_window_mask
 
 
+def _nan_where_nonfinite(total: torch.Tensor, distance: torch.Tensor) -> torch.Tensor:
+    """``total`` with ``NaN`` for every batch row whose distance matrix has
+    ``NaN`` (``pairwise_distance`` marks pairs with a non-finite point)."""
+    nonfinite = torch.isnan(distance).flatten(-2).any(dim=-1)
+    return torch.where(nonfinite, torch.full_like(total, float("nan")), total)
+
+
 def correlation_sum(trajectory, radius, theiler_window: int = 0, norm_order: float = 2.0) -> torch.Tensor:
     """Grassberger-Procaccia correlation sum C(r): fraction of point pairs within radius r.
 
@@ -51,13 +58,14 @@ def correlation_sum(trajectory, radius, theiler_window: int = 0, norm_order: flo
         Correlation sum(s) in ``[0, 1]``, shape ``[]``/``[R]`` for an
         unbatched trajectory or ``[B]``/``[R, B]`` for a batched one
         (matching whether ``radius`` is scalar or ``[R]``), or ``NaN`` if
-        ``theiler_window`` excludes every pair.
+        ``theiler_window`` excludes every pair or the row contains ``NaN``/``inf``.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     within_radius = distance <= _broadcast_over_matrix(radius, distance)
-    return ((within_radius & mask).sum(dim=(-2, -1)).to(distance.dtype) / mask.sum()).to(_output_dtype(as_tensor(trajectory)))
+    total = (within_radius & mask).sum(dim=(-2, -1)).to(distance.dtype) / mask.sum()
+    return _nan_where_nonfinite(total, distance).to(_output_dtype(as_tensor(trajectory)))
 
 
 def soft_correlation_sum(
@@ -85,13 +93,14 @@ def soft_correlation_sum(
 
     Returns:
         Weighted correlation sum(s) in ``[0, 1]``, same shape convention
-        as :func:`correlation_sum`.
+        and ``NaN`` cases as :func:`correlation_sum`.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
     weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    return (torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()).to(_output_dtype(as_tensor(trajectory)))
+    total = torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()
+    return _nan_where_nonfinite(total, distance).to(_output_dtype(as_tensor(trajectory)))
 
 
 def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -> torch.Tensor:

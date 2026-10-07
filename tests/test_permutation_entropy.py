@@ -236,3 +236,11 @@ def test_permutation_entropy_matches_complexitymeasures_jl_with_ties():
     julia_entropy = _run_julia_ordinal_entropy(trajectory, embedding_dim, delay)
     torch_entropy = permutation_entropy(trajectory, embedding_dim=embedding_dim, delay=delay)
     assert torch.isclose(torch_entropy, julia_entropy, rtol=1e-9, atol=1e-9)
+
+
+def test_permutation_entropy_nan_for_inf_rows():
+    # Regression: an inf point used to be ranked like an ordinary value.
+    batch = torch.randn(2, 30, 1, dtype=torch.float64)
+    batch[1, 3] = float("inf")
+    values = permutation_entropy(batch)
+    assert torch.isnan(values[1]) and torch.isfinite(values[0])

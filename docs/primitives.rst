@@ -31,8 +31,12 @@ Numerical range limits. Outside these, results or gradients can be
   compute in float64.
 
 Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test,
-Rosenstein, Kantz and Eckmann return ``NaN`` for any batch row containing ``NaN`` or ``inf``
-instead of raising, so they work under ``torch.vmap``.
+Rosenstein, Kantz, Eckmann, the correlation sums (and so sample entropy,
+multiscale and composite multiscale entropy), approximate, fuzzy,
+permutation and dispersion entropy return ``NaN`` for any batch row
+containing ``NaN`` or ``inf`` instead of raising, so they work under
+``torch.vmap``. Lempel-Ziv complexity returns an integer count and is the
+exception.
 :func:`~torchnlts.neighbors.distance.pairwise_distance` returns ``NaN`` for
 every pair involving a point with a ``NaN``/``inf`` coordinate. Other rows
 (or pairs) and their gradients are unaffected, and a non-finite row

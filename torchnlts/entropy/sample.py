@@ -152,7 +152,7 @@ def soft_sample_entropy(
     )
     # Substitute safe operands before the log so a degenerate row's
     # backward pass stays finite for other rows sharing an input.
-    no_match = b == 0
+    no_match = (b == 0) | torch.isnan(b)
     no_extension = (a == 0) & ~no_match
     safe_a = torch.where(no_match | no_extension, torch.ones_like(a), a)
     safe_b = torch.where(no_match, torch.ones_like(b), b)

@@ -264,3 +264,28 @@ def test_correlation_dimension_matches_fractaldimensions_jl_linear_regression():
     # identical correlation sum, so the residual is float64 rounding noise
     # (parsed-string round-trip + log-base conversion), not model mismatch.
     assert torch.isclose(torch_dimension, julia_dimension, atol=1e-9)
+
+
+def test_correlation_sums_nan_for_nonfinite_rows():
+    # Regression: pairs with a non-finite point used to be skipped, giving a finite value for that row.
+    torch.manual_seed(0)
+    for bad in (float("nan"), float("inf")):
+        batch = torch.randn(3, 40, 2, dtype=torch.float64)
+        batch[1, 5, 0] = bad
+        for function in (correlation_sum, soft_correlation_sum):
+            values = function(batch, torch.tensor([0.5, 1.0], dtype=torch.float64))
+            assert torch.isnan(values[:, 1]).all()
+            assert torch.equal(values[:, 0], function(batch[0], torch.tensor([0.5, 1.0], dtype=torch.float64)))
+            assert torch.isnan(function(batch[1], 0.5))
+
+
+def test_soft_correlation_sum_nonfinite_row_gradient_isolated():
+    torch.manual_seed(1)
+    batch = torch.randn(2, 30, 1, dtype=torch.float64, requires_grad=True)
+    poisoned = torch.zeros(2, 30, 1, dtype=torch.float64)
+    poisoned[1, 4] = float("nan")
+    values = soft_correlation_sum(batch + poisoned, 0.5)
+    (gradient,) = torch.autograd.grad(values[0], batch)
+    assert torch.isnan(values[1]) and torch.isfinite(gradient).all()
+    (expected,) = torch.autograd.grad(soft_correlation_sum(batch[0], 0.5), batch)
+    assert torch.equal(gradient, expected)

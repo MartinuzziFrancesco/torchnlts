@@ -120,7 +120,7 @@ def _probabilities(trajectory, embedding_dim: int, delay: int, weighting, amplit
         invalid = (total == 0) | ~finite.squeeze(-1)
         probability = sums / torch.where(invalid, torch.ones_like(total), total)
         return torch.where(invalid, torch.full_like(probability, float("nan")), probability)
-    has_nan = torch.isnan(embedded).any(dim=(-2, -1))
+    has_nan = ~torch.isfinite(embedded).all(dim=(-2, -1))
     codes = _ordinal_pattern_codes(embedded)  # exact ranks for integer input
     counts = torch.nn.functional.one_hot(codes, num_classes=num_patterns).sum(dim=-2).to(work.dtype)
     probability = counts / counts.sum(dim=-1, keepdim=True)
@@ -165,14 +165,11 @@ def ordinal_pattern_probabilities(
         Probability distribution over the ``embedding_dim!`` possible
         ordinal patterns, shape ``[embedding_dim!]`` (unbatched) or
         ``[B, embedding_dim!]`` (batched), summing to 1 along the last
-        dimension. A row is entirely ``NaN`` if the corresponding
-        delay-embedded window contains ``NaN`` (an ordinal pattern is
-        undefined when a coordinate can't be compared to the others) --
-        masked via a plain tensor op rather than raised, so a NaN
-        trajectory degrades gracefully under ``torch.vmap`` too. With a
-        weighting, a row is also ``NaN`` if it contains ``inf`` or its total
-        weight is 0 (e.g. a constant trajectory under ``"variance"``); such
-        rows do not affect the gradient of other batch rows.
+        dimension. A row is entirely ``NaN`` if it contains ``NaN`` or
+        ``inf`` (masked via a plain tensor op rather than raised, so
+        ``torch.vmap`` works) or, with a weighting, if its total weight is
+        0 (e.g. a constant trajectory under ``"variance"``); such rows do
+        not affect the gradient of other batch rows.
 
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1, or

@@ -255,3 +255,14 @@ def test_soft_sample_entropy_shared_input_backward_is_finite():
     assert torch.isnan(entropy[1]) and torch.isfinite(entropy[0])
     grad_base, grad_temperature = torch.autograd.grad(entropy[0], (base, temperature))
     assert torch.isfinite(grad_base).all() and torch.isfinite(grad_temperature)
+
+
+def test_sample_entropies_nan_for_nonfinite_rows():
+    # Regression: a NaN/inf point used to be skipped, giving a finite entropy for that row.
+    torch.manual_seed(0)
+    for bad in (float("nan"), float("inf")):
+        batch = torch.randn(3, 60, 1, dtype=torch.float64)
+        batch[1, 5] = bad
+        for function in (sample_entropy, soft_sample_entropy):
+            values = function(batch, 0.5)
+            assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
