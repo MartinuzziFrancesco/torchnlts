@@ -5,7 +5,8 @@ recurrence_rate (eq. 11), determinism (eq. 13), dl_average (eq. 12),
 dl_max, and dl_entropy:
   1. Paper: Marwan et al. (2007) -- checked via a hand-derived example.
   2. Julia: RecurrenceAnalysis.jl's `recurrencerate`/`determinism`/
-     `dl_average`/`dl_max`/`dl_entropy`, whose `theiler` keyword excludes
+     `dl_average`/`dl_max`/`dl_entropy` (and `rqa`'s LAM/TT/Vmax/VENTR/RTE
+     for the vertical-line and recurrence-time measures), whose `theiler` keyword excludes
      `theiler` diagonals (`theiler=1` excludes only the LOI); it's
      related to this module's `theiler_window` by
      `theiler = theiler_window + 1`.
@@ -16,7 +17,23 @@ import subprocess
 import torch
 
 from torchnlts.recurrence.matrix import hard_recurrence_matrix, soft_recurrence_matrix
-from torchnlts.recurrence.rqa import determinism, dl_average, dl_entropy, dl_max, recurrence_rate
+import math
+
+import pytest
+
+from torchnlts.recurrence.rqa import (
+    _recurrence_time_histogram,
+    determinism,
+    dl_average,
+    dl_entropy,
+    dl_max,
+    laminarity,
+    recurrence_rate,
+    rt_entropy,
+    trapping_time,
+    vl_entropy,
+    vl_max,
+)
 
 JULIA_PROJECT = "juliaenv"
 
@@ -301,3 +318,157 @@ def test_dl_average_max_entropy_match_recurrenceanalysis_jl():
         assert torch.isclose(dl_average(recurrence, lmin=lmin, theiler_window=theiler_window), torch.tensor(julia_avg), atol=1e-5)
         assert dl_max(recurrence, lmin=lmin, theiler_window=theiler_window).item() == julia_max
         assert torch.isclose(dl_entropy(recurrence, lmin=lmin, theiler_window=theiler_window), torch.tensor(julia_entr), atol=1e-5)
+
+
+def _vertical_example():
+    # Column j lists the recurrent rows; with theiler_window=0 row j is
+    # removed. Vertical lines per column (after removal):
+    #   0: [1-3], [5]   1: [0], [2-3]   2: [1], [3-4]   3: [0-2]   4: [0], [2]   5: [1-4]
+    columns = [[1, 2, 3, 5], [0, 2, 3], [1, 2, 3, 4], [0, 1, 2, 3], [0, 2], [1, 2, 3, 4, 5]]
+    recurrence = torch.zeros(6, 6, dtype=torch.bool)
+    for column, rows in enumerate(columns):
+        recurrence[rows, column] = True
+    return recurrence
+
+
+def _entropy(counts):
+    total = sum(counts)
+    return -sum(count / total * math.log(count / total) for count in counts)
+
+
+def test_vertical_line_measures_hand_derived():
+    recurrence = _vertical_example()
+    # Line lengths outside the window: five of length 1, two of 2, two of 3, one of 4 (19 points).
+    assert torch.isclose(laminarity(recurrence), torch.tensor(14 / 19))
+    assert torch.isclose(trapping_time(recurrence), torch.tensor(14 / 5))
+    assert vl_max(recurrence).item() == 4
+    assert torch.isclose(vl_entropy(recurrence), torch.tensor(_entropy([2, 2, 1])))
+    assert torch.isclose(laminarity(recurrence, lmin=3), torch.tensor(10 / 19))
+    assert torch.isclose(trapping_time(recurrence, lmin=3), torch.tensor(10 / 3))
+    assert torch.isclose(laminarity(recurrence, lmin=1), torch.tensor(1.0))
+
+
+def test_recurrence_time_entropy_hand_derived():
+    # Times per column: gap + floor(previous length / 2) + floor(next length / 2)
+    # gives 2, 2, 2, 1 (columns 0, 1, 2, 4); columns 3 and 5 have one line.
+    assert torch.isclose(rt_entropy(_vertical_example()), torch.tensor(_entropy([3, 1])))
+    # Entropy is symmetric under swapping the counts, so pin the histogram too.
+    histogram = _recurrence_time_histogram(_vertical_example(), 0)
+    assert histogram.tolist() == [0, 1, 3, 0, 0, 0, 0]
+
+
+def test_vertical_measures_cut_lines_at_theiler_window():
+    # One full column of a 4x4 matrix: the window splits it into two lines.
+    recurrence = torch.zeros(4, 4, dtype=torch.bool)
+    recurrence[:, 1] = True
+    assert vl_max(recurrence, lmin=1, theiler_window=0).item() == 2  # rows 2-3, row 0 alone
+    assert vl_max(recurrence, lmin=1, theiler_window=1).item() == 1  # row 3 only
+    assert vl_max(recurrence, lmin=1, theiler_window=2).item() == 0
+
+
+def test_vertical_measures_empty_conventions():
+    recurrence = torch.eye(5, dtype=torch.bool)  # everything inside the window
+    assert laminarity(recurrence).item() == 0.0
+    assert trapping_time(recurrence).item() == 0.0
+    assert vl_max(recurrence).item() == 0
+    assert torch.isnan(vl_entropy(recurrence))
+    assert torch.isnan(rt_entropy(recurrence))
+    assert vl_max(recurrence, lmin=9).item() == 0
+    assert vl_max(torch.ones(1, 1, dtype=torch.bool)).item() == 0
+    assert torch.isnan(rt_entropy(torch.ones(1, 1, dtype=torch.bool)))
+
+
+def test_vertical_measures_batched():
+    example = _vertical_example()
+    batch = torch.stack([example, torch.zeros_like(example), example.T])
+    for function in (laminarity, trapping_time, vl_max, vl_entropy, rt_entropy):
+        values = function(batch)
+        assert values.shape == (3,)
+        for index in range(3):
+            single = function(batch[index])
+            assert torch.equal(values[index].isnan(), single.isnan())
+            if not single.isnan():
+                assert torch.isclose(values[index].double(), single.double())
+
+
+def test_vertical_measures_reject_invalid_arguments():
+    recurrence = _vertical_example()
+    for function in (laminarity, trapping_time, vl_max, vl_entropy):
+        with pytest.raises(ValueError):
+            function(recurrence, lmin=0)
+        with pytest.raises(ValueError):
+            function(recurrence, lmin=1.5)
+        with pytest.raises(ValueError):
+            function(recurrence, theiler_window=-1)
+        with pytest.raises(ValueError):
+            function(recurrence.float())
+    with pytest.raises(ValueError):
+        rt_entropy(recurrence, theiler_window=-1)
+    with pytest.raises(ValueError):
+        laminarity(torch.zeros(3, 4, dtype=torch.bool))
+
+
+def test_vertical_measures_match_recurrenceanalysis_jl():
+    # Julia's standalone laminarity() ignores theiler in its numerator for
+    # theiler != 1, so LAM is compared against rqa()[:LAM], which is consistent.
+    torch.manual_seed(2)
+    trajectory = torch.randn(40, dtype=torch.float64)
+    epsilon = 0.6
+    recurrence = hard_recurrence_matrix(trajectory, epsilon=epsilon)
+
+    values = ", ".join(f"{v:.17g}" for v in trajectory.numpy())
+    for theiler_window, julia_theiler, lmin in [(0, 1, 2), (2, 3, 2), (0, 1, 3), (1, 2, 1)]:
+        julia_code = f"""
+        using RecurrenceAnalysis
+        x = [{values}]
+        R = RecurrenceMatrix(x, {epsilon})
+        r = rqa(R; theiler={julia_theiler}, lmin={lmin})
+        for key in (:LAM, :TT, :Vmax, :VENTR, :RTE)
+            println(r[key])
+        end
+        """
+        result = subprocess.run(
+            ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, check=True
+        )
+        lam, tt, vmax, ventr, rte = (float(v) for v in result.stdout.strip().splitlines())
+        kwargs = dict(lmin=lmin, theiler_window=theiler_window)
+        assert torch.isclose(laminarity(recurrence, **kwargs), torch.tensor(lam), atol=1e-9)
+        assert torch.isclose(trapping_time(recurrence, **kwargs), torch.tensor(tt), atol=1e-9)
+        assert vl_max(recurrence, **kwargs).item() == vmax
+        assert torch.isclose(vl_entropy(recurrence, **kwargs), torch.tensor(ventr), atol=1e-9)
+        assert torch.isclose(rt_entropy(recurrence, theiler_window), torch.tensor(rte), atol=1e-9)
+
+
+def test_vertical_measures_vmap_and_default_dtype():
+    batch = torch.stack([_vertical_example(), _vertical_example().T])
+    for function in (determinism, laminarity, trapping_time, vl_max, vl_entropy, rt_entropy):
+        mapped = torch.vmap(function)(batch)
+        for index in range(2):
+            assert torch.equal(mapped[index], function(batch[index]))
+    previous = torch.get_default_dtype()
+    torch.set_default_dtype(torch.float64)
+    try:
+        for function in (laminarity, trapping_time, vl_entropy, rt_entropy):
+            assert function(batch).dtype == torch.float64
+    finally:
+        torch.set_default_dtype(previous)
+
+
+def test_line_measures_reject_fractional_arguments():
+    recurrence = _vertical_example()
+    for function in (determinism, laminarity, trapping_time, vl_max, vl_entropy, dl_average):
+        with pytest.raises(ValueError):
+            function(recurrence, theiler_window=1.5)
+        with pytest.raises(ValueError):
+            function(recurrence, lmin=1.5)
+    with pytest.raises(ValueError):
+        rt_entropy(recurrence, theiler_window=1.5)
+
+
+def test_vertical_measures_longest_possible_line():
+    # Regression guard: a vertical line of length T - 1 (the longest outside the identity line) must be counted.
+    recurrence = torch.zeros(6, 6, dtype=torch.bool)
+    recurrence[1:, 0] = True
+    assert laminarity(recurrence).item() == pytest.approx(1.0)
+    assert trapping_time(recurrence).item() == pytest.approx(5.0)
+    assert vl_max(recurrence).item() == 5

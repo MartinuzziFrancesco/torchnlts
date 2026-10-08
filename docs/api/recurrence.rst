@@ -18,3 +18,8 @@ Recurrence matrices -- the ``torchnlts.recurrence`` subpackage.
    torchnlts.recurrence.rqa.dl_average
    torchnlts.recurrence.rqa.dl_max
    torchnlts.recurrence.rqa.dl_entropy
+   torchnlts.recurrence.rqa.laminarity
+   torchnlts.recurrence.rqa.trapping_time
+   torchnlts.recurrence.rqa.vl_max
+   torchnlts.recurrence.rqa.vl_entropy
+   torchnlts.recurrence.rqa.rt_entropy

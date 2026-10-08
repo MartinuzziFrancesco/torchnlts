@@ -109,6 +109,21 @@ the requested sweep) is not connected to the input's graph.
      - `Cao (1997) <https://doi.org/10.1016/S0167-2789(97)00118-8>`__, eq. 5
      - none (see module docstring: ``stochastic_indicator`` has indexing quirks that don't match eq. 5 cleanly)
 
+   * - :doc:`autocorrelation <generated/torchnlts.embedding.delay_selection.autocorrelation>`
+     - exact
+     - `Rosenstein, Collins & De Luca (1994) <https://doi.org/10.1016/0167-2789(94)90134-1>`__ (delay criteria)
+     - `StatsBase.jl <https://github.com/JuliaStats/StatsBase.jl>`__ (``autocor``, ``demean=true``)
+
+   * - :doc:`auto_mutual_information <generated/torchnlts.embedding.delay_selection.auto_mutual_information>`
+     - none
+     - `Fraser & Swinney (1986) <https://doi.org/10.1103/PhysRevA.33.1134>`__
+     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``selfmutualinfo``, ``nbins``; exact at delay 0 and for a series periodic over the pair window, otherwise within ~0.01 nats because the delayed marginal is counted from the delayed samples -- see module docstring)
+
+   * - :doc:`estimate_delay <generated/torchnlts.embedding.delay_selection.estimate_delay>`
+     - none
+     - `Fraser & Swinney (1986) <https://doi.org/10.1103/PhysRevA.33.1134>`__ (``mi_min``)
+     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``estimate_delay``: ``mi_min``, ``ac_zero``, ``ac_min``; ``ac_1/e`` has no Julia counterpart)
+
    * - :doc:`hard_recurrence_matrix <generated/torchnlts.recurrence.matrix.hard_recurrence_matrix>`
      - none
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 1
@@ -163,6 +178,31 @@ the requested sweep) is not connected to the input's graph.
      - none
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 14
      - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``dl_entropy``)
+
+   * - :doc:`laminarity <generated/torchnlts.recurrence.rqa.laminarity>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 62 (LAM)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``rqa`` ``:LAM``; standalone ``laminarity`` ignores ``theiler`` in its numerator for ``theiler != 1``)
+
+   * - :doc:`trapping_time <generated/torchnlts.recurrence.rqa.trapping_time>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 63 (TT)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``trappingtime``)
+
+   * - :doc:`vl_max <generated/torchnlts.recurrence.rqa.vl_max>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 64 (Vmax)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``vl_max``)
+
+   * - :doc:`vl_entropy <generated/torchnlts.recurrence.rqa.vl_entropy>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.5.3 (vertical lines; the Shannon entropy of their length histogram is the vertical analogue of ``dl_entropy``)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``vl_entropy``)
+
+   * - :doc:`rt_entropy <generated/torchnlts.recurrence.rqa.rt_entropy>`
+     - none
+     - `Little et al. (2007) <https://doi.org/10.1186/1475-925X-6-23>`__ (RPDE; the concept -- Little uses first returns after leaving a neighbourhood, this uses RecurrenceAnalysis.jl's gaps plus floored half-line lengths)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``rt_entropy``)
 
    * - :doc:`correlation_sum <generated/torchnlts.dimension.correlation.correlation_sum>`
      - none
@@ -358,6 +398,11 @@ the requested sweep) is not connected to the input's graph.
      - piecewise
      - `Eckmann, Kamphorst, Ruelle & Ciliberto (1986) <https://doi.org/10.1103/PhysRevA.34.4971>`__
      - `nolds <https://github.com/CSchoel/nolds>`__ (``lyap_e``, run live in the test suite; matches to float64 precision for matrix step 1 on well-conditioned fits. For matrix step > 1 nolds composes the fitted maps at every consecutive point where the paper's Sec. 2c composes them at stride ``m``, so this follows the paper instead, checked against an independent NumPy implementation; degenerate/rank-deficient rows are ``NaN``, ties beyond ``num_neighbors`` are dropped -- see module docstring); no Julia equivalent
+
+   * - :doc:`kaplan_yorke_dimension <generated/torchnlts.lyapunov.kaplan_yorke.kaplan_yorke_dimension>`
+     - piecewise (continuous, with kinks where a partial sum crosses zero or sorted exponents tie; jumps where the largest exponent crosses zero)
+     - `Kaplan & Yorke (1979) <https://doi.org/10.1007/BFb0064319>`__; Frederickson, Kaplan, Yorke & Yorke (1983), *J. Diff. Eq.* 49, 185-207
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``kaplanyorke_dim``; matches to float64 precision, including zero and all-negative edge cases); literature Hénon (1.258) and Lorenz (2.06) values
 
    * - :doc:`phase_randomized_surrogate <generated/torchnlts.surrogate.phase.phase_randomized_surrogate>`
      - none

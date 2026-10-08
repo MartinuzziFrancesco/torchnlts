@@ -64,3 +64,4 @@ this implementation and its reference.
    torchnlts.lyapunov.jacobian.step_jacobian
    torchnlts.lyapunov.spectrum.lyapunov_spectrum
    torchnlts.lyapunov.eckmann.eckmann_spectrum
+   torchnlts.lyapunov.kaplan_yorke.kaplan_yorke_dimension

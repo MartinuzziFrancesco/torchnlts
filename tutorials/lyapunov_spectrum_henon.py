@@ -27,3 +27,10 @@ print(f"Lyapunov spectrum: {spectrum.tolist()}")
 print("literature values are approximately [0.42, -1.62]")
 print(f"sum of exponents: {spectrum.sum().item():.4f} (expected log|det J| = log(0.3) = {torch.tensor(0.3).log().item():.4f})")
 print("This negative sum is the log-area growth per iteration, not the determinant.")
+
+# Kaplan & Yorke (1979): the attractor's information dimension is estimated
+# from the spectrum as k + (sum of the first k exponents) / |lambda_{k+1}|.
+from torchnlts.lyapunov.kaplan_yorke import kaplan_yorke_dimension
+
+dimension = kaplan_yorke_dimension(spectrum)
+print(f"Kaplan-Yorke dimension: {dimension.item():.4f} (literature value approximately 1.258)")

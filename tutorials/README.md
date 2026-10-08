@@ -14,9 +14,15 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `embedding_fnn_cao.py`: Kennel, Brown & Abarbanel (1992) + Cao (1997)
   -- choosing a delay embedding's dimension from a scalar observable
   alone.
+- `delay_selection_lorenz.py`: Fraser & Swinney (1986) -- choosing a delay
+  embedding's delay from the first minimum of the self mutual information of
+  Lorenz x, compared with autocorrelation criteria.
 - `recurrence_rqa.py`: Marwan, Romano, Thiel & Kurths (2007) --
   compare DET for sine, Lorenz x, and white noise at matched
   recurrence rate; this comparison is not a general determinism test.
+- `rqa_laminarity_logistic_map.py`: Marwan, Romano, Thiel & Kurths (2007) --
+  laminarity, trapping time and recurrence time entropy across the logistic
+  map's r range: LAM is zero on periodic orbits and peaks after band merging.
 - `correlation_dimension_lorenz.py`: Grassberger & Procaccia (1983) --
   the Lorenz attractor's fractal correlation dimension, estimated from
   a trajectory alone.
@@ -31,7 +37,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   reproducing the logistic map's known ln(2).
 - `lyapunov_spectrum_henon.py`: Benettin, Galgani, Giorgilli & Strelcyn
   (1980) + Geist, Parlitz & Lauterborn (1990) -- the full Lyapunov
-  spectrum of a differentiable map, via `torch.func`.
+  spectrum of a differentiable map, via `torch.func`, and the
+  Kaplan-Yorke dimension (Kaplan & Yorke, 1979) computed from it.
 - `eckmann_spectrum_henon.py`: Eckmann, Kamphorst, Ruelle & Ciliberto
   (1986) -- the Henon map's Lyapunov spectrum from its x-series alone,
   checked against the known exponents and `lyapunov_spectrum`, with the
