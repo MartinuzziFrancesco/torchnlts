@@ -1,7 +1,7 @@
 """Joint recurrence matrix: hard threshold and smooth kernel-weighted variants.
 
 Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6),
-237-329, Sec. 4.2: JR_ij = Theta(epsilon_x - ||x_i - x_j||) * Theta(epsilon_y
+237-329, Sec. 3.4: JR_ij = Theta(epsilon_x - ||x_i - x_j||) * Theta(epsilon_y
 - ||y_i - y_j||), the element-wise product of ``x``'s and ``y``'s own
 self-recurrence matrices. Unlike :mod:`torchnlts.recurrence.cross_recurrence`
 (which compares ``x`` and ``y`` directly, so both must lie in the same
@@ -24,31 +24,32 @@ epsilon_y))`` directly -- confirmed to match the single-threshold
 ``epsilon_x == epsilon_y``, and it's the same element-wise-AND definition
 the package's own docstring gives for ``JointRecurrenceMatrix``.
 
-Limitation: both variants compute the full ``T_full x
-T_full`` recurrence matrix on each trajectory before slicing down to
-``T_min x T_min`` when ``x`` and ``y`` differ in length, rather than
-truncating the raw trajectories first. O(T_full^2) compute/memory instead
-of O(T_min^2) for substantially unequal lengths (and a wasted autograd
-graph over the discarded region for the soft variant). Upgrade path: slice
+Limitation: the soft variant computes the full ``T_full x T_full``
+recurrence matrix on each trajectory before slicing down to ``T_min x
+T_min`` when ``x`` and ``y`` differ in length (O(T_full^2) compute/memory
+and a wasted autograd graph over the discarded region). Upgrade path: slice
 ``trajectory``/``other`` to ``min(len(trajectory), len(other))`` before
-calling ``hard_recurrence_matrix``/``soft_recurrence_matrix``, if a
-workload with very unequal lengths makes this measurable.
+calling ``soft_recurrence_matrix``. The hard variant truncates first.
 """
 
 from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _validate_matching_batch
+from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch
 from torchnlts.recurrence.matrix import hard_recurrence_matrix, soft_recurrence_matrix
 
 
 def hard_joint_recurrence_matrix(
     trajectory,
     other,
-    epsilon: float,
+    epsilon: float | None = None,
     other_epsilon: float | None = None,
     norm_order: float = 2.0,
+    *,
+    recurrence_rate: float | None = None,
+    local_rate: float | None = None,
+    scale: str | None = None,
 ) -> torch.Tensor:
     """Boolean joint recurrence matrix: where ``trajectory`` and ``other`` recur simultaneously.
 
@@ -66,19 +67,31 @@ def hard_joint_recurrence_matrix(
             ``epsilon`` (matching RecurrenceAnalysis.jl's single-threshold
             ``JointRecurrenceMatrix(x, y, rthres)`` overload).
         norm_order: Minkowski norm order, shared by both trajectories.
+        recurrence_rate: Instead of ``epsilon``: global recurrence rate of each
+            trajectory's own matrix (see :func:`hard_recurrence_matrix`).
+        local_rate: Instead of ``epsilon``: local recurrence rate of each
+            trajectory's own matrix.
+        scale: ``"max"``, ``"mean"`` or ``"std"``; makes ``epsilon`` and
+            ``other_epsilon`` ratios.
 
     Returns:
         Bool tensor of shape ``[T, T]`` or ``[B, T, T]``, ``T`` = the
         shorter of ``trajectory``'s and ``other``'s lengths.
+
+    Raises:
+        ValueError: As :func:`hard_recurrence_matrix`; also if
+            ``other_epsilon`` is given with ``recurrence_rate`` or ``local_rate``.
     """
     trajectory_batched, trajectory_ndim = _ensure_batched(trajectory)
     other_batched, other_ndim = _ensure_batched(other)
     _validate_matching_batch(trajectory_batched, other_batched, trajectory_ndim, other_ndim, check_feature_dim=False)
     epsilon_other = epsilon if other_epsilon is None else other_epsilon
-    recurrence = hard_recurrence_matrix(trajectory, epsilon, norm_order=norm_order)
-    other_recurrence = hard_recurrence_matrix(other, epsilon_other, norm_order=norm_order)
-    length = min(recurrence.shape[-1], other_recurrence.shape[-1])
-    return recurrence[..., :length, :length] & other_recurrence[..., :length, :length]
+    # Truncate first: rate-based thresholds depend on the length.
+    length = min(trajectory_batched.shape[-2], other_batched.shape[-2])
+    options = dict(norm_order=norm_order, recurrence_rate=recurrence_rate, local_rate=local_rate, scale=scale)
+    recurrence = hard_recurrence_matrix(trajectory_batched[:, :length], epsilon, **options)
+    other_recurrence = hard_recurrence_matrix(other_batched[:, :length], epsilon_other, **options)
+    return _restore_batch(recurrence & other_recurrence, trajectory_ndim)
 
 
 def soft_joint_recurrence_matrix(

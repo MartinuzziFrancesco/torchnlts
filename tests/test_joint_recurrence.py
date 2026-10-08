@@ -2,7 +2,7 @@
 
 Dual ground truth:
   1. Paper: Marwan, Romano, Thiel & Kurths (2007), Physics Reports
-     438(5-6), 237-329, Sec. 4.2 -- checked here via a hand-derived example
+     438(5-6), 237-329, Sec. 3.4 -- checked here via a hand-derived example
      for the hard variant. No Julia package implements the smooth kernel
      variant, so the soft variant instead gets a hand-derived analytic
      limit (temperature -> 0 recovers the epsilon=0 hard matrix) plus a

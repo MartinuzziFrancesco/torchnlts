@@ -5,7 +5,8 @@ without delay reconstruction; DET is not a general test of determinism.
 
 Determinism (DET, the fraction of recurrent points that form diagonal
 lines of length >= 2) is compared across three signals, each
-thresholded to the *same* recurrence rate (10%) so the comparison isn't
+thresholded to the *same* recurrence rate (10% of the full matrix; the printed
+RR excludes the Theiler window, so it is slightly lower) so the comparison isn't
 confounded by one signal simply having a looser threshold: a periodic
 sine wave, the Lorenz system's chaotic x-coordinate, and white noise.
 """
@@ -27,23 +28,12 @@ target_rate = 0.1
 theiler_window = 1
 
 
-def epsilon_for_target_rate(x: torch.Tensor) -> float:
-    """Binary-search the recurrence threshold hitting `target_rate`."""
-    low, high = 1e-3, 5.0
-    for _ in range(30):
-        mid = (low + high) / 2
-        rate = recurrence_rate(hard_recurrence_matrix(x, mid), theiler_window)
-        low, high = (mid, high) if rate < target_rate else (low, mid)
-    return mid
-
-
-print(f"{'signal':>20}  {'epsilon':>8}  {'RR':>6}  {'DET':>6}")
+print(f"{'signal':>20}  {'RR':>6}  {'DET':>6}")
 for name, signal in [("periodic (sine)", periodic), ("chaotic (Lorenz x)", chaotic), ("white noise", noise)]:
-    epsilon = epsilon_for_target_rate(signal)
-    recurrence = hard_recurrence_matrix(signal, epsilon)
+    recurrence = hard_recurrence_matrix(signal, recurrence_rate=target_rate)
     rate = recurrence_rate(recurrence, theiler_window)
     det = determinism(recurrence, lmin=2, theiler_window=theiler_window)
-    print(f"{name:>20}  {epsilon:>8.4f}  {rate.item():>6.3f}  {det.item():>6.3f}")
+    print(f"{name:>20}  {rate.item():>6.3f}  {det.item():>6.3f}")
 
 print("\nAt matched recurrence rate, sine and Lorenz x have higher DET than")
 print("white noise here. DET measures diagonal recurrence structure;")

@@ -23,6 +23,9 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `rqa_laminarity_logistic_map.py`: Marwan, Romano, Thiel & Kurths (2007) --
   laminarity, trapping time and recurrence time entropy across the logistic
   map's r range: LAM is zero on periodic orbits and peaks after band merging.
+- `windowed_rqa_transition.py`: Marwan, Romano, Thiel & Kurths (2007) --
+  windowed DET and DIV on a logistic map whose parameter jumps from periodic
+  (r = 3.5) to chaotic (r = 3.9).
 - `correlation_dimension_lorenz.py`: Grassberger & Procaccia (1983) --
   the Lorenz attractor's fractal correlation dimension, estimated from
   a trajectory alone, with the scaling region fixed by hand and detected

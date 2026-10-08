@@ -23,3 +23,6 @@ Recurrence matrices -- the ``torchnlts.recurrence`` subpackage.
    torchnlts.recurrence.rqa.vl_max
    torchnlts.recurrence.rqa.vl_entropy
    torchnlts.recurrence.rqa.rt_entropy
+   torchnlts.recurrence.rqa.ratio
+   torchnlts.recurrence.rqa.divergence
+   torchnlts.recurrence.rqa.windowed_rqa

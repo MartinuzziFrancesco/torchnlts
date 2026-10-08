@@ -29,10 +29,13 @@ from torchnlts.recurrence.rqa import (
     dl_max,
     laminarity,
     recurrence_rate,
+    divergence,
+    ratio,
     rt_entropy,
     trapping_time,
     vl_entropy,
     vl_max,
+    windowed_rqa,
 )
 
 JULIA_PROJECT = "juliaenv"
@@ -472,3 +475,183 @@ def test_vertical_measures_longest_possible_line():
     assert laminarity(recurrence).item() == pytest.approx(1.0)
     assert trapping_time(recurrence).item() == pytest.approx(5.0)
     assert vl_max(recurrence).item() == 5
+
+
+def _banded_recurrence(num_points=5):
+    # Identity plus the first off-diagonals: one diagonal line of length T - 1 on each side.
+    return torch.eye(num_points, dtype=torch.bool) | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), 1) | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), -1)
+
+
+def _julia_values(recurrence, expressions, julia_theiler=1, lmin=2):
+    rows = ";".join(" ".join("1" if value else "0" for value in row) for row in recurrence.tolist())
+    julia_code = f"""
+    using RecurrenceAnalysis, SparseArrays
+    R = RecurrenceMatrix(sparse(Bool[{rows}]))
+    kw = (theiler={julia_theiler}, lmin={lmin})
+    {expressions}
+    """
+    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr
+    return [float(line) for line in result.stdout.split()]
+
+
+def _random_recurrence(num_points=30, seed=0):
+    torch.manual_seed(seed)
+    trajectory = torch.cumsum(torch.randn(num_points, 1, dtype=torch.float64), dim=0)
+    return hard_recurrence_matrix(trajectory, epsilon=1.5)
+
+
+def test_ratio_divergence_hand_derived():
+    recurrence = _banded_recurrence()
+    # 8 off-diagonal points of 20 pairs; all in lines (length 4): DET = 1, RR = 0.4, Lmax = 4.
+    assert ratio(recurrence).item() == pytest.approx(2.5)
+    assert divergence(recurrence).item() == pytest.approx(0.25)
+    # Theiler window 1 excludes the band: nothing recurrent is left.
+    assert torch.isnan(ratio(recurrence, theiler_window=1))
+    assert divergence(recurrence, theiler_window=1).item() == math.inf
+
+
+def test_ratio_divergence_degenerate_and_batched():
+    empty = torch.eye(4, dtype=torch.bool)
+    assert torch.isnan(ratio(empty))  # DET = 0 and RR = 0
+    assert divergence(empty).item() == math.inf  # Lmax = 0 (Julia: 1.0 / 0 = Inf)
+    isolated = _no_qualifying_lines_recurrence()
+    assert ratio(isolated).item() == 0.0  # RR > 0 but no line reaches lmin
+    batch = torch.stack([_banded_recurrence(), empty.new_zeros(5, 5) | torch.eye(5, dtype=torch.bool)])
+    assert ratio(batch).shape == (2,) and divergence(batch).shape == (2,)
+    assert divergence(batch)[0].item() == pytest.approx(0.25) and divergence(batch)[1].item() == math.inf
+
+
+def test_ratio_divergence_match_julia():
+    recurrence = _random_recurrence()
+    for theiler_window, lmin in ((0, 2), (2, 2), (0, 3)):
+        kwargs = dict(lmin=lmin, theiler_window=theiler_window)
+        julia_ratio, julia_div, julia_rqa_div = _julia_values(
+            recurrence,
+            "println(determinism(R; kw...) / recurrencerate(R; theiler=kw.theiler)); println(divergence(R; kw...)); println(rqa(R; kw...)[:DIV])",
+            julia_theiler=theiler_window + 1,
+            lmin=lmin,
+        )
+        assert ratio(recurrence, **kwargs).item() == pytest.approx(julia_ratio, rel=1e-5)
+        assert divergence(recurrence, **kwargs).item() == pytest.approx(julia_div, rel=1e-6)
+        assert julia_div == julia_rqa_div
+
+
+def test_windowed_rqa_hand_derived():
+    recurrence = _banded_recurrence()
+    # width 3, step 2: windows start at 0 and 2; each is a 3x3 band (4 of 6 pairs, DET 1, Lmax 2).
+    assert torch.allclose(windowed_rqa(recurrence, recurrence_rate, 3, 2), torch.full((2,), 4 / 6))
+    assert torch.equal(windowed_rqa(recurrence, dl_max, 3, 2), torch.tensor([2, 2]))
+    # step 1 gives 3 windows; width 4 step 2 drops the trailing partial window (1 window).
+    assert windowed_rqa(recurrence, determinism, 3).shape == (3,)
+    assert windowed_rqa(recurrence, determinism, 4, 2).shape == (1,)
+    # A window equal to the full matrix reproduces the plain measure.
+    assert windowed_rqa(recurrence, dl_max, 5).item() == dl_max(recurrence).item()
+
+
+def test_windowed_rqa_places_windows_on_diagonal_blocks():
+    # Regression: windows must be diagonal sub-blocks, not rows/columns of different offsets.
+    recurrence = torch.zeros(6, 6, dtype=torch.bool)
+    recurrence[3:, 3:] = True  # a full block in the lower-right corner only
+    values = windowed_rqa(recurrence, recurrence_rate, 3, 3, theiler_window=-1)
+    assert torch.equal(values, torch.tensor([0.0, 1.0]))
+
+
+def test_windowed_rqa_batched_and_kwargs():
+    batch = torch.stack([_random_recurrence(seed=0), _random_recurrence(seed=1)])
+    values = windowed_rqa(batch, determinism, 10, 4, lmin=3, theiler_window=1)
+    assert values.shape == (2, 6)
+    for index in range(2):
+        assert torch.equal(values[index], windowed_rqa(batch[index], determinism, 10, 4, lmin=3, theiler_window=1))
+    assert torch.equal(torch.vmap(lambda matrix: windowed_rqa(matrix, laminarity, 10, 4))(batch), windowed_rqa(batch, laminarity, 10, 4))
+    assert windowed_rqa(batch, dl_max, 10, 4).dtype == torch.long
+
+
+def test_windowed_rqa_validation():
+    recurrence = _banded_recurrence()
+    for window_size, step in ((1, 1), (6, 1), (3, 0), (3.5, 1), (3, 1.5)):
+        with pytest.raises(ValueError):
+            windowed_rqa(recurrence, determinism, window_size, step)
+    with pytest.raises(ValueError):
+        windowed_rqa(recurrence, "determinism", 3)
+    with pytest.raises(ValueError):
+        windowed_rqa(torch.zeros(3, 4, dtype=torch.bool), determinism, 2)
+
+
+def test_windowed_rqa_matches_julia():
+    recurrence = _random_recurrence(num_points=40)
+    width, step = 12, 5
+    expressions = (
+        f"for f in (determinism, laminarity, dl_max); foreach(println, windowed(R, f, {width}, {step}; kw...)); end"
+    )
+    values = _julia_values(recurrence, expressions)
+    num_windows = (40 - width) // step + 1
+    for index, measure in enumerate((determinism, laminarity, dl_max)):
+        expected = values[index * num_windows : (index + 1) * num_windows]
+        got = windowed_rqa(recurrence, measure, width, step, lmin=2, theiler_window=0)
+        assert got.shape == (num_windows,)
+        assert torch.allclose(got.double(), torch.tensor(expected, dtype=torch.float64), atol=1e-9), measure
+
+
+def test_windowed_rqa_forwards_each_kwarg():
+    recurrence = torch.eye(5, dtype=torch.bool) | torch.diag(torch.ones(4, dtype=torch.bool), 1)
+    assert torch.equal(windowed_rqa(recurrence, determinism, 3), torch.ones(3))
+    assert torch.equal(windowed_rqa(recurrence, determinism, 3, lmin=3), torch.zeros(3))
+    assert torch.equal(windowed_rqa(recurrence, determinism, 3, theiler_window=1), torch.zeros(3))
+
+
+def test_windowed_rqa_block_orientation():
+    # Regression: blocks must keep [row, column] order (a transposed block turns a vertical line into a row).
+    recurrence = torch.zeros(5, 5, dtype=torch.bool)
+    recurrence[1:, 0] = True
+    assert windowed_rqa(recurrence, laminarity, 5).item() == 1.0
+    assert windowed_rqa(recurrence.T, laminarity, 5).item() == 0.0
+
+
+def test_divergence_follows_default_dtype():
+    previous = torch.get_default_dtype()
+    torch.set_default_dtype(torch.float64)
+    try:
+        assert divergence(_banded_recurrence()).dtype == torch.float64
+    finally:
+        torch.set_default_dtype(previous)
+
+
+def test_windowed_rqa_chunking_matches_single_call(monkeypatch):
+    import torchnlts.recurrence.rqa as module
+
+    batch = torch.stack([_random_recurrence(seed=0), _random_recurrence(seed=1)])
+    expected = windowed_rqa(batch, determinism, 10, 3)
+    for budget in (1, 2 * 100 * 3, 2 * 100 * 4 + 1):  # one window, three, four per chunk
+        monkeypatch.setattr(module, "_WINDOW_ELEMENT_BUDGET", budget)
+        assert torch.equal(windowed_rqa(batch, determinism, 10, 3), expected)
+        assert torch.equal(torch.vmap(lambda matrix: windowed_rqa(matrix, determinism, 10, 3))(batch), expected)
+
+
+def test_windowed_rqa_empty_batch_and_chunk_calls(monkeypatch):
+    import torchnlts.recurrence.rqa as rqa_module
+
+    empty = windowed_rqa(torch.zeros(0, 5, 5, dtype=torch.bool), recurrence_rate, 3)
+    assert empty.shape == (0, 3)
+    monkeypatch.setattr(rqa_module, "_WINDOW_ELEMENT_BUDGET", 100)
+    calls = []
+
+    def recording(blocks):
+        calls.append(blocks.shape[0])
+        return blocks.sum(dim=(-2, -1))
+
+    recurrence = torch.ones(2, 10, 10)
+    windowed_rqa(recurrence, recording, 3)
+    # 100 // (2 * 9) = 5 windows per call over 8 windows, times batch 2.
+    assert calls == [10, 6]
+
+
+def test_windowed_rqa_keeps_measure_gradient():
+    matrix = torch.rand(7, 7, dtype=torch.float64, requires_grad=True)
+    windowed_rqa(matrix, recurrence_rate, 3, step=2).sum().backward()
+    expected = torch.zeros_like(matrix)
+    for start in range(0, 5, 2):
+        block = matrix.detach()[start : start + 3, start : start + 3].clone().requires_grad_()
+        recurrence_rate(block).backward()
+        expected[start : start + 3, start : start + 3] += block.grad
+    torch.testing.assert_close(matrix.grad, expected)

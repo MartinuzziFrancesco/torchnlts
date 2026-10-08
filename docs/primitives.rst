@@ -42,7 +42,10 @@ every pair involving a point with a ``NaN``/``inf`` coordinate. Other rows
 (or pairs) and their gradients are unaffected, and a non-finite row
 receives a zero gradient. Exceptions: Petrosian has no gradient at all, and
 a result that is ``NaN`` for another reason (e.g. a series too short for
-the requested sweep) is not connected to the input's graph.
+the requested sweep) is not connected to the input's graph. The hard
+recurrence matrices with ``recurrence_rate``, ``local_rate`` or ``scale``
+compute their thresholds over the finite distances of each batch row (a row
+with none gives an all-False matrix) and work under ``torch.vmap``.
 
 - Clicking the **primitive name** links to its API documentation.
 - Clicking the **reference** links to the defining paper.
@@ -127,7 +130,7 @@ the requested sweep) is not connected to the input's graph.
    * - :doc:`hard_recurrence_matrix <generated/torchnlts.recurrence.matrix.hard_recurrence_matrix>`
      - none
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 1
-     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``RecurrenceMatrix``)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``RecurrenceMatrix``; ``recurrence_rate=`` matches ``GlobalRecurrenceRate`` and ``scale=`` matches ``RecurrenceThresholdScaled`` with ``maximum``/``mean``/``std`` exactly; ``local_rate=`` gives each column about that fraction of neighbours (quantile-derived; ties can add recurrences, and rate 1 saturates where Julia rejects it), while Julia's ``LocalRecurrenceRate`` keeps only the upper triangle and mirrors it, so Julia's matrix is the mirrored upper triangle of this one)
 
    * - :doc:`soft_recurrence_matrix <generated/torchnlts.recurrence.matrix.soft_recurrence_matrix>`
      - smooth
@@ -136,22 +139,22 @@ the requested sweep) is not connected to the input's graph.
 
    * - :doc:`hard_cross_recurrence_matrix <generated/torchnlts.recurrence.cross_recurrence.hard_cross_recurrence_matrix>`
      - none
-     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.1
-     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``CrossRecurrenceMatrix``)
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.3
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``CrossRecurrenceMatrix``, including ``GlobalRecurrenceRate``, ``LocalRecurrenceRate`` and ``RecurrenceThresholdScaled``; exact)
 
    * - :doc:`soft_cross_recurrence_matrix <generated/torchnlts.recurrence.cross_recurrence.soft_cross_recurrence_matrix>`
      - smooth
-     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.1 (kernel-relaxed via ``trajectory_kernel``)
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.3 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency-checked against ``hard_cross_recurrence_matrix``'s epsilon=0 limit)
 
    * - :doc:`hard_joint_recurrence_matrix <generated/torchnlts.recurrence.joint_recurrence.hard_joint_recurrence_matrix>`
      - none
-     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.2
-     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``JointRecurrenceMatrix``'s definition, via element-wise AND of two ``RecurrenceMatrix``; see module docstring)
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.4
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``JointRecurrenceMatrix``'s definition, via element-wise AND of two ``RecurrenceMatrix``; rate-based and scaled thresholds are computed per trajectory after truncation to the common length, as in Julia; see module docstring)
 
    * - :doc:`soft_joint_recurrence_matrix <generated/torchnlts.recurrence.joint_recurrence.soft_joint_recurrence_matrix>`
      - smooth
-     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 4.2 (kernel-relaxed via ``trajectory_kernel``)
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.4 (kernel-relaxed via ``trajectory_kernel``)
      - none (see module docstring; consistency-checked against ``hard_joint_recurrence_matrix``'s epsilon=0 limit)
 
    * - :doc:`recurrence_rate <generated/torchnlts.recurrence.rqa.recurrence_rate>`
@@ -203,6 +206,21 @@ the requested sweep) is not connected to the input's graph.
      - none
      - `Little et al. (2007) <https://doi.org/10.1186/1475-925X-6-23>`__ (RPDE; the concept -- Little uses first returns after leaving a neighbourhood, this uses RecurrenceAnalysis.jl's gaps plus floored half-line lengths)
      - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``rt_entropy``)
+
+   * - :doc:`ratio <generated/torchnlts.recurrence.rqa.ratio>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.5.2 (DET / RR)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (no ``ratio``; ``determinism`` / ``recurrencerate``)
+
+   * - :doc:`divergence <generated/torchnlts.recurrence.rqa.divergence>`
+     - none
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.5.2 (1 / Lmax)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``divergence``, ``rqa`` ``:DIV``; ``inf`` when Lmax = 0)
+
+   * - :doc:`windowed_rqa <generated/torchnlts.recurrence.rqa.windowed_rqa>`
+     - inherits ``measure``'s
+     - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.5 (RQA in windows along the main diagonal)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``windowed``)
 
    * - :doc:`correlation_sum <generated/torchnlts.dimension.correlation.correlation_sum>`
      - none

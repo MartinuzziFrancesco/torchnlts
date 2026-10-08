@@ -6,11 +6,16 @@ Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6),
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import torch
 import torch.nn.functional as functional
 
 from torchnlts._shape import _as_int, _validate_square_matrix
 from torchnlts.neighbors.theiler import theiler_window_mask
+
+
+_WINDOW_ELEMENT_BUDGET = 2**24  # max matrix elements gathered per measure call in windowed_rqa
 
 
 def recurrence_rate(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tensor:
@@ -391,3 +396,100 @@ def rt_entropy(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tenso
         Scalar (or ``[B]``) entropy (nats), ``NaN`` if no column has two lines.
     """
     return _line_entropy(_recurrence_time_histogram(recurrence, theiler_window))
+
+
+def ratio(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+    """RATIO: determinism over recurrence rate, ``DET / RR``.
+
+    Gradient class: none (see :func:`determinism`).
+
+    Reference: Marwan et al. (2007), Sec. 3.5.2. RecurrenceAnalysis.jl has no
+    ``ratio``; this is ``determinism / recurrencerate`` with
+    ``theiler = theiler_window + 1``.
+
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum diagonal line length to count.
+        theiler_window: Theiler window, ``>= 0`` (see :func:`determinism`).
+
+    Returns:
+        Scalar (or ``[B]``) ratio, ``NaN`` if there are no recurrent points
+        outside the Theiler window (``0 / 0``).
+    """
+    return determinism(recurrence, lmin, theiler_window) / recurrence_rate(recurrence, theiler_window)
+
+
+def divergence(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+    """DIV: inverse of the longest diagonal line, ``1 / Lmax``.
+
+    Gradient class: none (see :func:`determinism`).
+
+    Reference: Marwan et al. (2007), Sec. 3.5.2. Matches RecurrenceAnalysis.jl's
+    ``divergence`` and ``rqa(...)[:DIV]`` (``theiler = theiler_window + 1``),
+    including ``inf`` when no line reaches ``lmin`` (``Lmax = 0``).
+
+    Args: same as :func:`dl_max`.
+
+    Returns:
+        Scalar (or ``[B]``) divergence, ``inf`` if no line qualifies.
+    """
+    return dl_max(recurrence, lmin, theiler_window).to(torch.get_default_dtype()).reciprocal()
+
+
+def windowed_rqa(
+    recurrence: torch.Tensor, measure: Callable[..., torch.Tensor], window_size: int, step: int = 1, **measure_kwargs
+) -> torch.Tensor:
+    """RQA measure over square windows slid along the main diagonal.
+
+    Gradient class: inherits ``measure``'s.
+
+    Reference: RecurrenceAnalysis.jl's ``windowed``. Window ``k`` is the
+    sub-block ``recurrence[k * step : k * step + window_size]`` on both
+    axes; a trailing partial window is dropped. Windows are evaluated in
+    batched calls of ``measure``, in chunks of at most ``2**24`` gathered
+    matrix elements (one call if everything fits).
+
+    Limitation: the budget bounds the blocks gathered per call over the
+    visible batch dimensions only (dimensions mapped by ``torch.vmap``
+    multiply it, as do the measure's own temporaries, and a differentiable
+    measure keeps every chunk alive until backward); each chunk copies its
+    overlapping blocks, at least one window. A strided view without copies
+    would need a measure that accepts one.
+
+    Args:
+        recurrence: Recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        measure: Function mapping ``[..., w, w]`` matrices to one value each,
+            e.g. :func:`determinism`.
+        window_size: Window width ``w``, ``2 <= w <= T``.
+        step: Offset between consecutive windows, ``>= 1``.
+        **measure_kwargs: Forwarded to ``measure`` (e.g. ``lmin``).
+
+    Returns:
+        ``[W]`` (or ``[B, W]``) values, ``W = (T - window_size) // step + 1``.
+
+    Raises:
+        ValueError: On a non-callable ``measure``, non-integer or out-of-range
+            ``window_size`` / ``step``, or a non-square ``recurrence``.
+    """
+    _validate_square_matrix(recurrence)
+    if not callable(measure):
+        raise ValueError(f"measure must be callable, got {measure!r}")
+    window_size = _as_int(window_size, "window_size")
+    step = _as_int(step, "step")
+    num_points = recurrence.shape[-1]
+    if not 2 <= window_size <= num_points:
+        raise ValueError(f"window_size must be in [2, {num_points}], got {window_size}")
+    if step < 1:
+        raise ValueError(f"step must be >= 1, got {step}")
+    num_windows = (num_points - window_size) // step + 1
+    offsets = torch.arange(window_size, device=recurrence.device)
+    batch_size = max(1, recurrence.shape[:-2].numel())
+    chunk = max(1, _WINDOW_ELEMENT_BUDGET // (batch_size * window_size * window_size))
+    results = []
+    for first in range(0, num_windows, chunk):
+        starts = torch.arange(first, min(first + chunk, num_windows), device=recurrence.device) * step
+        index = starts[:, None] + offsets
+        blocks = recurrence[..., index[:, :, None], index[:, None, :]]  # [..., W_chunk, w, w]
+        values = measure(blocks.reshape(-1, window_size, window_size), **measure_kwargs)
+        results.append(values.reshape(*recurrence.shape[:-2], index.shape[0]))
+    return torch.cat(results, dim=-1)
