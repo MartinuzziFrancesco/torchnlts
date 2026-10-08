@@ -10,6 +10,7 @@ Full API reference, one page per subpackage.
    embedding
    recurrence
    dimension
+   scaling
    fluctuations
    entropy
    lyapunov

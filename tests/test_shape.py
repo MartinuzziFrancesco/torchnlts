@@ -396,3 +396,67 @@ def test_small_norm_order_on_tiny_coordinates_does_not_overflow():
     assert math.isclose(pairwise_distance(points, norm_order=0.01)[0, 1].item(), expected, rel_tol=1e-4)
     divergence = rosenstein_divergence(points, 0, embedding_dim=1, norm_order=0.01)
     assert math.isclose(divergence.item(), (2 * math.log(expected) + math.log(4 * expected)) / 3, rel_tol=1e-5)
+
+
+def test_ols_slope_mask_equals_slicing_and_ignores_unselected():
+    sweep = torch.tensor([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=torch.float64)
+    values = torch.tensor([[9.0, 0.0], [1.0, 2.0], [3.0, float("nan")], [4.0, 7.0], [float("inf"), 1.0], [0.0, 0.0]], dtype=torch.float64)
+    mask = torch.tensor([[False, True], [True, False], [True, False], [True, True], [False, True], [False, True]])
+    slope = _ols_slope(sweep, values, mask)
+    first = _ols_slope(sweep[1:4], values[1:4, 0])
+    second = _ols_slope(sweep[[0, 3, 4, 5]], values[[0, 3, 4, 5], 1])
+    assert torch.allclose(slope, torch.stack([first, second]))
+    # A shared [R] mask and the unmasked call agree when everything is selected.
+    full = torch.ones(6, dtype=torch.bool)
+    clean = values.clone()
+    clean[torch.isinf(clean) | torch.isnan(clean)] = 1.0
+    assert torch.equal(_ols_slope(sweep, clean, full), _ols_slope(sweep, clean))
+
+
+def test_ols_slope_mask_needs_two_distinct_selected_points():
+    sweep = torch.tensor([1.0, 1.0, 2.0, 2.0])
+    values = torch.arange(4, dtype=torch.float32)
+    assert torch.isnan(_ols_slope(sweep, values, torch.tensor([True, True, False, False])))
+    assert torch.isnan(_ols_slope(sweep, values, torch.tensor([False, False, True, False])))
+    assert _ols_slope(sweep, values, torch.tensor([False, True, True, False])).item() == 1.0
+
+
+def test_ols_slope_mask_invalid_column_does_not_poison_gradient():
+    sweep = torch.arange(5, dtype=torch.float64).requires_grad_(True)
+    values = torch.tensor([[0.0, float("nan")], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [9.0, 9.0]], dtype=torch.float64, requires_grad=True)
+    mask = torch.tensor([True, True, True, True, False])
+    slope = _ols_slope(sweep, values, mask)
+    assert torch.isnan(slope[1])
+    slope[0].backward()
+    assert torch.isfinite(sweep.grad).all() and torch.isfinite(values.grad).all()
+    assert (values.grad[:, 1] == 0).all() and values.grad[4, 0] == 0
+
+
+def test_ols_slope_mask_shape_errors():
+    with pytest.raises(ValueError):
+        _ols_slope(torch.arange(4.0), torch.arange(4.0), torch.ones(3, dtype=torch.bool))
+    with pytest.raises(ValueError):
+        _ols_slope(torch.arange(4.0), torch.arange(4.0), torch.ones(4))
+
+
+def test_ols_slope_mask_repeated_selected_sweep_does_not_poison_gradient():
+    sweep = torch.tensor([1.0, 1.0, 2.0, 3.0], dtype=torch.float64, requires_grad=True)
+    values = torch.arange(8, dtype=torch.float64).view(4, 2).requires_grad_(True)
+    mask = torch.tensor([[True, False], [True, True], [False, True], [False, True]])
+    slope = _ols_slope(sweep, values, mask)
+    assert torch.isnan(slope[0]) and torch.isfinite(slope[1])
+    slope[1].backward()
+    assert torch.isfinite(sweep.grad).all() and torch.isfinite(values.grad).all()
+
+
+def test_ols_slope_mask_skips_unselected_nonfinite_sweep_point():
+    # Regression: the fit must start at the first selected point, and an invalid column's
+    # non-finite sweep entry must not reach the shared sweep's gradient.
+    sweep = torch.tensor([float("nan"), 1.0, 2.0, 3.0], dtype=torch.float64, requires_grad=True)
+    values = torch.arange(8.0, dtype=torch.float64).reshape(4, 2).requires_grad_()
+    mask = torch.tensor([[False, True], [True, True], [True, True], [True, True]])
+    slope = _ols_slope(sweep, values, mask)
+    assert slope[0] == 2 and slope[1].isnan()
+    slope[0].backward()
+    torch.testing.assert_close(sweep.grad, torch.tensor([0.0, 1.0, 0.0, -1.0], dtype=torch.float64))
+    assert torch.isfinite(values.grad).all() and (values.grad[:, 1] == 0).all()

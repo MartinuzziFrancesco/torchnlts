@@ -204,9 +204,8 @@ def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
     function's only realistic caller).
 
     This is a plain regression over every ``(box_size, entropy)`` pair
-    given, with no automatic scaling-region detection -- see module
-    docstring, same convention as
-    :func:`torchnlts.dimension.correlation.correlation_dimension`.
+    given; see :func:`torchnlts.scaling.scaling_slope` for automatic
+    scaling-region detection (pass ``-log(box_size)``, ``entropy``).
 
     Reference: Russell, Hanson & Ott (1980) (D_q as the log-linear
     slope of the order-q Rényi entropy against box size).

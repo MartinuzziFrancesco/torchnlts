@@ -25,7 +25,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   map's r range: LAM is zero on periodic orbits and peaks after band merging.
 - `correlation_dimension_lorenz.py`: Grassberger & Procaccia (1983) --
   the Lorenz attractor's fractal correlation dimension, estimated from
-  a trajectory alone.
+  a trajectory alone, with the scaling region fixed by hand and detected
+  automatically (`torchnlts.scaling`).
 - `entropy_measures.py`: Bandt & Pompe (2002) + Richman & Moorman
   (2000) -- compare permutation and sample entropy for sine, Lorenz x, and
   white noise at fixed sampling and embedding settings.

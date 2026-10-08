@@ -139,9 +139,10 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
     :func:`power_variogram`'s own gradient class).
 
     This is a plain regression over every ``(lag, variogram)`` pair
-    given, with no automatic scaling-region detection -- same
-    convention as :func:`torchnlts.dimension.higuchi.higuchi_dimension`,
-    though the paper itself recommends fitting only lags 1 and 2.
+    given (the paper itself recommends fitting only lags 1 and 2); see
+    :func:`torchnlts.scaling.scaling_slope` for automatic scaling-region
+    detection (pass ``log(lag)``, ``log(variogram)`` and apply
+    ``2 - slope / power``).
 
     Args:
         lag: Shape ``[K]``, the sweep ``variogram`` was evaluated at.

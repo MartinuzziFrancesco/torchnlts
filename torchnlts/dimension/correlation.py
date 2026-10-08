@@ -112,8 +112,9 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
     ``smooth`` from there).
 
     This is a plain regression over every ``(radius, correlation_sum)``
-    pair given, with no automatic scaling-region detection -- the
-    caller picks the radii, matching FractalDimensions.jl's
+    pair given; see :func:`torchnlts.scaling.scaling_slope` for automatic
+    scaling-region detection (pass ``log(radius)``, ``log(correlation_sum)``).
+    It matches FractalDimensions.jl's
     ``slopefit(x, y, LinearRegression(); ignore_saturation=false)``
     (``ignore_saturation`` defaults to ``true`` there even under
     ``LinearRegression`` and can silently drop endpoints, so it must be

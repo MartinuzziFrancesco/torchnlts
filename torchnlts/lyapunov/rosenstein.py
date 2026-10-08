@@ -8,9 +8,8 @@ points via a Theiler window), then track the average log-divergence
 E(k) = <ln ||X_{i+k} - X_{j(i)+k}||>_i as the pair is evolved forward k
 steps. For a chaotic system this grows linearly, E(k) ~ lambda_1 * k +
 E(0), over a well-defined early-k region; the largest Lyapunov exponent
-is the slope of that region (no automatic scaling-region detection --
-the caller picks the fit range, same convention as
-:func:`torchnlts.dimension.correlation.correlation_dimension`).
+is the slope of that region (:func:`rosenstein_lyapunov` fits the
+range given; :func:`torchnlts.scaling.scaling_slope` detects it).
 
 Matches ChaosTools.jl's more general ``lyapunov_from_data`` at
 ``ntype=NeighborNumber(1)``, ``distance=Euclidean()``. That function's
@@ -230,14 +229,10 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
     through whatever produced ``divergence`` -- it inherits
     :func:`rosenstein_divergence`'s ``piecewise`` from there).
 
-    This is a plain regression over every ``(k, E(k))`` pair given, with
-    no automatic scaling-region detection -- the caller picks the ``k``
-    range, matching :func:`torchnlts.dimension.correlation.correlation_dimension`'s
-    same convention (and FractalDimensions.jl's ``slopefit`` with
-    ``ignore_saturation=false``); ChaosTools.jl's own
-    ``lyapunov_from_data`` doesn't fit a slope at all -- it only returns
-    the E(k) curve, and its docs separately suggest (not perform) a
-    ``linear_region`` call as a follow-up.
+    This is a plain regression over every ``(k, E(k))`` pair given
+    (FractalDimensions.jl's ``slopefit`` with ``ignore_saturation=false``);
+    see :func:`torchnlts.scaling.scaling_slope` for automatic
+    scaling-region detection (pass ``k_values``, ``divergence``).
 
     The slope is w.r.t. the raw ``k`` (sample steps), not ``k * dt``: if
     ``trajectory`` was sampled at interval ``dt``, divide the result by

@@ -151,9 +151,9 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
     :func:`torchnlts.dimension.correlation.correlation_dimension`'s own
     framing for its analogous OLS-slope step).
 
-    This is a plain regression over every ``(k, length)`` pair given,
-    with no automatic scaling-region detection -- see module docstring,
-    same convention as ``correlation_dimension``.
+    This is a plain regression over every ``(k, length)`` pair given;
+    see :func:`torchnlts.scaling.scaling_slope` for automatic
+    scaling-region detection (pass ``-log(k)``, ``log(length)``).
 
     Reference: Higuchi (1988) (D_H as the log-log slope of L(k) against
     1/k).

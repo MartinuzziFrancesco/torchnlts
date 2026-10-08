@@ -127,8 +127,9 @@ def dfa_exponent(window_size, fluctuation: torch.Tensor) -> torch.Tensor:
     through whatever produced ``fluctuation`` inherits
     :func:`dfa_fluctuation`'s own exact gradient class).
 
-    No automatic scaling-region detection: fits every ``(window_size,
-    fluctuation)`` pair given, same convention as ``higuchi_dimension``.
+    Fits every ``(window_size, fluctuation)`` pair given; see
+    :func:`torchnlts.scaling.scaling_slope` for automatic scaling-region
+    detection (pass ``log(window_size)``, ``log(fluctuation)``).
 
     Args:
         window_size: Shape ``[K]``, the sweep ``fluctuation`` was

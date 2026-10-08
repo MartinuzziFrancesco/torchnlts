@@ -31,7 +31,7 @@ Numerical range limits. Outside these, results or gradients can be
   compute in float64.
 
 Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test,
-Rosenstein, Kantz, Eckmann, the correlation sums (and so sample entropy,
+:func:`~torchnlts.scaling.scaling_slope`, Rosenstein, Kantz, Eckmann, the correlation sums (and so sample entropy,
 multiscale and composite multiscale entropy), approximate, fuzzy,
 permutation and dispersion entropy return ``NaN`` for any batch row
 containing ``NaN`` or ``inf`` instead of raising, so they work under
@@ -458,3 +458,8 @@ the requested sweep) is not connected to the input's graph.
      - smooth
      - `Gretton et al. (2012) <https://jmlr.org/papers/v13/gretton12a.html>`__ (Maximum Mean Discrepancy)
      - none (composes ``trajectory_kernel``, already dual-validated; the MMD combination itself is validated by direct comparison against an independent computation, not against a published MMD reference implementation -- see module docstring)
+
+   * - :doc:`scaling_slope <generated/torchnlts.scaling.scaling_slope>` / :doc:`largest_linear_region <generated/torchnlts.scaling.largest_linear_region>` / :doc:`linear_regions <generated/torchnlts.scaling.linear_regions>`
+     - exact (the region choice is piecewise constant and carries no gradient)
+     - none (sequential ``dxi = 1`` linear-region scan of FractalDimensions.jl)
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``linear_regions``, ``linear_region``, ``slopefit`` with ``LargestLinearRegion``; regions, largest region and slope match exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve). Not implemented: ``dxi`` stride, ``:overlap`` method.

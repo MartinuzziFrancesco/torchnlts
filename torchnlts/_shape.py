@@ -179,29 +179,35 @@ def _safe_log(values: torch.Tensor) -> torch.Tensor:
     return torch.where(column_valid, torch.log(safe), torch.full_like(values, float("nan")))
 
 
-def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
+def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
     """Closed-form ordinary-least-squares slope of ``values`` against ``sweep``.
 
     Args:
         sweep: Shape ``[R]``, the points ``values`` was evaluated at.
         values: Shape ``[R]`` (unbatched) or ``[R, B]`` (batched).
+        mask: Optional boolean selection of the points to fit, shape
+            ``[R]`` (shared) or the shape of ``values`` (per column).
+            Unselected points (even non-finite ones) have no effect.
 
     Returns:
         Slope estimate(s), shape ``[]`` for an unbatched ``values`` or
         ``[B]`` for a batched one, in ``values``' floating dtype (the
         default dtype for integer input; half precision is computed in
-        float32). ``NaN`` if ``sweep`` has fewer than two distinct values
-        or is non-finite, and for any column of ``values`` with a
-        non-finite entry. A ``NaN`` result does not produce a ``NaN``
-        gradient for the other columns or for ``sweep`` (for inputs away
-        from the dtype's overflow range, see docs/primitives.rst).
+        float32). ``NaN`` if fewer than two distinct (selected) sweep
+        values remain or any is non-finite, and for any column of
+        ``values`` with a non-finite (selected) entry. A ``NaN`` result
+        does not produce a ``NaN`` gradient for the other columns or for
+        ``sweep`` (for inputs away from the dtype's overflow range, see
+        docs/primitives.rst).
 
     Raises:
-        ValueError: If ``sweep``/``values`` do not have the shapes above
-            with matching ``R``.
+        ValueError: If ``sweep``/``values``/``mask`` do not have the
+            shapes above with matching ``R``.
     """
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
         raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
+    if mask is not None and (mask.dtype != torch.bool or tuple(mask.shape) not in (tuple(sweep.shape), tuple(values.shape))):
+        raise ValueError(f"expected a boolean mask of shape {tuple(sweep.shape)} or {tuple(values.shape)}, got {mask.dtype} {tuple(mask.shape)}")
     out_dtype = _output_dtype(values)
     # The wider of the two dtypes, so distinct float64 sweep points are not
     # merged when values are float32 (also rejects a complex sweep).
@@ -212,22 +218,46 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
         return connected + float("nan")
     sweep = sweep.to(work_dtype).view((-1,) + (1,) * (values.dim() - 1))
     values = values.to(work_dtype)
+    fallback = torch.arange(sweep.shape[0], dtype=work_dtype, device=sweep.device).view_as(sweep)
     # Degenerate sweeps and invalid columns are replaced before any
     # arithmetic, so their NaN/inf cannot reach backward through a shared
     # input. Repeated values are checked on sweep itself: centering can
     # leave a rounding-sized nonzero denominator instead of an exact zero.
     # Tensor masks, not Python branches, so vmap still works.
-    sweep_valid = torch.isfinite(sweep).all() & ~(sweep == sweep[:1]).all()
-    column_valid = torch.isfinite(values).all(dim=0) & sweep_valid
-    safe_sweep = torch.where(sweep_valid, sweep, torch.arange(sweep.shape[0], dtype=work_dtype, device=sweep.device).view_as(sweep))
-    safe_values = torch.where(column_valid, values, torch.zeros_like(values))
-    # Translating by the first point before centering keeps close points far
-    # from zero distinct (the rounded mean of 2**24 and 2**24 + 2 is not) and
-    # constant values exactly zero.
-    safe_sweep = safe_sweep - safe_sweep[:1]
-    safe_values = safe_values - safe_values[:1]
-    sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
-    values_centered = safe_values - safe_values.mean(dim=0, keepdim=True)
+    if mask is None:
+        sweep_valid = torch.isfinite(sweep).all() & ~(sweep == sweep[:1]).all()
+        column_valid = torch.isfinite(values).all(dim=0) & sweep_valid
+        safe_sweep = torch.where(sweep_valid, sweep, fallback)
+        safe_values = torch.where(column_valid, values, torch.zeros_like(values))
+        # Translating by the first point before centering keeps close points
+        # far from zero distinct (the rounded mean of 2**24 and 2**24 + 2 is
+        # not) and constant values exactly zero.
+        safe_sweep = safe_sweep - safe_sweep[:1]
+        safe_values = safe_values - safe_values[:1]
+        sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
+        values_centered = safe_values - safe_values.mean(dim=0, keepdim=True)
+    else:
+        selected = mask.view((-1,) + (1,) * (values.dim() - 1)).expand_as(values) if mask.dim() == 1 else mask
+        sweep_full = sweep.expand_as(values)
+        zeros = torch.zeros_like(values)
+        first = selected.long().argmax(dim=0, keepdim=True)  # first selected point per column
+        first_sweep = sweep_full.gather(0, first)
+        sweep_valid = torch.isfinite(torch.where(selected, sweep_full, zeros)).all(dim=0) & (selected & (sweep_full != first_sweep)).any(dim=0)
+        column_valid = torch.isfinite(torch.where(selected, values, zeros)).all(dim=0) & sweep_valid
+        # Invalid columns fit every point of a safe sweep, as in the unmasked path.
+        selected = selected | ~column_valid
+        weight = selected.to(work_dtype)
+        # Unselected points take the first selected point's coordinates (finite,
+        # zero after translation), and the translation uses that first point.
+        safe_values = torch.where(column_valid, values, zeros)
+        first_values = safe_values.gather(0, first)
+        safe_sweep = torch.where(column_valid, sweep_full, fallback.expand_as(values))
+        first_sweep = safe_sweep.gather(0, first)
+        safe_sweep = torch.where(selected, safe_sweep, first_sweep) - first_sweep
+        safe_values = torch.where(selected, safe_values, first_values) - first_values
+        count = weight.sum(dim=0, keepdim=True)
+        sweep_centered = weight * (safe_sweep - (weight * safe_sweep).sum(dim=0, keepdim=True) / count)
+        values_centered = weight * (safe_values - (weight * safe_values).sum(dim=0, keepdim=True) / count)
     # Products of centered terms overflow at about the square root of the
     # dtype's range; divide both by their (detached, hence exact) maxima
     # first and put the ratio back at the end.
