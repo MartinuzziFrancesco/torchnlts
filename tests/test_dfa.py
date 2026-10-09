@@ -183,7 +183,9 @@ def test_dfa_matches_nolds_non_overlapping():
     # overlap=False and fit_exp='poly' match this module's convention
     # exactly (non-overlapping windows, plain OLS log-log slope); nolds'
     # own defaults (overlap=True, fit_exp='RANSAC') do not.
-    nolds_alpha = nolds.dfa(trajectory.numpy(), nvals=window_sizes, overlap=False, order=1, fit_trend="poly", fit_exp="poly")
+    nolds_alpha = nolds.dfa(
+        trajectory.numpy(), nvals=window_sizes, overlap=False, order=1, fit_trend="poly", fit_exp="poly"
+    )
 
     assert abs(torch_alpha.item() - nolds_alpha) < 1e-9
 
@@ -218,7 +220,9 @@ def test_dfa_matches_nolds_higher_order():
     for order in (0, 2, 3):
         fluctuation = dfa_fluctuation(trajectory, window_sizes, order=order)
         torch_alpha = dfa_exponent(window_sizes, fluctuation)
-        nolds_alpha = nolds.dfa(trajectory.numpy(), nvals=window_sizes, overlap=False, order=order, fit_trend="poly", fit_exp="poly")
+        nolds_alpha = nolds.dfa(
+            trajectory.numpy(), nvals=window_sizes, overlap=False, order=order, fit_trend="poly", fit_exp="poly"
+        )
         assert abs(torch_alpha.item() - nolds_alpha) < 1e-9
 
 
@@ -345,7 +349,9 @@ def test_dfa_matches_fluctuationanalysis_jl():
         println(join(result.fluctuations, ","))
         println(scaling_exponent(result))
         """
-        completed = subprocess.run(["julia", f"--project={project}", "-e", julia_code], capture_output=True, text=True, timeout=300)
+        completed = subprocess.run(
+            ["julia", f"--project={project}", "-e", julia_code], capture_output=True, text=True, timeout=300
+        )
         assert completed.returncode == 0, completed.stderr
         lines = completed.stdout.strip().split("\n")
         julia_fluctuation = torch.tensor([float(item) for item in lines[0].split(",")], dtype=torch.float64)
@@ -377,7 +383,9 @@ def test_dfa_fluctuation_small_kept_window_next_to_large_dropped_samples():
     for dtype, tiny in ((torch.float32, 1e-25), (torch.float64, 1e-170)):
         trajectory = torch.tensor([1 * tiny, 2 * tiny, 1 * tiny, 3 * tiny, 1.0, -1.0], dtype=dtype, requires_grad=True)
         result = dfa_fluctuation(trajectory, 4)
-        reference = dfa_fluctuation(torch.tensor([1.0, 2.0, 1.0, 3.0, 1e25, -1e25], dtype=torch.float64), 4).item() * tiny
+        reference = (
+            dfa_fluctuation(torch.tensor([1.0, 2.0, 1.0, 3.0, 1e25, -1e25], dtype=torch.float64), 4).item() * tiny
+        )
         assert abs(result.item() / reference - 1) < 1e-4
         (gradient,) = torch.autograd.grad(result, trajectory)
         assert torch.isfinite(gradient).all() and gradient[:4].abs().sum() > 0
@@ -393,7 +401,10 @@ def test_dfa_fluctuation_clongdouble_window_size_raises():
 
 def test_dfa_exponent_invalid_window_size_does_not_poison_shared_gradient():
     parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
-    exponent = dfa_exponent(parameter * torch.tensor([0.0, 4.0, 8.0], dtype=torch.float64), torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64))
+    exponent = dfa_exponent(
+        parameter * torch.tensor([0.0, 4.0, 8.0], dtype=torch.float64),
+        torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64),
+    )
     assert torch.isnan(exponent)
     (gradient,) = torch.autograd.grad(torch.nan_to_num(exponent) + parameter, parameter)
     assert gradient.item() == 1.0
@@ -471,7 +482,9 @@ def test_dominant_dropped_tail_does_not_affect_detrended_windows():
     kept = torch.randn(512, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
     series = torch.cat([kept, torch.full((100,), 1e14, dtype=torch.float64)])
     for order in (1, 2):
-        assert torch.isclose(dfa_fluctuation(series, 256, order=order), dfa_fluctuation(kept, 256, order=order), rtol=1e-10)
+        assert torch.isclose(
+            dfa_fluctuation(series, 256, order=order), dfa_fluctuation(kept, 256, order=order), rtol=1e-10
+        )
 
 
 @pytest.mark.parametrize("order", [1, 2])

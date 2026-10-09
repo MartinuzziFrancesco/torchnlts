@@ -1,11 +1,18 @@
 import math
 
 import numpy
-
 import pytest
 import torch
 
-from torchnlts._shape import _ensure_batched, _ols_slope, _output_dtype, _restore_batch, _restore_shape_preserving, _safe_log, _work_dtype
+from torchnlts._shape import (
+    _ensure_batched,
+    _ols_slope,
+    _output_dtype,
+    _restore_batch,
+    _restore_shape_preserving,
+    _safe_log,
+    _work_dtype,
+)
 
 
 def test_ensure_batched_1d():
@@ -105,12 +112,19 @@ def test_ols_slope_heterogeneous_batch_and_gradient():
     slope = _ols_slope(sweep, values)
     centered = sweep - sweep.mean()
     expected_quadratic = (centered * (sweep**2 - (sweep**2).mean())).sum() / (centered**2).sum()
-    assert torch.allclose(slope, torch.stack([torch.tensor(3.0, dtype=torch.float64), torch.tensor(-2.0, dtype=torch.float64), expected_quadratic]))
+    assert torch.allclose(
+        slope,
+        torch.stack(
+            [torch.tensor(3.0, dtype=torch.float64), torch.tensor(-2.0, dtype=torch.float64), expected_quadratic]
+        ),
+    )
     slope[0].backward()
     # d slope / d values[:, 0] = centered / sum(centered**2); other columns untouched.
     assert torch.allclose(values.grad[:, 0], centered / (centered**2).sum())
     assert (values.grad[:, 1:] == 0).all()
-    assert torch.autograd.gradcheck(_ols_slope, (sweep.clone().requires_grad_(True), values.detach().clone().requires_grad_(True)))
+    assert torch.autograd.gradcheck(
+        _ols_slope, (sweep.clone().requires_grad_(True), values.detach().clone().requires_grad_(True))
+    )
 
 
 def test_ols_slope_degenerate_sweep_does_not_poison_shared_gradient():
@@ -135,7 +149,11 @@ def test_ols_slope_nan_column_does_not_poison_sweep_gradient():
 
 
 def test_ols_slope_edge_sweeps_are_nan():
-    for sweep, values in ((torch.tensor([]), torch.tensor([])), (torch.tensor([1.0]), torch.tensor([2.0])), (torch.tensor([1.0, float("nan"), 3.0]), torch.tensor([1.0, 2.0, 3.0]))):
+    for sweep, values in (
+        (torch.tensor([]), torch.tensor([])),
+        (torch.tensor([1.0]), torch.tensor([2.0])),
+        (torch.tensor([1.0, float("nan"), 3.0]), torch.tensor([1.0, 2.0, 3.0])),
+    ):
         assert torch.isnan(_ols_slope(sweep, values))
 
 
@@ -196,7 +214,10 @@ def test_slope_callers_zero_sweep_does_not_poison_shared_gradient():
 
     for function in (higuchi_dimension, variogram_dimension):
         parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
-        result = function(parameter * torch.tensor([0.0, 1.0, 2.0], dtype=torch.float64), torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64))
+        result = function(
+            parameter * torch.tensor([0.0, 1.0, 2.0], dtype=torch.float64),
+            torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64),
+        )
         assert torch.isnan(result)
         (gradient,) = torch.autograd.grad(torch.nan_to_num(result) + parameter, parameter)
         assert gradient.item() == 1.0
@@ -230,13 +251,19 @@ def test_distance_based_functions_accept_integer_and_half_input():
     reference = torch.arange(8.0, dtype=torch.float64)
     for trajectory in (torch.arange(8), reference.half(), reference.bfloat16()):
         expected_dtype = _output_dtype(trajectory)
-        for function in (lambda values: correlation_sum(values, 2), lambda values: soft_correlation_sum(values, 2), lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1)):
+        for function in (
+            lambda values: correlation_sum(values, 2),
+            lambda values: soft_correlation_sum(values, 2),
+            lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1),
+        ):
             result = function(trajectory)
             assert result.dtype == expected_dtype
             assert torch.allclose(result.double(), function(reference), atol=1e-2, equal_nan=True)
     # Integer input to box counting used to return a truncated int64 entropy.
     entropy = box_counting_entropy(torch.tensor([0, 1]), 1)
-    assert entropy.is_floating_point() and torch.isclose(entropy.double(), torch.tensor(math.log(2), dtype=torch.float64))
+    assert entropy.is_floating_point() and torch.isclose(
+        entropy.double(), torch.tensor(math.log(2), dtype=torch.float64)
+    )
 
 
 def test_ols_slope_large_and_small_sweeps_float32():
@@ -254,7 +281,11 @@ def test_complex_input_rejected_by_promoting_functions():
     from torchnlts.lyapunov.rosenstein import rosenstein_divergence
 
     trajectory = torch.tensor([0j, 1 + 1j, 2j, 3 + 0j, 1j, 2 + 2j])
-    for function in (lambda values: correlation_sum(values, 1.0), lambda values: box_counting_entropy(values, 1.0), lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1)):
+    for function in (
+        lambda values: correlation_sum(values, 1.0),
+        lambda values: box_counting_entropy(values, 1.0),
+        lambda values: rosenstein_divergence(values, [0, 1], embedding_dim=1),
+    ):
         with pytest.raises(ValueError):
             function(trajectory)
 
@@ -370,7 +401,14 @@ def test_ols_slope_rejects_empty_complex_sweep():
 def test_pairwise_distance_norm_order_must_be_real_scalar():
     from torchnlts.neighbors.distance import pairwise_distance
 
-    for norm_order in (1j, torch.tensor(1j), torch.tensor([1.0, 2.0]), numpy.complex128(2 + 3j), torch.tensor(2 + 0j), None):
+    for norm_order in (
+        1j,
+        torch.tensor(1j),
+        torch.tensor([1.0, 2.0]),
+        numpy.complex128(2 + 3j),
+        torch.tensor(2 + 0j),
+        None,
+    ):
         with pytest.raises(ValueError, match="norm_order"):
             pairwise_distance(torch.arange(3.0), norm_order=norm_order)
 
@@ -400,7 +438,9 @@ def test_small_norm_order_on_tiny_coordinates_does_not_overflow():
 
 def test_ols_slope_mask_equals_slicing_and_ignores_unselected():
     sweep = torch.tensor([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=torch.float64)
-    values = torch.tensor([[9.0, 0.0], [1.0, 2.0], [3.0, float("nan")], [4.0, 7.0], [float("inf"), 1.0], [0.0, 0.0]], dtype=torch.float64)
+    values = torch.tensor(
+        [[9.0, 0.0], [1.0, 2.0], [3.0, float("nan")], [4.0, 7.0], [float("inf"), 1.0], [0.0, 0.0]], dtype=torch.float64
+    )
     mask = torch.tensor([[False, True], [True, False], [True, False], [True, True], [False, True], [False, True]])
     slope = _ols_slope(sweep, values, mask)
     first = _ols_slope(sweep[1:4], values[1:4, 0])
@@ -423,7 +463,9 @@ def test_ols_slope_mask_needs_two_distinct_selected_points():
 
 def test_ols_slope_mask_invalid_column_does_not_poison_gradient():
     sweep = torch.arange(5, dtype=torch.float64).requires_grad_(True)
-    values = torch.tensor([[0.0, float("nan")], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [9.0, 9.0]], dtype=torch.float64, requires_grad=True)
+    values = torch.tensor(
+        [[0.0, float("nan")], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [9.0, 9.0]], dtype=torch.float64, requires_grad=True
+    )
     mask = torch.tensor([True, True, True, True, False])
     slope = _ols_slope(sweep, values, mask)
     assert torch.isnan(slope[1])

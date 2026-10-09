@@ -80,7 +80,9 @@ def _cao_step(
     return ratio.sum(dim=-1) / denominator
 
 
-def cao_e1(trajectory, embedding_dim: int, delay: int = 1, theiler_window: int = 0, norm_order: float = 2.0) -> torch.Tensor:
+def cao_e1(
+    trajectory, embedding_dim: int, delay: int = 1, theiler_window: int = 0, norm_order: float = 2.0
+) -> torch.Tensor:
     """Cao's E1(d) = E(d+1) / E(d): saturates near 1 once ``embedding_dim``
     is large enough to unfold the attractor.
 
@@ -101,7 +103,9 @@ def cao_e1(trajectory, embedding_dim: int, delay: int = 1, theiler_window: int =
     return e_high / e_low
 
 
-def cao_e2(trajectory, embedding_dim: int, delay: int = 1, theiler_window: int = 0, norm_order: float = 2.0) -> torch.Tensor:
+def cao_e2(
+    trajectory, embedding_dim: int, delay: int = 1, theiler_window: int = 0, norm_order: float = 2.0
+) -> torch.Tensor:
     """Cao's E2(d) = E*(d+1) / E*(d): use alongside ``cao_e1`` to confirm
     its conclusion isn't an artifact of the signal being random -- a
     random signal's E2 approaches 1 much more slowly as ``embedding_dim``

@@ -32,9 +32,13 @@ SPECTRA = [
 
 def test_hand_values():
     # k = 1: 1 + 0.419 / 1.623
-    assert kaplan_yorke_dimension(torch.tensor([0.419, -1.623], dtype=torch.float64)).item() == pytest.approx(1 + 0.419 / 1.623)
+    assert kaplan_yorke_dimension(torch.tensor([0.419, -1.623], dtype=torch.float64)).item() == pytest.approx(
+        1 + 0.419 / 1.623
+    )
     # k = 2: 2 + (0.9 + 0.0) / 14.5
-    assert kaplan_yorke_dimension(torch.tensor([0.9, 0.0, -14.5], dtype=torch.float64)).item() == pytest.approx(2 + 0.9 / 14.5)
+    assert kaplan_yorke_dimension(torch.tensor([0.9, 0.0, -14.5], dtype=torch.float64)).item() == pytest.approx(
+        2 + 0.9 / 14.5
+    )
 
 
 def test_edge_cases():
@@ -69,7 +73,11 @@ def test_vmap():
 
 def test_nan_row_isolated_with_gradients():
     # Regression: a NaN/inf row must give NaN without NaN gradients in other rows.
-    batch = torch.tensor([[0.419, -1.623], [float("nan"), -1.0], [float("inf"), -1.0], [0.9, -0.3]], dtype=torch.float64, requires_grad=True)
+    batch = torch.tensor(
+        [[0.419, -1.623], [float("nan"), -1.0], [float("inf"), -1.0], [0.9, -0.3]],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
     out = kaplan_yorke_dimension(batch)
     assert out[1].isnan() and out[2].isnan() and out[0].isfinite() and out[3].isfinite()
     out.nansum().backward()
@@ -98,7 +106,9 @@ def test_validation():
 def test_julia_cross_check():
     literal = "[" + ", ".join("[" + ", ".join(repr(value) for value in spectrum) + "]" for spectrum in SPECTRA) + "]"
     code = f"using FractalDimensions; for s in {literal}; println(repr(kaplanyorke_dim(s))); end"
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=300)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=300
+    )
     assert result.returncode == 0, result.stderr
     expected = [float(value) for value in result.stdout.split()]
     assert len(expected) == len(SPECTRA)
@@ -119,7 +129,13 @@ def test_lorenz_literature_value():
     sigma, rho, beta, dt = 10.0, 28.0, 8.0 / 3.0, 0.01
 
     def flow(state):
-        return torch.stack([sigma * (state[1] - state[0]), state[0] * (rho - state[2]) - state[1], state[0] * state[1] - beta * state[2]])
+        return torch.stack(
+            [
+                sigma * (state[1] - state[0]),
+                state[0] * (rho - state[2]) - state[1],
+                state[0] * state[1] - beta * state[2],
+            ]
+        )
 
     def rk4(state):
         k1 = flow(state)
@@ -128,7 +144,9 @@ def test_lorenz_literature_value():
         k4 = flow(state + dt * k3)
         return state + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
-    spectrum = lyapunov_spectrum(rk4, torch.tensor([1.0, 1.0, 1.0], dtype=torch.float64), num_steps=20000, dt=dt, transient_steps=2000)
+    spectrum = lyapunov_spectrum(
+        rk4, torch.tensor([1.0, 1.0, 1.0], dtype=torch.float64), num_steps=20000, dt=dt, transient_steps=2000
+    )
     assert kaplan_yorke_dimension(spectrum).item() == pytest.approx(2.06, abs=0.02)
 
 
@@ -137,7 +155,9 @@ def test_half_computed_in_float32(dtype):
     # Regression: half input is computed in float32 and cast back.
     torch.manual_seed(4)
     batch = torch.randn(1000, 8).to(dtype)
-    torch.testing.assert_close(kaplan_yorke_dimension(batch), kaplan_yorke_dimension(batch.float()).to(dtype), rtol=0, atol=0)
+    torch.testing.assert_close(
+        kaplan_yorke_dimension(batch), kaplan_yorke_dimension(batch.float()).to(dtype), rtol=0, atol=0
+    )
 
 
 def test_all_zero_spectrum_gradient_is_finite():

@@ -125,7 +125,9 @@ def test_hand_derived_two_region_curve():
 
 def test_tolerance_controls_merging():
     sweep, values = _curve(list(range(6)), [0, 1, 2, 3.2, 4.4, 5.6])
-    assert scaling_slope(sweep, values, tolerance=0.25).item() == pytest.approx(1.1257142857142857, abs=1e-12)  # OLS over all 6 points
+    assert scaling_slope(sweep, values, tolerance=0.25).item() == pytest.approx(
+        1.1257142857142857, abs=1e-12
+    )  # OLS over all 6 points
     # Slopes 1,1,1.2,1.2,1.2: tolerance 0.1 splits at the change (3 vs 4 points -> 1.2 region).
     assert _regions(linear_regions(sweep, values, tolerance=0.1)) == [(0, 3), (2, 6)]
     assert scaling_slope(sweep, values, tolerance=0.1).item() == pytest.approx(1.2, abs=1e-12)

@@ -119,7 +119,7 @@ _HENON_SETUP = "using ChaosTools, DynamicalSystems\nds = PredefinedDynamicalSyst
 
 
 def test_lyapunov_spectrum_matches_chaostools_jl_henon_full_spectrum():
-    julia_lambdas = _run_julia(_HENON_SETUP + "λ = lyapunovspectrum(ds, 10000)\nprintln(λ[1], \" \", λ[2])")
+    julia_lambdas = _run_julia(_HENON_SETUP + 'λ = lyapunovspectrum(ds, 10000)\nprintln(λ[1], " ", λ[2])')
     state0 = torch.zeros(2, dtype=torch.float64)
     result = lyapunov_spectrum(henon_step, state0, num_steps=10000)
     expected = torch.tensor(julia_lambdas, dtype=torch.float64)
@@ -138,9 +138,7 @@ def test_lyapunov_spectrum_matches_chaostools_jl_henon_partial_spectrum():
 
 
 def test_lyapunov_spectrum_matches_chaostools_jl_henon_with_transient():
-    julia_lambdas = _run_julia(
-        _HENON_SETUP + "λ = lyapunovspectrum(ds, 5000; Ttr=100)\nprintln(λ[1], \" \", λ[2])"
-    )
+    julia_lambdas = _run_julia(_HENON_SETUP + 'λ = lyapunovspectrum(ds, 5000; Ttr=100)\nprintln(λ[1], " ", λ[2])')
     state0 = torch.zeros(2, dtype=torch.float64)
     result = lyapunov_spectrum(henon_step, state0, num_steps=5000, transient_steps=100)
     expected = torch.tensor(julia_lambdas, dtype=torch.float64)

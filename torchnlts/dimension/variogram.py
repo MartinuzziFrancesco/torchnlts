@@ -24,12 +24,24 @@ import math
 import numpy
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _safe_log, _safe_scale
+from torchnlts._shape import (
+    _as_positive_int_list,
+    _as_sweep,
+    _ensure_batched,
+    _is_complex,
+    _mask_nonfinite_rows,
+    _ols_slope,
+    _output_dtype,
+    _safe_log,
+    _safe_scale,
+)
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
-        raise ValueError(f"power_variogram only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"power_variogram only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
 
 
 def _variogram_single_lag(values: torch.Tensor, lag: int, power: float) -> torch.Tensor:

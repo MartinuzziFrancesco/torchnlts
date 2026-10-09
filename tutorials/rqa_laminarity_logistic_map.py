@@ -12,10 +12,16 @@ chaos-chaos transition that DET barely registers. The recurrence time
 entropy (RTE, Little et al. 2007) is reported alongside.
 """
 
-
 import torch
 
-from torchnlts.recurrence import determinism, hard_recurrence_matrix, laminarity, recurrence_rate, rt_entropy, trapping_time
+from torchnlts.recurrence import (
+    determinism,
+    hard_recurrence_matrix,
+    laminarity,
+    recurrence_rate,
+    rt_entropy,
+    trapping_time,
+)
 
 num_points = 1000
 transient = 500
@@ -40,7 +46,9 @@ rte = rt_entropy(recurrence, theiler_window)
 
 print(f"{'r':>7}  {'RR':>6}  {'DET':>6}  {'LAM':>6}  {'TT':>6}  {'RTE':>6}")
 for index, value in enumerate(parameters.tolist()):
-    print(f"{value:>7.3f}  {rate[index]:>6.3f}  {det[index]:>6.3f}  {lam[index]:>6.3f}  {tt[index]:>6.3f}  {rte[index]:>6.3f}")
+    print(
+        f"{value:>7.3f}  {rate[index]:>6.3f}  {det[index]:>6.3f}  {lam[index]:>6.3f}  {tt[index]:>6.3f}  {rte[index]:>6.3f}"
+    )
 
 print("\nLAM is 0 on periodic orbits (DET stays high there) and peaks just")
 print("after the band merging near r = 3.678. RR also changes with r at a")

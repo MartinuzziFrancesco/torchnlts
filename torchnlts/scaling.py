@@ -56,7 +56,9 @@ def _prepare(sweep, values, tolerance, saturation):
         values = torch.as_tensor(values)
     sweep = _as_sweep(sweep, values.device)
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
-        raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
+        raise ValueError(
+            f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}"
+        )
     if sweep.shape[0] < 2:
         raise ValueError(f"need at least 2 sweep points, got {sweep.shape[0]}")
     if not _real_scalar(tolerance, "tolerance") > 0:
@@ -94,7 +96,14 @@ def _segment_labels(sweep, values, tolerance, saturation) -> torch.Tensor:
     for index in range(num_segments):
         current, on = slope[index], active[index]
         # Non-finite slopes (zero-width segments) are never close to anything.
-        close = torch.isfinite(current) & torch.isfinite(previous) & ((current == previous) | ((current - previous).abs() <= tolerance * torch.maximum(current.abs(), previous.abs())))
+        close = (
+            torch.isfinite(current)
+            & torch.isfinite(previous)
+            & (
+                (current == previous)
+                | ((current - previous).abs() <= tolerance * torch.maximum(current.abs(), previous.abs()))
+            )
+        )
         # The first active segment opens region 0; a later one opens a new
         # region when it is not close to the opening segment's slope.
         opens = on & (~seen | ~close)

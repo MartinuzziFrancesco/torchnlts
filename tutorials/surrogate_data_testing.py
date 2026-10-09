@@ -36,7 +36,13 @@ def entropy(data):
 
 num_surrogates = 20
 result = surrogate_test(
-    signal, entropy, iaaft_surrogate, num_surrogates, tail="left", generator=torch.Generator().manual_seed(0), max_iterations=50
+    signal,
+    entropy,
+    iaaft_surrogate,
+    num_surrogates,
+    tail="left",
+    generator=torch.Generator().manual_seed(0),
+    max_iterations=50,
 )
 real_statistic = result.statistic
 surrogate_statistics = result.surrogate_statistics
@@ -48,12 +54,18 @@ ensemble = iaaft_surrogate(
 )
 assert torch.equal(entropy(ensemble), surrogate_statistics)
 target_magnitude = torch.fft.rfft(signal).abs()
-spectral_errors = (torch.fft.rfft(ensemble[..., 0], dim=-1).abs() - target_magnitude).norm(dim=-1) / target_magnitude.norm()
+spectral_errors = (torch.fft.rfft(ensemble[..., 0], dim=-1).abs() - target_magnitude).norm(
+    dim=-1
+) / target_magnitude.norm()
 
 print(f"real signal permutation entropy:        {real_statistic.item():.4f}")
-print(f"surrogate permutation entropy (mean/std): {surrogate_statistics.mean().item():.4f} / {surrogate_statistics.std().item():.4f}")
+print(
+    f"surrogate permutation entropy (mean/std): {surrogate_statistics.mean().item():.4f} / {surrogate_statistics.std().item():.4f}"
+)
 print(f"lower-tail rank p-value: {p_value:.4f} (minimum possible: {1 / (num_surrogates + 1):.4f})")
-print(f"relative Fourier-magnitude error (min/max): {spectral_errors.min().item():.4f} / {spectral_errors.max().item():.4f}")
+print(
+    f"relative Fourier-magnitude error (min/max): {spectral_errors.min().item():.4f} / {spectral_errors.max().item():.4f}"
+)
 print("\nNominal 5% rank-test decision:", "reject" if p_value <= 0.05 else "do not reject")
 print("Interpret against the stationary, statically transformed Gaussian-linear null.")
 print("IAAFT is approximate: check spectral mismatch and stationarity before attributing")

@@ -442,5 +442,7 @@ def test_mutual_information_ksg2_small_scale_deviates_from_causalitytools_jl():
     scale = 1e-16
     x = torch.tensor([0.0, 1.0, 4.0, 10.0], dtype=torch.float64) * scale
     y = torch.tensor([0.0, 2.0, 1.0, 20.0], dtype=torch.float64) * scale
-    assert torch.isclose(mutual_information(x, y, num_neighbors=1, estimator="ksg2"), torch.tensor(-1 / 6, dtype=torch.float64))
+    assert torch.isclose(
+        mutual_information(x, y, num_neighbors=1, estimator="ksg2"), torch.tensor(-1 / 6, dtype=torch.float64)
+    )
     assert abs(_julia_ksg2(x, y, 1) - (-13 / 6)) < 1e-9

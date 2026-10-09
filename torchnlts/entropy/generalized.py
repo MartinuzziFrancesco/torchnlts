@@ -210,7 +210,9 @@ def _safe_log(probability: torch.Tensor, nonzero: torch.Tensor) -> torch.Tensor:
 _MAX_SAFE_EXPONENT = 50.0  # exp(50) ~ 5e21, comfortably below any dtype's overflow point
 
 
-def _deviation_from_one(probability: torch.Tensor, nonzero: torch.Tensor, log_p: torch.Tensor, order: float) -> tuple[torch.Tensor, torch.Tensor]:
+def _deviation_from_one(
+    probability: torch.Tensor, nonzero: torch.Tensor, log_p: torch.Tensor, order: float
+) -> tuple[torch.Tensor, torch.Tensor]:
     """``u = sum(probability ** order) - 1``, via ``expm1`` -- accurate
     without cancellation when ``order`` is near 1 (see module docstring).
 
@@ -311,7 +313,7 @@ def _deviation_saturated(u: torch.Tensor, exponent_out_of_range: torch.Tensor, d
     discarded, specifically to keep that branch's own local gradient
     finite there too.
     """
-    tolerance = torch.finfo(dtype).eps**0.4
+    tolerance = torch.finfo(dtype).eps ** 0.4
     return exponent_out_of_range | (u <= (-1.0 + tolerance)) | ~torch.isfinite(u)
 
 
@@ -451,7 +453,11 @@ def tsallis_entropy(probability: torch.Tensor, q: float, k: float = 1.0) -> torc
         # k=5e305 combined with q=-10), even though the final,
         # k-scaled entropy value itself would fit the dtype.
         sign = (1.0 if q > 1.0 else -1.0) * (1.0 if k >= 0.0 else -1.0)
-        shifted = torch.exp(safe_log_sum - math.log(abs(q - 1.0)) + math.log(abs(k))) * sign if k != 0.0 else torch.zeros_like(safe_log_sum)
+        shifted = (
+            torch.exp(safe_log_sum - math.log(abs(q - 1.0)) + math.log(abs(k))) * sign
+            if k != 0.0
+            else torch.zeros_like(safe_log_sum)
+        )
         extreme = k / (q - 1.0) - shifted
         near_one = k * u / (1.0 - q)
         result = torch.where(saturated, extreme, near_one)

@@ -66,7 +66,7 @@ def gpr_impute(predictors, targets, known_mask):
     noise = 1e-6
 
     def kernel(a, b):
-        return torch.exp(-torch.cdist(a, b) ** 2 / (2 * theta**2))
+        return torch.exp(-(torch.cdist(a, b) ** 2) / (2 * theta**2))
 
     covariance = kernel(train_x, train_x) + noise * torch.eye(train_x.shape[0], dtype=train_x.dtype)
     weights = torch.linalg.solve(covariance, train_y)

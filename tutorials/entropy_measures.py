@@ -22,7 +22,9 @@ noise = torch.randn(1000)
 chaotic = torch.as_tensor(Lorenz().make_trajectory(1000))[:, 0]
 
 signals = {"periodic (sine)": periodic, "chaotic (Lorenz x)": chaotic, "white noise": noise}
-signals = {name: (x - x.mean()) / x.std() for name, x in signals.items()}  # comparable scale for sample_entropy's radius
+signals = {
+    name: (x - x.mean()) / x.std() for name, x in signals.items()
+}  # comparable scale for sample_entropy's radius
 
 print(f"{'signal':>20}  {'PermEn':>7}  {'SampEn':>7}")
 for name, signal in signals.items():

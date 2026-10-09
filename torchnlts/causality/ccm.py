@@ -173,7 +173,9 @@ def cross_map_estimate(
 
     manifold_batched, manifold_ndim = _ensure_batched(manifold_series)
     estimated_batched, estimated_ndim = _ensure_batched(estimated_series)
-    _validate_matching_batch(manifold_batched, estimated_batched, manifold_ndim, estimated_ndim, check_feature_dim=False)
+    _validate_matching_batch(
+        manifold_batched, estimated_batched, manifold_ndim, estimated_ndim, check_feature_dim=False
+    )
 
     num_points = min(manifold_batched.shape[-2], estimated_batched.shape[-2])
     manifold_batched = manifold_batched[:, :num_points, :]
@@ -257,7 +259,9 @@ def ccm_skill(estimate: torch.Tensor, actual: torch.Tensor) -> torch.Tensor:
             shapes.
     """
     if estimate.shape != actual.shape:
-        raise ValueError(f"expected estimate and actual to have matching shapes, got {tuple(estimate.shape)} and {tuple(actual.shape)}")
+        raise ValueError(
+            f"expected estimate and actual to have matching shapes, got {tuple(estimate.shape)} and {tuple(actual.shape)}"
+        )
     estimate_batched, ndim = _ensure_batched(estimate)
     actual_batched, _ = _ensure_batched(actual)
 

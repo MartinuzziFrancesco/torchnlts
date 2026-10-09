@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import functools
-import numpy
-
 import operator
 
+import numpy
 import torch
 
 from torchnlts.convert import as_tensor
@@ -205,9 +204,15 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | N
             shapes above with matching ``R``.
     """
     if sweep.dim() != 1 or values.dim() not in (1, 2) or sweep.shape[0] != values.shape[0]:
-        raise ValueError(f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}")
-    if mask is not None and (mask.dtype != torch.bool or tuple(mask.shape) not in (tuple(sweep.shape), tuple(values.shape))):
-        raise ValueError(f"expected a boolean mask of shape {tuple(sweep.shape)} or {tuple(values.shape)}, got {mask.dtype} {tuple(mask.shape)}")
+        raise ValueError(
+            f"expected a sweep [R] and values [R] or [R, B] with matching R, got {tuple(sweep.shape)} and {tuple(values.shape)}"
+        )
+    if mask is not None and (
+        mask.dtype != torch.bool or tuple(mask.shape) not in (tuple(sweep.shape), tuple(values.shape))
+    ):
+        raise ValueError(
+            f"expected a boolean mask of shape {tuple(sweep.shape)} or {tuple(values.shape)}, got {mask.dtype} {tuple(mask.shape)}"
+        )
     out_dtype = _output_dtype(values)
     # The wider of the two dtypes, so distinct float64 sweep points are not
     # merged when values are float32 (also rejects a complex sweep).
@@ -242,7 +247,9 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | N
         zeros = torch.zeros_like(values)
         first = selected.long().argmax(dim=0, keepdim=True)  # first selected point per column
         first_sweep = sweep_full.gather(0, first)
-        sweep_valid = torch.isfinite(torch.where(selected, sweep_full, zeros)).all(dim=0) & (selected & (sweep_full != first_sweep)).any(dim=0)
+        sweep_valid = torch.isfinite(torch.where(selected, sweep_full, zeros)).all(dim=0) & (
+            selected & (sweep_full != first_sweep)
+        ).any(dim=0)
         column_valid = torch.isfinite(torch.where(selected, values, zeros)).all(dim=0) & sweep_valid
         # Invalid columns fit every point of a safe sweep, as in the unmasked path.
         selected = selected | ~column_valid
@@ -325,7 +332,9 @@ def _validate_matching_batch(
     if trajectory_batched and trajectory.shape[0] != other.shape[0]:
         raise ValueError(f"batch size mismatch between trajectory ({trajectory.shape[0]}) and other ({other.shape[0]})")
     if check_feature_dim and trajectory.shape[-1] != other.shape[-1]:
-        raise ValueError(f"feature dim mismatch between trajectory ({trajectory.shape[-1]}) and other ({other.shape[-1]})")
+        raise ValueError(
+            f"feature dim mismatch between trajectory ({trajectory.shape[-1]}) and other ({other.shape[-1]})"
+        )
 
 
 def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
@@ -337,7 +346,10 @@ def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
         return torch.ones((1, 1, 1), dtype=reference.dtype, device=reference.device)
     # Finite coordinates only: a NaN/inf point must not disable the scaling
     # of the finite pairs in its row.
-    magnitudes = [torch.where(torch.isfinite(tensor), tensor, 0).detach().abs().amax(dim=(-2, -1), keepdim=True) for tensor in tensors]
+    magnitudes = [
+        torch.where(torch.isfinite(tensor), tensor, 0).detach().abs().amax(dim=(-2, -1), keepdim=True)
+        for tensor in tensors
+    ]
     scale = functools.reduce(torch.maximum, magnitudes)
     scale = torch.where(torch.isfinite(scale) & (scale > 0), scale, torch.ones_like(scale))
     return torch.exp2(torch.floor(torch.log2(scale)))

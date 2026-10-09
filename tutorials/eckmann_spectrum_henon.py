@@ -31,7 +31,9 @@ for step in range(5200):
         values.append(state[0])
 series = torch.stack(values)
 
-reference = lyapunov_spectrum(henon_step, torch.tensor([0.1, 0.0], dtype=torch.float64), num_steps=20000, transient_steps=200)
+reference = lyapunov_spectrum(
+    henon_step, torch.tensor([0.1, 0.0], dtype=torch.float64), num_steps=20000, transient_steps=200
+)
 print(f"lyapunov_spectrum on the map: {reference.tolist()}")
 print(f"sum of exponents: {reference.sum().item():.4f} (log 0.3 = {math.log(0.3):.4f})\n")
 
@@ -42,7 +44,10 @@ for embedding_dim, matrix_dim, num_neighbors in settings:
     exponents = eckmann_spectrum(series, embedding_dim, matrix_dim, num_neighbors)
     results[(embedding_dim, matrix_dim, num_neighbors)] = exponents
     label = "default" if num_neighbors is None else num_neighbors
-    print(f"{embedding_dim:>13} {matrix_dim:>10} {label!s:>9}   " + "  ".join(f"{value:7.3f}" for value in exponents.tolist()))
+    print(
+        f"{embedding_dim:>13} {matrix_dim:>10} {label!s:>9}   "
+        + "  ".join(f"{value:7.3f}" for value in exponents.tolist())
+    )
 
 # Matrix dimension equal to the system's: both exponents are recovered
 # (the contracting one with the local linear fit's known bias).

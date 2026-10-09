@@ -30,7 +30,16 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_int, _as_sweep, _ensure_batched, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _work_dtype
+from torchnlts._shape import (
+    _as_int,
+    _as_sweep,
+    _ensure_batched,
+    _is_complex,
+    _mask_nonfinite_rows,
+    _ols_slope,
+    _output_dtype,
+    _work_dtype,
+)
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
@@ -193,7 +202,9 @@ def rosenstein_divergence(
         # neither overflows nor underflows. Not below norm_order=1, where the
         # powers cannot overflow and scaling could (norm_order=0 counts nonzeros).
         largest = difference.detach().abs().amax(dim=-1, keepdim=True)
-        largest = torch.where((largest > 0) & torch.isfinite(largest) & (norm_order >= 1), largest, torch.ones_like(largest))
+        largest = torch.where(
+            (largest > 0) & torch.isfinite(largest) & (norm_order >= 1), largest, torch.ones_like(largest)
+        )
         divergence = (difference / largest).norm(p=norm_order, dim=-1) * largest.squeeze(-1)
         # At an invalid (masked) position, both gathers fall back to the
         # same dummy row 0, so divergence is exactly 0 there -- an
@@ -209,7 +220,9 @@ def rosenstein_divergence(
         # infinite gradient cannot reach a parameter shared with other rows.
         usable = valid & (divergence > 0)
         safe_divergence = torch.where(usable, divergence, torch.ones_like(divergence))
-        log_divergence = torch.where(valid & ~usable, torch.full_like(divergence, float("-inf")), torch.log(safe_divergence))
+        log_divergence = torch.where(
+            valid & ~usable, torch.full_like(divergence, float("-inf")), torch.log(safe_divergence)
+        )
         masked_log_divergence = torch.where(valid, log_divergence, torch.zeros_like(log_divergence))
         curve.append(masked_log_divergence.sum(dim=-1) / valid_count)
 

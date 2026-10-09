@@ -179,7 +179,9 @@ def eckmann_spectrum(
         num_neighbors = min(2 * matrix_dim, matrix_dim + 4)
     num_neighbors = _as_int(num_neighbors, "num_neighbors")
     if num_neighbors < matrix_dim:
-        raise ValueError(f"num_neighbors must be >= matrix_dim (a smaller neighborhood cannot determine the fit), got {num_neighbors} < {matrix_dim}")
+        raise ValueError(
+            f"num_neighbors must be >= matrix_dim (a smaller neighborhood cannot determine the fit), got {num_neighbors} < {matrix_dim}"
+        )
     _require_self_exclusion(theiler_window, "the Eckmann et al. Lyapunov spectrum")
     norm_order = _validate_norm_order(norm_order)
 
@@ -202,14 +204,18 @@ def eckmann_spectrum(
         return (result.squeeze(0) if ndim != 3 else result).to(dtype)
 
     embedded = delay_embedding(series[:, : length - shift].unsqueeze(-1), embedding_dim, delay)
-    _, neighbor_index = knn_search(embedded, num_neighbors, theiler_window=min(theiler_window, num_points), norm_order=norm_order)
+    _, neighbor_index = knn_search(
+        embedded, num_neighbors, theiler_window=min(theiler_window, num_points), norm_order=norm_order
+    )
     has_neighbors = (neighbor_index >= 0).all(dim=-1)  # [B, N]
     safe_index = torch.where(neighbor_index >= 0, neighbor_index, torch.zeros_like(neighbor_index))
 
     coordinates = embedded[..., ::matrix_step]  # [B, N, d_M]
     target = series[:, matrix_dim * shift : matrix_dim * shift + num_points]  # x[i + d_M * shift]
     flat_index = safe_index.reshape(batch_size, -1)
-    neighbor_coordinates = torch.take_along_dim(coordinates, flat_index.unsqueeze(-1), dim=1).reshape(batch_size, num_points, num_neighbors, matrix_dim)
+    neighbor_coordinates = torch.take_along_dim(coordinates, flat_index.unsqueeze(-1), dim=1).reshape(
+        batch_size, num_points, num_neighbors, matrix_dim
+    )
     neighbor_target = torch.take_along_dim(target, flat_index, dim=1).reshape(batch_size, num_points, num_neighbors)
     design = neighbor_coordinates - coordinates.unsqueeze(2)
     response = neighbor_target - target.unsqueeze(2)
@@ -217,7 +223,12 @@ def eckmann_spectrum(
     # Degeneracy is decided here, without autograd, and degenerate points
     # get placeholder operands, so no singular system reaches either QR.
     with torch.no_grad():
-        full_rank = torch.linalg.matrix_rank(torch.where(has_neighbors.unsqueeze(-1).unsqueeze(-1), design, torch.zeros_like(design))) == matrix_dim
+        full_rank = (
+            torch.linalg.matrix_rank(
+                torch.where(has_neighbors.unsqueeze(-1).unsqueeze(-1), design, torch.zeros_like(design))
+            )
+            == matrix_dim
+        )
     fit_ok = has_neighbors & full_rank
     placeholder = torch.eye(num_neighbors, matrix_dim, dtype=series.dtype, device=device)
     design = torch.where(fit_ok.unsqueeze(-1).unsqueeze(-1), design, placeholder)
@@ -228,7 +239,9 @@ def eckmann_spectrum(
     with torch.no_grad():
         tangent_ok = fit_ok & torch.isfinite(coefficients).all(dim=-1)
     identity = torch.eye(matrix_dim, dtype=series.dtype, device=device)
-    tangent = torch.cat([identity[1:].expand(batch_size, num_points, -1, -1), coefficients.unsqueeze(-2)], dim=-2)  # [B, N, d_M, d_M]
+    tangent = torch.cat(
+        [identity[1:].expand(batch_size, num_points, -1, -1), coefficients.unsqueeze(-2)], dim=-2
+    )  # [B, N, d_M, d_M]
 
     # The chain product can be singular to rounding even when every tangent
     # map is not (an exactly zero R diagonal), and QR's backward is NaN there. A first pass without

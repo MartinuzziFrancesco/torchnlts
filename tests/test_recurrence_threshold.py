@@ -24,10 +24,14 @@ def _julia_matrix(expression: str, *arrays: torch.Tensor) -> torch.Tensor:
         text = "; ".join(" ".join(f"{v:.17g}" for v in row) for row in rows.tolist())
         lines.append(f"{name} = StateSpaceSet([{text}])")
     lines.append(f"R = Matrix({expression})")
-    lines.append("for row in eachrow(R) println(join(Int.(row), \",\")) end")
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", "\n".join(lines)], capture_output=True, text=True, timeout=120)
+    lines.append('for row in eachrow(R) println(join(Int.(row), ",")) end')
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", "\n".join(lines)], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr
-    return torch.tensor([[int(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()], dtype=torch.bool)
+    return torch.tensor(
+        [[int(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()], dtype=torch.bool
+    )
 
 
 def _upper_mirror(matrix: torch.Tensor) -> torch.Tensor:
@@ -87,7 +91,9 @@ def test_scaled_hand_derived():
     assert torch.equal(hard_recurrence_matrix(trajectory, 0.75, scale="mean"), hard_recurrence_matrix(trajectory, 2.0))
     entries = torch.tensor([0.0, 1, 4, 1, 0, 3, 4, 3, 0])
     epsilon = 1.0 * entries.std().item()
-    assert torch.equal(hard_recurrence_matrix(trajectory, 1.0, scale="std"), hard_recurrence_matrix(trajectory, epsilon))
+    assert torch.equal(
+        hard_recurrence_matrix(trajectory, 1.0, scale="std"), hard_recurrence_matrix(trajectory, epsilon)
+    )
 
 
 def test_std_scale_uses_sample_std():
@@ -156,20 +162,27 @@ def test_joint_matches_julia_with_unequal_lengths(trajectory):
             first = _upper_mirror(hard_recurrence_matrix(trajectory[:30], **option))
             second = _upper_mirror(hard_recurrence_matrix(other, **option))
             assert torch.equal(first & second, expected)
-            assert torch.equal(actual, hard_recurrence_matrix(trajectory[:30], **option) & hard_recurrence_matrix(other, **option))
+            assert torch.equal(
+                actual, hard_recurrence_matrix(trajectory[:30], **option) & hard_recurrence_matrix(other, **option)
+            )
         else:
             assert torch.equal(actual, expected), option
 
 
 def test_batched_rows_have_own_threshold():
     torch.manual_seed(4)
-    batch = torch.randn(3, 20, 2, dtype=torch.float64) * torch.tensor([1.0, 10.0, 100.0], dtype=torch.float64)[:, None, None]
+    batch = (
+        torch.randn(3, 20, 2, dtype=torch.float64)
+        * torch.tensor([1.0, 10.0, 100.0], dtype=torch.float64)[:, None, None]
+    )
     for option in ({"recurrence_rate": 0.15}, {"local_rate": 0.15}, {"epsilon": 0.3, "scale": "std"}):
         batched = hard_recurrence_matrix(batch, **option)
         for index in range(3):
             assert torch.equal(batched[index], hard_recurrence_matrix(batch[index], **option))
     # Rows differ only by scale, so a rate threshold gives identical matrices.
-    matrices = hard_recurrence_matrix(batch / torch.tensor([1.0, 10.0, 100.0], dtype=torch.float64)[:, None, None], recurrence_rate=0.15)
+    matrices = hard_recurrence_matrix(
+        batch / torch.tensor([1.0, 10.0, 100.0], dtype=torch.float64)[:, None, None], recurrence_rate=0.15
+    )
     assert torch.equal(matrices, hard_recurrence_matrix(batch, recurrence_rate=0.15))
 
 
@@ -239,8 +252,16 @@ def test_float32_and_integer_input():
 def test_thresholds_are_scale_invariant_in_float32(factor):
     # Regression: sums and squares of unscaled distances overflowed or underflowed.
     trajectory = torch.tensor([0.0, 1.0, 4.0])
-    for option in ({"epsilon": 0.8, "scale": "std"}, {"epsilon": 0.8, "scale": "mean"}, {"epsilon": 0.8, "scale": "max"}, {"recurrence_rate": 0.5}, {"local_rate": 0.4}):
-        assert torch.equal(hard_recurrence_matrix(trajectory * factor, **option), hard_recurrence_matrix(trajectory, **option)), option
+    for option in (
+        {"epsilon": 0.8, "scale": "std"},
+        {"epsilon": 0.8, "scale": "mean"},
+        {"epsilon": 0.8, "scale": "max"},
+        {"recurrence_rate": 0.5},
+        {"local_rate": 0.4},
+    ):
+        assert torch.equal(
+            hard_recurrence_matrix(trajectory * factor, **option), hard_recurrence_matrix(trajectory, **option)
+        ), option
 
 
 def test_std_ignores_nan_entries():
@@ -248,14 +269,18 @@ def test_std_ignores_nan_entries():
     clean = torch.tensor([0.0, 1.0, 4.0, 2.5], dtype=torch.float64)
     dirty = torch.cat([clean, torch.tensor([float("nan")], dtype=torch.float64)])
     for ratio in (0.5, 0.8, 0.9, 1.3):
-        assert torch.equal(hard_recurrence_matrix(dirty, ratio, scale="std")[:4, :4], hard_recurrence_matrix(clean, ratio, scale="std"))
+        assert torch.equal(
+            hard_recurrence_matrix(dirty, ratio, scale="std")[:4, :4], hard_recurrence_matrix(clean, ratio, scale="std")
+        )
 
 
 def test_nan_padding_preserves_local_rate_matrix():
     # Regression: the diagonal correction used the padded length.
     valid = torch.tensor([0.0, 1.0, 3.0, 7.0])
     padded = torch.cat([valid, torch.full((20,), float("nan"))])
-    assert torch.equal(hard_recurrence_matrix(padded, local_rate=0.25)[:4, :4], hard_recurrence_matrix(valid, local_rate=0.25))
+    assert torch.equal(
+        hard_recurrence_matrix(padded, local_rate=0.25)[:4, :4], hard_recurrence_matrix(valid, local_rate=0.25)
+    )
     assert hard_recurrence_matrix(valid, local_rate=0.25).sum(dim=0).tolist() == [2, 2, 2, 2]
     other = torch.randn(4, 2)
     other_padded = torch.cat([other, torch.full((20, 2), float("nan"))])

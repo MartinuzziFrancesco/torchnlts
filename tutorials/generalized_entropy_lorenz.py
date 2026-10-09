@@ -35,7 +35,9 @@ print(f"\n{'alpha':>7}  {'Renyi entropy':>13}")
 for alpha, value in zip(alphas, curve):
     print(f"{alpha:>7}  {value:>13.6f}")
 
-assert all(curve[i] >= curve[i + 1] - 1e-9 for i in range(len(curve) - 1)), "Renyi entropy must be non-increasing in alpha (Renyi 1961)"
+assert all(curve[i] >= curve[i + 1] - 1e-9 for i in range(len(curve) - 1)), (
+    "Renyi entropy must be non-increasing in alpha (Renyi 1961)"
+)
 
 print("\nAll checks passed: both generalized entropies recover permutation_entropy's own Shannon value")
 print("exactly at order 1 (not just approximately), on the Lorenz x-coordinate's real ordinal-pattern")

@@ -27,8 +27,8 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts.convert import as_tensor
 from torchnlts._shape import _as_int, _ensure_batched, _output_dtype, _restore_shape_preserving, _work_dtype
+from torchnlts.convert import as_tensor
 from torchnlts.entropy.sample import sample_entropy, soft_sample_entropy
 
 
@@ -175,7 +175,9 @@ def soft_multiscale_entropy(
     """
     return torch.stack(
         [
-            soft_sample_entropy(coarse_grain(trajectory, scale), temperature, embedding_dim, delay, kind, theiler_window, norm_order)
+            soft_sample_entropy(
+                coarse_grain(trajectory, scale), temperature, embedding_dim, delay, kind, theiler_window, norm_order
+            )
             for scale in scales
         ]
     )

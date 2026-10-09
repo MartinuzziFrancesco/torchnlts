@@ -53,7 +53,9 @@ def _log_conditional_probability(embedded, radius, theiler_window: int, norm_ord
     return torch.log(conditional_probability).mean(dim=-1)
 
 
-def _log_soft_conditional_probability(embedded, temperature, theiler_window: int, kind: str, norm_order: float) -> torch.Tensor:
+def _log_soft_conditional_probability(
+    embedded, temperature, theiler_window: int, kind: str, norm_order: float
+) -> torch.Tensor:
     distance = pairwise_distance(embedded, norm_order=norm_order)
     temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
     weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)

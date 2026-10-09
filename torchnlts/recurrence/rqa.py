@@ -14,7 +14,6 @@ import torch.nn.functional as functional
 from torchnlts._shape import _as_int, _validate_square_matrix
 from torchnlts.neighbors.theiler import theiler_window_mask
 
-
 _WINDOW_ELEMENT_BUDGET = 2**24  # max matrix elements gathered per measure call in windowed_rqa
 
 
@@ -156,7 +155,9 @@ def _recurrence_time_histogram(recurrence: torch.Tensor, theiler_window: int) ->
     times = starts[..., 1:] - ends[..., :-1] - 1 + half[..., :-1] + half[..., 1:]
     valid = starts[..., 1:] < num_points
     # Out-of-place and derived from a batched tensor so torch.vmap works.
-    histogram = times.new_zeros(*times.shape[:-1], num_points + 1).scatter_add(-1, torch.where(valid, times, 0), valid.long())
+    histogram = times.new_zeros(*times.shape[:-1], num_points + 1).scatter_add(
+        -1, torch.where(valid, times, 0), valid.long()
+    )
     return histogram.sum(dim=-2)
 
 

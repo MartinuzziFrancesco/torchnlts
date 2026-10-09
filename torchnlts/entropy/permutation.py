@@ -79,7 +79,9 @@ def _validate_weighting(weighting, amplitude_weight, embedding_dim: int) -> floa
     if not 0 <= amplitude_weight <= 1:
         raise ValueError(f"amplitude_weight must be in [0, 1], got {amplitude_weight}")
     if embedding_dim < 2:
-        raise ValueError("amplitude weighting needs embedding_dim >= 2 (the difference term divides by embedding_dim - 1)")
+        raise ValueError(
+            "amplitude weighting needs embedding_dim >= 2 (the difference term divides by embedding_dim - 1)"
+        )
     return amplitude_weight
 
 
@@ -115,7 +117,9 @@ def _probabilities(trajectory, embedding_dim: int, delay: int, weighting, amplit
         work = torch.where(finite, work, torch.zeros_like(work))  # keeps NaN out of backward
         codes = _ordinal_pattern_codes(work)
         weights = _pattern_weights(work, weighting, amplitude_weight)
-        sums = (torch.nn.functional.one_hot(codes, num_classes=num_patterns).to(weights.dtype) * weights.unsqueeze(-1)).sum(dim=-2)
+        sums = (
+            torch.nn.functional.one_hot(codes, num_classes=num_patterns).to(weights.dtype) * weights.unsqueeze(-1)
+        ).sum(dim=-2)
         total = sums.sum(dim=-1, keepdim=True)
         invalid = (total == 0) | ~finite.squeeze(-1)
         probability = sums / torch.where(invalid, torch.ones_like(total), total)

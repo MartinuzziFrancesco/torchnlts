@@ -3,8 +3,8 @@
 from torchnlts.embedding.cao import cao_e1, cao_e2
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.embedding.delay_selection import (
-    autocorrelation,
     auto_mutual_information,
+    autocorrelation,
     estimate_delay,
 )
 from torchnlts.embedding.fnn import hard_fnn

@@ -36,11 +36,19 @@ permutation_transformed = permutation_entropy(transformed, embedding_dim=3)
 dispersion_state = dispersion_entropy(state, num_classes=6, embedding_dim=3)
 dispersion_transformed = dispersion_entropy(transformed, num_classes=6, embedding_dim=3)
 
-print(f"permutation entropy: original={permutation_state.item():.6f}, exp-transformed={permutation_transformed.item():.6f}")
-print(f"dispersion entropy:  original={dispersion_state.item():.4f}, exp-transformed={dispersion_transformed.item():.4f}")
+print(
+    f"permutation entropy: original={permutation_state.item():.6f}, exp-transformed={permutation_transformed.item():.6f}"
+)
+print(
+    f"dispersion entropy:  original={dispersion_state.item():.4f}, exp-transformed={dispersion_transformed.item():.4f}"
+)
 
-assert torch.equal(permutation_state, permutation_transformed), "permutation entropy must be exactly invariant under a strictly increasing transform"
-assert abs(dispersion_state.item() - dispersion_transformed.item()) > 0.1, "dispersion entropy should visibly change under the same transform"
+assert torch.equal(permutation_state, permutation_transformed), (
+    "permutation entropy must be exactly invariant under a strictly increasing transform"
+)
+assert abs(dispersion_state.item() - dispersion_transformed.item()) > 0.1, (
+    "dispersion entropy should visibly change under the same transform"
+)
 
 print("\nAll checks passed: permutation entropy is bit-for-bit unchanged by a transform that alters every")
 print("value but no pairwise order, while dispersion entropy -- sensitive to the actual value distribution,")

@@ -203,7 +203,9 @@ def test_composite_multiscale_entropy_hand_derived():
     trajectory = torch.tensor([0.0, 2.0, 4.0] * 8, dtype=torch.float64)[:23]
     assert torch.equal(coarse_grain(trajectory, 2, 0)[:3], torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64))
     assert torch.equal(coarse_grain(trajectory, 2, 1)[:3], torch.tensor([3.0, 1.0, 2.0], dtype=torch.float64))
-    assert torch.allclose(composite_multiscale_entropy(trajectory, scales=[2], radius=0.5), torch.zeros(1, dtype=torch.float64))
+    assert torch.allclose(
+        composite_multiscale_entropy(trajectory, scales=[2], radius=0.5), torch.zeros(1, dtype=torch.float64)
+    )
     # Perturbing one sample moves the two offsets by different amounts; the
     # composite value is exactly their mean.
     perturbed = trajectory.clone()
@@ -231,7 +233,9 @@ def test_composite_multiscale_entropy_shape_batched_and_swept():
     curve = composite_multiscale_entropy(trajectory, scales=[1, 2, 3], radius=radius)
     assert curve.shape == (3, 2, 2)
     for scale_idx, scale in enumerate((1, 2, 3)):
-        expected = torch.stack([sample_entropy(coarse_grain(trajectory, scale, k), radius) for k in range(scale)]).mean(0)
+        expected = torch.stack([sample_entropy(coarse_grain(trajectory, scale, k), radius) for k in range(scale)]).mean(
+            0
+        )
         assert torch.allclose(curve[scale_idx], expected, equal_nan=True)
     assert composite_multiscale_entropy(trajectory[0, :, 0], scales=[2], radius=0.3).shape == (1,)
 
@@ -298,7 +302,9 @@ def test_composite_multiscale_entropy_matches_complexitymeasures_jl():
     ds = CompositeDownsampling(scales={scales[0]}:{scales[-1]})
     println(join(multiscale(ds, est, x), ","))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr
     julia_curve = torch.tensor([float(v) for v in result.stdout.strip().split(",")], dtype=torch.float64)
     torch_curve = composite_multiscale_entropy(trajectory, scales=scales, radius=radius)
@@ -330,7 +336,9 @@ def test_soft_composite_multiscale_entropy_forwards_nondefault_arguments():
     trajectory = torch.randn(80, dtype=torch.float64)
     options = dict(embedding_dim=3, delay=2, kind="exponential", theiler_window=2, norm_order=1.0)
     curve = soft_composite_multiscale_entropy(trajectory, scales=[3], temperature=0.8, **options)
-    expected = torch.stack([soft_sample_entropy(coarse_grain(trajectory, 3, k), 0.8, **options) for k in range(3)]).mean()
+    expected = torch.stack(
+        [soft_sample_entropy(coarse_grain(trajectory, 3, k), 0.8, **options) for k in range(3)]
+    ).mean()
     assert torch.isclose(curve[0], expected)
     default = soft_composite_multiscale_entropy(trajectory, scales=[3], temperature=0.8)
     assert not torch.isclose(curve[0], default[0])
@@ -341,7 +349,11 @@ def test_composite_multiscale_entropy_validates_scales_and_offset():
     for bad_scales in ([], [0], [-1], [2.0], [1.5]):
         for function, argument in ((composite_multiscale_entropy, 0.5), (soft_composite_multiscale_entropy, 0.5)):
             try:
-                function(trajectory, scales=bad_scales, **{("radius" if function is composite_multiscale_entropy else "temperature"): argument})
+                function(
+                    trajectory,
+                    scales=bad_scales,
+                    **{("radius" if function is composite_multiscale_entropy else "temperature"): argument},
+                )
                 assert False, "expected ValueError"
             except ValueError:
                 pass

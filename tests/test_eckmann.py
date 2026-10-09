@@ -20,8 +20,8 @@ import numpy
 import pytest
 import torch
 
-from tests.conftest import logistic_map_trajectory
 import torchnlts.lyapunov.eckmann as eckmann_module
+from tests.conftest import logistic_map_trajectory
 from torchnlts.lyapunov.eckmann import eckmann_spectrum
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
 from torchnlts.neighbors.knn import knn_search
@@ -50,11 +50,15 @@ def _paper_oracle(series, embedding_dim, matrix_dim, num_neighbors, delay=1, the
     # Neighbor indices come from knn_search (tested separately): under the
     # max-norm, overlapping windows give exact distance ties at the
     # neighborhood boundary, whose order is implementation-defined.
-    neighbor_index = knn_search(torch.from_numpy(orbit), num_neighbors, theiler_window=theiler_window, norm_order=float(norm_order))[1].numpy()
+    neighbor_index = knn_search(
+        torch.from_numpy(orbit), num_neighbors, theiler_window=theiler_window, norm_order=float(norm_order)
+    )[1].numpy()
     tangents = []
     for i in range(num_points):
         neighbors = neighbor_index[i]
-        design = numpy.array([[series[j + k * shift] - series[i + k * shift] for k in range(matrix_dim)] for j in neighbors])
+        design = numpy.array(
+            [[series[j + k * shift] - series[i + k * shift] for k in range(matrix_dim)] for j in neighbors]
+        )
         response = numpy.array([series[j + matrix_dim * shift] - series[i + matrix_dim * shift] for j in neighbors])
         coefficients = numpy.linalg.lstsq(design, response, rcond=None)[0]
         tangent = numpy.zeros((matrix_dim, matrix_dim))
@@ -79,7 +83,9 @@ def test_matches_nolds_henon(embedding_dim, matrix_dim, num_neighbors, theiler_w
 
     series = _henon_series(1200)
     result = eckmann_spectrum(series, embedding_dim, matrix_dim, num_neighbors, theiler_window=theiler_window)
-    reference = nolds.lyap_e(series.numpy(), emb_dim=embedding_dim, matrix_dim=matrix_dim, min_nb=num_neighbors, min_tsep=theiler_window)
+    reference = nolds.lyap_e(
+        series.numpy(), emb_dim=embedding_dim, matrix_dim=matrix_dim, min_nb=num_neighbors, min_tsep=theiler_window
+    )
     assert result.shape == (matrix_dim,)
     numpy.testing.assert_allclose(result.numpy(), reference, rtol=0, atol=tolerance)
 
@@ -117,7 +123,9 @@ def test_norm_order_changes_neighbors_and_matches_oracle(norm_order):
 
 def test_henon_known_exponents():
     series = _henon_series(5000)
-    spectrum = lyapunov_spectrum(_henon_step, torch.tensor([0.1, 0.0], dtype=torch.float64), num_steps=20000, transient_steps=200)
+    spectrum = lyapunov_spectrum(
+        _henon_step, torch.tensor([0.1, 0.0], dtype=torch.float64), num_steps=20000, transient_steps=200
+    )
     result = eckmann_spectrum(series, 2, 2)
     assert abs(result[0] - 0.42) < 0.03
     assert abs(result[0] - spectrum[0]) < 0.03
@@ -186,7 +194,9 @@ def test_dtypes():
 
 def test_scale_and_shift_invariant():
     series = _henon_series(600)
-    torch.testing.assert_close(eckmann_spectrum(series * 1e30 + 5e29, 4, 4), eckmann_spectrum(series, 4, 4), atol=1e-6, rtol=1e-6)
+    torch.testing.assert_close(
+        eckmann_spectrum(series * 1e30 + 5e29, 4, 4), eckmann_spectrum(series, 4, 4), atol=1e-6, rtol=1e-6
+    )
     assert torch.isfinite(eckmann_spectrum((series * 1e30).float(), 4, 4)).all()
 
 
@@ -402,7 +412,9 @@ def test_chain_product_singular_to_rounding_keeps_shared_gradient():
     assert result[0].isfinite().all() and result[1].isnan().all()
     gradient = torch.autograd.grad(result[0].sum(), parameter)[0]
     parameter_alone = torch.tensor(0.8, requires_grad=True)
-    expected = torch.autograd.grad(eckmann_spectrum(parameter_alone * rows[0], 2, 2, num_neighbors=2, delay=2).sum(), parameter_alone)[0]
+    expected = torch.autograd.grad(
+        eckmann_spectrum(parameter_alone * rows[0], 2, 2, num_neighbors=2, delay=2).sum(), parameter_alone
+    )[0]
     assert torch.isfinite(gradient) and torch.allclose(gradient, expected, atol=1e-6)
 
 

@@ -18,10 +18,9 @@ Dual ground truth:
 """
 
 import math
-
-import numpy
 import subprocess
 
+import numpy
 import pytest
 import torch
 
@@ -359,7 +358,7 @@ def test_rosenstein_divergence_large_theiler_window_excludes_self():
 
 
 def test_rosenstein_divergence_one_copy_embedding_ignores_large_delay():
-    trajectory = torch.tensor([0., 5., 1., 6., 12.], dtype=torch.float64)
+    trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0], dtype=torch.float64)
     expected = rosenstein_divergence(trajectory, [0, 1], embedding_dim=1)
     result = rosenstein_divergence(trajectory, [0, 1], embedding_dim=1, delay=10**30)
     assert torch.equal(result, expected)
@@ -367,11 +366,15 @@ def test_rosenstein_divergence_one_copy_embedding_ignores_large_delay():
 
 def test_rosenstein_divergence_embedding_and_validation_edges():
     trajectory = torch.arange(5.0, dtype=torch.float32).reshape(1, 5, 1)
-    for options in ({'embedding_dim': 0}, {'delay': 0}, {'embedding_dim': 4, 'delay': 2},
-                    {'embedding_dim': 2, 'delay': 10**30}):
+    for options in (
+        {"embedding_dim": 0},
+        {"delay": 0},
+        {"embedding_dim": 4, "delay": 2},
+        {"embedding_dim": 2, "delay": 10**30},
+    ):
         with pytest.raises(ValueError):
             rosenstein_divergence(trajectory, 0, **options)
-    for bad_k in (-1e-50, 1.00000001, float('inf'), float('-inf'), float('nan')):
+    for bad_k in (-1e-50, 1.00000001, float("inf"), float("-inf"), float("nan")):
         with pytest.raises(ValueError):
             rosenstein_divergence(trajectory, [0, bad_k])
     result = rosenstein_divergence(trajectory, [0, 1], embedding_dim=3, delay=2)
@@ -387,21 +390,28 @@ def test_rosenstein_divergence_matches_independent_loop_for_delays_and_norms():
     trajectory = torch.randn(2, 18, 2, dtype=torch.float64)
     k_values = [2, 0, 1, 2]
     for embedding_dim, delay in ((1, 1), (2, 3), (3, 2)):
-        for norm_order in (1., 2., float('inf')):
+        for norm_order in (1.0, 2.0, float("inf")):
             expected = []
             for batch in trajectory:
-                embedded = [torch.cat([batch[start + offset * delay] for offset in range(embedding_dim)])
-                            for start in range(len(batch) - (embedding_dim - 1) * delay)]
+                embedded = [
+                    torch.cat([batch[start + offset * delay] for offset in range(embedding_dim)])
+                    for start in range(len(batch) - (embedding_dim - 1) * delay)
+                ]
                 logs = [[] for _ in k_values]
                 for start, point in enumerate(embedded):
                     candidates = [index for index in range(len(embedded)) if abs(index - start) > 4]
                     neighbor = min(candidates, key=lambda index: (point - embedded[index]).norm(p=norm_order).item())
                     nearest_distance = (point - embedded[neighbor]).norm(p=norm_order)
-                    assert sum((point - embedded[index]).norm(p=norm_order) == nearest_distance for index in candidates) == 1
+                    assert (
+                        sum((point - embedded[index]).norm(p=norm_order) == nearest_distance for index in candidates)
+                        == 1
+                    )
                     if max(start, neighbor) + max(k_values) >= len(embedded):
                         continue
                     for position, step in enumerate(k_values):
-                        logs[position].append((embedded[start + step] - embedded[neighbor + step]).norm(p=norm_order).log())
+                        logs[position].append(
+                            (embedded[start + step] - embedded[neighbor + step]).norm(p=norm_order).log()
+                        )
                 expected.append(torch.stack([torch.stack(values).mean() for values in logs]))
             result = rosenstein_divergence(trajectory, k_values, embedding_dim, delay, 4, norm_order)
             assert torch.allclose(result, torch.stack(expected, dim=1), atol=1e-12, rtol=0)
@@ -410,14 +420,16 @@ def test_rosenstein_divergence_matches_independent_loop_for_delays_and_norms():
 def test_rosenstein_divergence_batched_sweep_gradcheck():
     torch.manual_seed(32)
     trajectory = torch.randn(1, 12, 2, dtype=torch.float64, requires_grad=True)
-    for norm_order in (1., 2., float('inf')):
+    for norm_order in (1.0, 2.0, float("inf")):
+
         def divergence(values):
             return rosenstein_divergence(values, [0, 2], embedding_dim=2, delay=2, norm_order=norm_order)
+
         assert torch.autograd.gradcheck(divergence, (trajectory,))
 
 
 def test_rosenstein_divergence_small_separation_amplifies_gradient():
-    trajectory = torch.tensor([0., 5., 1., 6., 12.], dtype=torch.float64, requires_grad=True)
+    trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0], dtype=torch.float64, requires_grad=True)
     result = rosenstein_divergence(trajectory, 0, embedding_dim=1)
     gradient = torch.autograd.grad(result, trajectory)[0]
     small = (trajectory.detach() * 1e-12).requires_grad_()
@@ -428,16 +440,18 @@ def test_rosenstein_divergence_small_separation_amplifies_gradient():
 
 
 def test_rosenstein_divergence_one_duplicate_pair_is_neg_inf():
-    trajectory = torch.tensor([0., 0., 4., 10., 17.], dtype=torch.float64)
+    trajectory = torch.tensor([0.0, 0.0, 4.0, 10.0, 17.0], dtype=torch.float64)
     assert torch.isneginf(rosenstein_divergence(trajectory, 0, embedding_dim=1))
 
 
 def test_rosenstein_lyapunov_rejects_mismatched_sweep_shapes():
-    for k_values, divergence in (([0, 1, 2], torch.tensor([7.])),
-                                 ([[0, 1]], torch.tensor([1., 2.])),
-                                 ([0, 1], torch.ones(2, 1, 1)),
-                                 (0, torch.tensor(1.))):
-        with pytest.raises(ValueError, match='matching'):
+    for k_values, divergence in (
+        ([0, 1, 2], torch.tensor([7.0])),
+        ([[0, 1]], torch.tensor([1.0, 2.0])),
+        ([0, 1], torch.ones(2, 1, 1)),
+        (0, torch.tensor(1.0)),
+    ):
+        with pytest.raises(ValueError, match="matching"):
             rosenstein_lyapunov(k_values, divergence)
 
 
@@ -446,7 +460,9 @@ def test_rosenstein_zero_distance_row_does_not_poison_shared_gradient():
     # curve is -inf (documented) and its slope NaN. log(0)'s infinite
     # gradient must not reach a parameter shared with row 1.
     parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
-    trajectories = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 5.0, 1.0, 6.0, 12.0]], dtype=torch.float64).unsqueeze(-1)
+    trajectories = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 5.0, 1.0, 6.0, 12.0]], dtype=torch.float64).unsqueeze(
+        -1
+    )
     curve = rosenstein_divergence(parameter * trajectories, [0, 1], embedding_dim=1)
     assert torch.isinf(curve[:, 0]).all()
     result = rosenstein_lyapunov([0, 1], curve)
@@ -466,13 +482,19 @@ def test_rosenstein_divergence_rejects_complex_k_values():
 def test_rosenstein_divergence_high_norm_order_small_separations():
     # (1e-15 / 10) ** 40 underflows float64 unless each pair is scaled by itself.
     ulp = math.ulp(10.0)
-    trajectory = torch.tensor([[0.0, 0.0], [1e-15, 1e-15], [10.0, 10.0], [10.0 + 2 * ulp, 10.0 + 2 * ulp]], dtype=torch.float64)
+    trajectory = torch.tensor(
+        [[0.0, 0.0], [1e-15, 1e-15], [10.0, 10.0], [10.0 + 2 * ulp, 10.0 + 2 * ulp]], dtype=torch.float64
+    )
     expected = (math.log(1e-15) + math.log(2 * ulp)) / 2 + math.log(2.0) / 40
-    assert math.isclose(rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12)
+    assert math.isclose(
+        rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12
+    )
     # Separations 1e-15 and 1 in one row: a row-wide scale still underflows.
     trajectory = torch.tensor([[0.0, 0.0], [1e-15, 1e-15], [10.0, 10.0], [11.0, 11.0]], dtype=torch.float64)
     expected = math.log(1e-15) / 2 + math.log(2.0) / 40
-    assert math.isclose(rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12)
+    assert math.isclose(
+        rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=40).item(), expected, rel_tol=1e-12
+    )
 
 
 def test_rosenstein_divergence_accepts_numpy_norm_order():

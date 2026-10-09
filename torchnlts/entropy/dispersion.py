@@ -64,7 +64,9 @@ from torchnlts.embedding.delay import delay_embedding
 
 def _require_univariate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
-        raise ValueError(f"dispersion_entropy only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"dispersion_entropy only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
 
 
 def _gaussian_cdf_classes(tensor: torch.Tensor, num_classes: int) -> torch.Tensor:

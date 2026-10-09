@@ -54,7 +54,9 @@ def kaplan_yorke_dimension(spectrum) -> torch.Tensor:
     tail = ordered.gather(-1, count.clamp(max=last)).abs()
     # Where count == D or 0 the interpolation term is unused; keep its divisor valid.
     interpolated = (tail > 0) & (count > 0) & (count <= last)
-    fraction = torch.where(interpolated, head / torch.where(interpolated, tail, torch.ones_like(tail)), torch.zeros_like(head))
+    fraction = torch.where(
+        interpolated, head / torch.where(interpolated, tail, torch.ones_like(tail)), torch.zeros_like(head)
+    )
     dimension = torch.where(count == 0, torch.zeros_like(head), count.to(head.dtype) + fraction).squeeze(-1)
     dimension = torch.where(nonfinite, torch.full_like(dimension, float("nan")), dimension)
     return (dimension.squeeze(0) if unbatched else dimension).to(out_dtype)

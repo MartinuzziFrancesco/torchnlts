@@ -111,7 +111,9 @@ def test_pairwise_distance_float32_large_offset_stable():
     # distance.py (compute_mode="donot_use_mm_for_euclid_dist").
     x = (10_000 + torch.arange(30, dtype=torch.float32)).reshape(-1, 1)
     d = pairwise_distance(x)
-    expected = torch.abs(torch.arange(30, dtype=torch.float32).unsqueeze(0) - torch.arange(30, dtype=torch.float32).unsqueeze(1))
+    expected = torch.abs(
+        torch.arange(30, dtype=torch.float32).unsqueeze(0) - torch.arange(30, dtype=torch.float32).unsqueeze(1)
+    )
     assert torch.allclose(d, expected, atol=1e-3)
 
 
@@ -136,10 +138,7 @@ def test_pairwise_distance_matches_julia_distances_jl():
         timeout=120,
     )
     assert result.returncode == 0, result.stderr
-    d_julia = [
-        [float(v) for v in line.split(",")]
-        for line in result.stdout.strip().splitlines()
-    ]
+    d_julia = [[float(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()]
     for i, row in enumerate(d_julia):
         for j, v in enumerate(row):
             assert abs(v - d_torch[i, j]) < 1e-10, (i, j, v, d_torch[i, j])

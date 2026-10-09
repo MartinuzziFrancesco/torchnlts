@@ -55,4 +55,6 @@ def to_pandas(tensor: torch.Tensor, index=None, columns=None):
         return pd.Series(array, index=index)
     if array.ndim == 2:
         return pd.DataFrame(array, index=index, columns=columns)
-    raise ValueError(f"to_pandas only supports 1D or 2D tensors, got shape {array.shape}; index a batch dimension first")
+    raise ValueError(
+        f"to_pandas only supports 1D or 2D tensors, got shape {array.shape}; index a batch dimension first"
+    )

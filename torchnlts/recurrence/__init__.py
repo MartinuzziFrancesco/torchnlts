@@ -10,18 +10,18 @@ from torchnlts.recurrence.joint_recurrence import (
 )
 from torchnlts.recurrence.matrix import hard_recurrence_matrix, soft_recurrence_matrix
 from torchnlts.recurrence.rqa import (
-    recurrence_rate,
     determinism,
-    dl_average,
-    dl_max,
-    dl_entropy,
-    laminarity,
-    trapping_time,
-    vl_max,
-    vl_entropy,
-    rt_entropy,
-    ratio,
     divergence,
+    dl_average,
+    dl_entropy,
+    dl_max,
+    laminarity,
+    ratio,
+    recurrence_rate,
+    rt_entropy,
+    trapping_time,
+    vl_entropy,
+    vl_max,
     windowed_rqa,
 )
 

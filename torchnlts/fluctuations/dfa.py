@@ -10,7 +10,15 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _mask_nonfinite_rows, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import (
+    _as_positive_int_list,
+    _as_sweep,
+    _ensure_batched,
+    _mask_nonfinite_rows,
+    _ols_slope,
+    _output_dtype,
+    _safe_log,
+)
 
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
@@ -56,7 +64,9 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
     """
     tensor, ndim = _ensure_batched(trajectory)
     if tensor.shape[-1] != 1:
-        raise ValueError(f"dfa_fluctuation only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"dfa_fluctuation only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
     if isinstance(order, bool) or not isinstance(order, int) or order < 0:
         raise ValueError(f"order must be a non-negative integer, got {order!r}")
     window_sizes, swept = _as_positive_int_list(window_size, "window_size")

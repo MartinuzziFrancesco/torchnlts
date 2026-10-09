@@ -217,7 +217,9 @@ def test_generalized_dimension_non_increasing_in_order():
     trajectory = (bits * weights).sum(dim=-1)
     sizes = torch.tensor([0.02, 0.01, 0.005, 0.002, 0.001], dtype=torch.float64)
     orders = [0.0, 0.5, 1.0, 2.0, 4.0]
-    dimensions = [generalized_dimension(sizes, box_counting_entropy(trajectory, box_size=sizes, order=order)) for order in orders]
+    dimensions = [
+        generalized_dimension(sizes, box_counting_entropy(trajectory, box_size=sizes, order=order)) for order in orders
+    ]
     for earlier, later in zip(dimensions, dimensions[1:]):
         assert earlier >= later - 1e-6
 

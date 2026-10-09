@@ -159,8 +159,12 @@ def _sinkhorn_cost(cost: torch.Tensor, reg: torch.Tensor, num_iters: int) -> tor
     source_potential = torch.zeros(cost.shape[:-1], dtype=cost.dtype, device=cost.device)
     target_potential = torch.zeros(cost.shape[:-2] + cost.shape[-1:], dtype=cost.dtype, device=cost.device)
     for _ in range(num_iters):
-        source_potential = reg * (-log_num_source - torch.logsumexp((target_potential.unsqueeze(-2) - cost) / reg, dim=-1))
-        target_potential = reg * (-log_num_target - torch.logsumexp((source_potential.unsqueeze(-1) - cost) / reg, dim=-2))
+        source_potential = reg * (
+            -log_num_source - torch.logsumexp((target_potential.unsqueeze(-2) - cost) / reg, dim=-1)
+        )
+        target_potential = reg * (
+            -log_num_target - torch.logsumexp((source_potential.unsqueeze(-1) - cost) / reg, dim=-2)
+        )
     return source_potential.mean(dim=-1) + target_potential.mean(dim=-1) + reg * (log_num_source + log_num_target)
 
 
@@ -215,7 +219,9 @@ class LyapunovLoss(torch.nn.Module):
             ``[B, num_exponents]`` for a batched one (matching
             ``lyapunov_spectrum``'s own output shape).
         """
-        predicted = lyapunov_spectrum(step_fn, initial_state, self.num_steps, self.num_exponents, self.dt, self.transient_steps)
+        predicted = lyapunov_spectrum(
+            step_fn, initial_state, self.num_steps, self.num_exponents, self.dt, self.transient_steps
+        )
         return _reduce((predicted - self.target.to(predicted.dtype)) ** 2, self.reduction)
 
 
@@ -269,7 +275,9 @@ class CorrelationDimensionLoss(torch.nn.Module):
             one.
         """
         temperature = self.temperature.to(as_tensor(predicted_trajectory).dtype)
-        correlation_sum = soft_correlation_sum(predicted_trajectory, temperature, self.kind, self.theiler_window, self.norm_order)
+        correlation_sum = soft_correlation_sum(
+            predicted_trajectory, temperature, self.kind, self.theiler_window, self.norm_order
+        )
         dimension = correlation_dimension(temperature, correlation_sum)
         return _reduce((dimension - self.target.to(dimension.dtype)) ** 2, self.reduction)
 
@@ -393,7 +401,9 @@ class AttractorLoss(torch.nn.Module):
         predicted_distance = pairwise_distance(predicted_trajectory, norm_order=2.0)
         temperature = self.temperature.to(predicted_distance.dtype)
         pp = trajectory_kernel(predicted_distance, temperature, self.kind).mean(dim=(-2, -1))
-        qq = trajectory_kernel(pairwise_distance(target_trajectory, norm_order=2.0), temperature, self.kind).mean(dim=(-2, -1))
+        qq = trajectory_kernel(pairwise_distance(target_trajectory, norm_order=2.0), temperature, self.kind).mean(
+            dim=(-2, -1)
+        )
         pq = trajectory_kernel(
             pairwise_distance(predicted_trajectory, other=target_trajectory, norm_order=2.0), temperature, self.kind
         ).mean(dim=(-2, -1))

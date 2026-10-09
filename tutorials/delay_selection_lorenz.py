@@ -36,5 +36,7 @@ print("\nac_zero returning max_delay means no zero crossing was found in the sea
 
 embedding = delay_embedding(observable, 3, chosen["mi_min"])
 spread = embedding.std(dim=0)
-print(f"\nembedding with the mutual-information delay: shape {tuple(embedding.shape)}, per-axis std {[round(value, 2) for value in spread.tolist()]}")
+print(
+    f"\nembedding with the mutual-information delay: shape {tuple(embedding.shape)}, per-axis std {[round(value, 2) for value in spread.tolist()]}"
+)
 print(f"correlation between first two embedding axes: {torch.corrcoef(embedding[:, :2].T)[0, 1].item():.3f}")

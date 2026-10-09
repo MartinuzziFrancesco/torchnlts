@@ -81,7 +81,9 @@ def test_correlation_sum_matches_fractaldimensions_jl():
         )
         assert result.returncode == 0, result.stderr
         julia_cs = torch.tensor([float(v) for v in result.stdout.strip().split(",")], dtype=torch.float64)
-        torch_cs = correlation_sum(trajectory, radius=torch.tensor(radii, dtype=torch.float64), theiler_window=theiler_window)
+        torch_cs = correlation_sum(
+            trajectory, radius=torch.tensor(radii, dtype=torch.float64), theiler_window=theiler_window
+        )
         assert torch.allclose(torch_cs, julia_cs, atol=1e-9), (theiler_window, torch_cs, julia_cs)
 
 
@@ -130,9 +132,7 @@ def test_soft_correlation_sum_batched_and_swept_theiler_window_excludes_everythi
 
 def test_correlation_sum_batched_and_swept_theiler_window_excludes_everything_is_nan():
     trajectory = torch.randn(3, 2, 2, dtype=torch.float64)
-    result = correlation_sum(
-        trajectory, radius=torch.tensor([0.3, 0.5], dtype=torch.float64), theiler_window=1
-    )
+    result = correlation_sum(trajectory, radius=torch.tensor([0.3, 0.5], dtype=torch.float64), theiler_window=1)
     assert result.shape == (2, 3)
     assert torch.all(torch.isnan(result))
 

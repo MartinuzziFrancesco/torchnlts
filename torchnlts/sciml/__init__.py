@@ -1,10 +1,10 @@
 """Scientific machine learning utilities."""
 
 from torchnlts.sciml.losses import (
-    LyapunovLoss,
-    CorrelationDimensionLoss,
-    RecurrenceLoss,
     AttractorLoss,
+    CorrelationDimensionLoss,
+    LyapunovLoss,
+    RecurrenceLoss,
     SinkhornLoss,
 )
 

@@ -351,7 +351,12 @@ def test_kantz_divergence_disagrees_with_chaostools_jl():
     assert result.returncode == 0, result.stderr
     julia_divergence = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
     torch_divergence = kantz_divergence(
-        torch.tensor(trajectory, dtype=torch.float64), k_values=1, radius=1.5, embedding_dim=1, delay=1, theiler_window=0
+        torch.tensor(trajectory, dtype=torch.float64),
+        k_values=1,
+        radius=1.5,
+        embedding_dim=1,
+        delay=1,
+        theiler_window=0,
     )
     # Exact expected values (not just "these differ"): mean-of-logs
     # (Julia) is (log(1) + (log(1)+log(8))/2 + log(8) + log(1) + log(1))/5;
@@ -380,7 +385,9 @@ def test_kantz_zero_distance_row_keeps_shared_gradient():
     values = torch.tensor([[1.0, 2.0, 3.0, 4.0], [0.0, 0.0, 0.0, 0.0]], dtype=torch.float64)
     for norm_order in (1.0, 2.0, float("inf")):
         parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
-        result = kantz_divergence((values * parameter)[..., None], 0, radius=1.1, embedding_dim=1, norm_order=norm_order)
+        result = kantz_divergence(
+            (values * parameter)[..., None], 0, radius=1.1, embedding_dim=1, norm_order=norm_order
+        )
         assert result[1] == float("-inf")
         gradient = torch.autograd.grad(result[0], parameter)[0]
         parameter_alone = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
@@ -392,7 +399,13 @@ def test_kantz_invalid_arguments_raise_value_error():
     import pytest
 
     series = torch.arange(10.0)
-    for override in ({"k_values": torch.tensor(1 + 2j)}, {"radius": -1.0}, {"radius": float("nan")}, {"embedding_dim": 1.5}, {"delay": 1.5}):
+    for override in (
+        {"k_values": torch.tensor(1 + 2j)},
+        {"radius": -1.0},
+        {"radius": float("nan")},
+        {"embedding_dim": 1.5},
+        {"delay": 1.5},
+    ):
         arguments = dict(k_values=1, radius=2.0, embedding_dim=1)
         arguments.update(override)
         with pytest.raises(ValueError):

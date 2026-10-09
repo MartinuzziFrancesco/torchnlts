@@ -40,7 +40,9 @@ literature_alpha = {"white noise": 0.5, "1/f (pink) noise": 1.0, "Brownian motio
 
 # Log-spaced window sizes, same convention as antropy/nolds: from 10 to
 # 10% of the series length, kept well above order + 1 = 2.
-window_sizes = sorted(set(int(value) for value in torch.logspace(1, torch.log10(torch.tensor(num_points / 10.0)), 20).tolist()))
+window_sizes = sorted(
+    set(int(value) for value in torch.logspace(1, torch.log10(torch.tensor(num_points / 10.0)), 20).tolist())
+)
 window_size_tensor = torch.tensor(window_sizes, dtype=torch.float64)
 
 print(f"{'signal':>20}  {'alpha (DFA)':>12}  {'literature':>10}")

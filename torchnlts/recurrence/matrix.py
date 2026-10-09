@@ -18,7 +18,6 @@ from torchnlts._shape import _is_complex
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 
-
 _SCALES = ("max", "mean", "std")
 
 
@@ -111,12 +110,16 @@ def _threshold_matrix(
     if sum(option is not None for option in (epsilon, recurrence_rate, local_rate)) != 1:
         raise ValueError("give exactly one of epsilon, recurrence_rate, local_rate")
     if scale is not None and (epsilon is None or scale not in _SCALES):
-        raise ValueError(f"scale must be one of {_SCALES} and requires epsilon, got scale={scale!r}, epsilon={epsilon!r}")
+        raise ValueError(
+            f"scale must be one of {_SCALES} and requires epsilon, got scale={scale!r}, epsilon={epsilon!r}"
+        )
     if recurrence_rate is not None:
         flat = distance.flatten(-2)
         threshold = _nan_quantile(flat, _rate(recurrence_rate, "recurrence_rate"), dim=-1)[..., None, None]
     elif local_rate is not None:
-        threshold = _nan_quantile(distance, _rate(local_rate, "local_rate"), dim=-2, diagonal=self_distance)[..., None, :]
+        threshold = _nan_quantile(distance, _rate(local_rate, "local_rate"), dim=-2, diagonal=self_distance)[
+            ..., None, :
+        ]
     elif scale is not None:
         threshold = epsilon * _distance_scale(distance, scale, self_distance)
     else:

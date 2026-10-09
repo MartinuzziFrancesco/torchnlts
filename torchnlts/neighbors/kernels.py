@@ -18,7 +18,9 @@ from __future__ import annotations
 import torch
 
 
-def trajectory_kernel(distance: torch.Tensor, temperature: torch.Tensor | float, kind: str = "gaussian") -> torch.Tensor:
+def trajectory_kernel(
+    distance: torch.Tensor, temperature: torch.Tensor | float, kind: str = "gaussian"
+) -> torch.Tensor:
     """Kernel weights over a distance matrix.
 
     Args:

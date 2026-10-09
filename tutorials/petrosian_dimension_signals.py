@@ -45,11 +45,9 @@ for name, signal in signals.items():
 
 assert dimensions["periodic (sine)"] < 1.005, "smooth periodic signal should have very low D_P"
 assert dimensions["white noise"] > 1.03, "white noise should have noticeably higher D_P"
-assert (
-    dimensions["periodic (sine)"]
-    < dimensions["chaotic (Lorenz x)"]
-    < dimensions["white noise"]
-), "Petrosian should order the three signals: periodic < chaotic < noise"
+assert dimensions["periodic (sine)"] < dimensions["chaotic (Lorenz x)"] < dimensions["white noise"], (
+    "Petrosian should order the three signals: periodic < chaotic < noise"
+)
 
 print("\nAll checks passed: Petrosian orders the three signals as expected --")
 print("lowest for the smooth periodic sine wave, highest for white noise, and in between")

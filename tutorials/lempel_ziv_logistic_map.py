@@ -33,7 +33,9 @@ num_points, warmup = 2000, 200
 
 def logistic_trajectory(r: float) -> torch.Tensor:
     system = Logistic(parameters={"r": r})
-    trajectory = torch.as_tensor(system.make_trajectory(num_points + warmup, init_cond=np.array([0.4])), dtype=torch.float64)
+    trajectory = torch.as_tensor(
+        system.make_trajectory(num_points + warmup, init_cond=np.array([0.4])), dtype=torch.float64
+    )
     return trajectory[warmup:]
 
 
@@ -75,13 +77,17 @@ print(f"\nmax over regimes with a negative Lyapunov exponent: {max_periodic:.4f}
 print(f"r=4.0 (most positive Lyapunov exponent here):        {full_chaos:.4f}")
 print(f"random noise:                                        {random_complexity:.4f}")
 
-assert full_chaos > 5 * max_periodic, "the r with the most positive Lyapunov exponent should read far more complex than any negative-exponent regime"
-assert abs(full_chaos - random_complexity) < 0.2, "r=4.0 should read nearly as complex as pure randomness, for this trajectory length"
+assert full_chaos > 5 * max_periodic, (
+    "the r with the most positive Lyapunov exponent should read far more complex than any negative-exponent regime"
+)
+assert abs(full_chaos - random_complexity) < 0.2, (
+    "r=4.0 should read nearly as complex as pure randomness, for this trajectory length"
+)
 print("\nAll checks passed: every r with a negative Lyapunov exponent (including r=3.83's period-3 window,")
 print("embedded inside the nominally chaotic band) reads as far less complex than r=4.0, whose own")
 print("normalized complexity lands close to pure random noise's -- for the specific trajectory length,")
 print("radius, and r values used here, not a general claim about chaos-vs-noise indistinguishability.")
-print(f"\nNote r=3.60 above: its Lyapunov exponent is positive (genuinely chaotic), yet its normalized")
+print("\nNote r=3.60 above: its Lyapunov exponent is positive (genuinely chaotic), yet its normalized")
 print(f"complexity ({chaotic_complexities[3.6]:.4f}) still reads as minimal -- mean-threshold binarization")
 print("happens to collapse this particular trajectory into a period-2-looking symbol sequence, a real")
 print("information loss binarization can cause, not a Lempel-Ziv complexity failure. Left in deliberately,")

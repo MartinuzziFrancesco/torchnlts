@@ -56,7 +56,9 @@ from torchnlts._shape import _ensure_batched
 
 def _require_univariate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
-        raise ValueError(f"lempel_ziv_complexity only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"lempel_ziv_complexity only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
 
 
 def _lz76_count(sequence: list) -> int:

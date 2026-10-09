@@ -31,9 +31,7 @@ def test_fuzzy_entropy_hand_derived_embedding_dim_2():
     # Independently re-derived from the paper's own eq. 2-10 (not
     # copied from EntropyHub's source) in plain Python, then confirmed
     # to match EntropyHub.FuzzEn(..., r=(1.0, 2.0), Logx=math.e) exactly.
-    trajectory = torch.tensor(
-        [1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.5, 2.5, 3.5], dtype=torch.float64
-    )
+    trajectory = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.5, 2.5, 3.5], dtype=torch.float64)
     result = fuzzy_entropy(trajectory, radius=1.0, fuzzy_power=2.0, embedding_dim=2, delay=1)
     assert torch.isclose(result, torch.tensor(0.6567823559794231, dtype=torch.float64))
 
@@ -47,7 +45,9 @@ def test_fuzzy_entropy_matches_entropyhub():
     radius, fuzzy_power, embedding_dim = 0.7, 2.0, 2
 
     torch_entropy = fuzzy_entropy(trajectory, radius=radius, fuzzy_power=fuzzy_power, embedding_dim=embedding_dim)
-    fuzz, _, _ = FuzzEn(trajectory.numpy().astype(np.float64), m=embedding_dim, tau=1, r=(radius, fuzzy_power), Logx=math.e)
+    fuzz, _, _ = FuzzEn(
+        trajectory.numpy().astype(np.float64), m=embedding_dim, tau=1, r=(radius, fuzzy_power), Logx=math.e
+    )
     entropyhub_entropy = torch.tensor(fuzz[embedding_dim - 1], dtype=torch.float64)
     assert torch.isclose(torch_entropy, entropyhub_entropy, rtol=0, atol=1e-9)
 
@@ -144,7 +144,8 @@ def test_fuzzy_entropy_embedding_dim_2_chebyshev_gradient_mismatches_central_dif
         bumped_down = trajectory.detach().clone()
         bumped_down[i] -= eps
         central_difference[i] = (
-            fuzzy_entropy(bumped_up, radius=1.0, embedding_dim=2) - fuzzy_entropy(bumped_down, radius=1.0, embedding_dim=2)
+            fuzzy_entropy(bumped_up, radius=1.0, embedding_dim=2)
+            - fuzzy_entropy(bumped_down, radius=1.0, embedding_dim=2)
         ) / (2 * eps)
     assert not torch.allclose(trajectory.grad, central_difference, atol=1e-3)
 
@@ -173,7 +174,8 @@ def test_fuzzy_entropy_fractional_power_gradient_is_not_poisoned():
     assert (trajectory.grad != 0).any()
 
     assert torch.autograd.gradcheck(
-        lambda x: fuzzy_entropy(x, radius=1.0, fuzzy_power=0.5, embedding_dim=3), (trajectory.detach().requires_grad_(),)
+        lambda x: fuzzy_entropy(x, radius=1.0, fuzzy_power=0.5, embedding_dim=3),
+        (trajectory.detach().requires_grad_(),),
     )
 
 
@@ -196,7 +198,8 @@ def test_fuzzy_entropy_embedding_dim_1_long_branch_also_ties():
         bumped_down = trajectory.detach().clone()
         bumped_down[i] -= eps
         central_difference[i] = (
-            fuzzy_entropy(bumped_up, radius=1.0, embedding_dim=1) - fuzzy_entropy(bumped_down, radius=1.0, embedding_dim=1)
+            fuzzy_entropy(bumped_up, radius=1.0, embedding_dim=1)
+            - fuzzy_entropy(bumped_down, radius=1.0, embedding_dim=1)
         ) / (2 * eps)
     assert not torch.allclose(trajectory.grad, central_difference, atol=1e-3)
 

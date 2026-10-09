@@ -8,7 +8,14 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _is_complex, _power_of_two_scale, _restore_batch, _validate_matching_batch, _work_dtype
+from torchnlts._shape import (
+    _ensure_batched,
+    _is_complex,
+    _power_of_two_scale,
+    _restore_batch,
+    _validate_matching_batch,
+    _work_dtype,
+)
 
 
 def pairwise_distance(
@@ -79,7 +86,9 @@ def pairwise_distance(
         distance = torch.cdist(batched, other_batched, p=norm_order)
     else:
         scale = _power_of_two_scale(batched, other_batched)
-        scaled_distance = torch.cdist(batched / scale / 4, other_batched / scale / 4, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist")
+        scaled_distance = torch.cdist(
+            batched / scale / 4, other_batched / scale / 4, p=norm_order, compute_mode="donot_use_mm_for_euclid_dist"
+        )
         distance = scaled_distance * 4 * scale
     distance = distance.masked_fill(nonfinite.unsqueeze(-1) | other_nonfinite.unsqueeze(-2), float("nan"))
     return _restore_batch(distance, ndim)

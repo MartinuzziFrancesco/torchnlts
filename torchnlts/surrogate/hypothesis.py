@@ -107,7 +107,9 @@ def surrogate_test(
     def evaluate(data: torch.Tensor) -> torch.Tensor:
         values = torch.as_tensor(statistic(data))
         if values.numel() != data.shape[0]:
-            raise ValueError(f"statistic must return one value per row ({data.shape[0]}), got shape {tuple(values.shape)}")
+            raise ValueError(
+                f"statistic must return one value per row ({data.shape[0]}), got shape {tuple(values.shape)}"
+            )
         # clone: a view (e.g. data[:, 0, 0]) would keep the whole surrogate chunk alive.
         return values.detach().reshape(-1).clone()
 
@@ -133,7 +135,9 @@ def surrogate_test(
         # The ratio in float64: integer counts can exceed the half-precision range.
         p_value = (extreme.double() / (num_surrogates + 1)).clamp(max=1.0).to(p_dtype)
         valid = (
-            torch.isfinite(batched).flatten(1).all(dim=-1) & torch.isfinite(data_statistic) & torch.isfinite(surrogate_statistics).all(dim=-1)
+            torch.isfinite(batched).flatten(1).all(dim=-1)
+            & torch.isfinite(data_statistic)
+            & torch.isfinite(surrogate_statistics).all(dim=-1)
         )
         p_value = torch.where(valid, p_value, torch.full_like(p_value, float("nan")))
 

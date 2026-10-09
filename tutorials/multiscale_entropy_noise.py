@@ -54,7 +54,9 @@ print(f"{'scale':>5}  {'white SampEn':>13}  {'1/f SampEn':>11}")
 for scale, white_entropy, pink_entropy in zip(scales, white_curve.tolist(), pink_curve.tolist()):
     print(f"{scale:>5}  {white_entropy:>13.4f}  {pink_entropy:>11.4f}")
 
-print(f"\nscale=1:  white={white_curve[0]:.4f} > 1/f={pink_curve[0]:.4f}  (single-scale entropy ranks white noise 'more complex')")
+print(
+    f"\nscale=1:  white={white_curve[0]:.4f} > 1/f={pink_curve[0]:.4f}  (single-scale entropy ranks white noise 'more complex')"
+)
 print(f"scale={scales[-1]}: white={white_curve[-1]:.4f} < 1/f={pink_curve[-1]:.4f}  (the ranking has reversed)")
 
 assert white_curve[0] > pink_curve[0], "at scale 1, white noise should read as more entropic than 1/f noise"

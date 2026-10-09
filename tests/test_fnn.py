@@ -58,7 +58,9 @@ def test_hard_fnn_matches_brute_force_reference():
     torch.manual_seed(0)
     trajectory = torch.randn(60, dtype=torch.float64)
     for embedding_dim in (1, 2, 3):
-        expected = _brute_force_fnn(trajectory, embedding_dim, delay=1, theiler_window=1, distance_tol=10.0, attractor_tol=2.0)
+        expected = _brute_force_fnn(
+            trajectory, embedding_dim, delay=1, theiler_window=1, distance_tol=10.0, attractor_tol=2.0
+        )
         actual = hard_fnn(trajectory, embedding_dim, delay=1, theiler_window=1)
         assert math.isclose(actual.item(), expected), (embedding_dim, actual.item(), expected)
 

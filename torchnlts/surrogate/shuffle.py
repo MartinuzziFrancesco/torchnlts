@@ -88,6 +88,8 @@ def random_shift_surrogate(trajectory, generator: torch.Generator | None = None)
     """
     batched, ndim = _ensure_batched(trajectory)
     num_points = batched.shape[_TIME_DIM]
-    shift = torch.randint(0, num_points, (batched.shape[0], 1, batched.shape[-1]), generator=generator, device=batched.device)
+    shift = torch.randint(
+        0, num_points, (batched.shape[0], 1, batched.shape[-1]), generator=generator, device=batched.device
+    )
     index = (torch.arange(num_points, device=batched.device).view(1, -1, 1) - shift) % num_points
     return _restore_shape_preserving(torch.gather(batched, _TIME_DIM, index), ndim)

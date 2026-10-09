@@ -39,7 +39,9 @@ def _require_self_exclusion(theiler_window: int, context: str) -> None:
     statistic's defining ratio/neighbor-count breaks down.
     """
     if theiler_window < 0:
-        raise ValueError(f"theiler_window must be >= 0 for {context} (self-matches must be excluded), got {theiler_window}")
+        raise ValueError(
+            f"theiler_window must be >= 0 for {context} (self-matches must be excluded), got {theiler_window}"
+        )
 
 
 def apply_theiler_window(distance: torch.Tensor, window: int, fill_value: float = float("inf")) -> torch.Tensor:

@@ -60,7 +60,9 @@ from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, 
 
 def _validate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
-        raise ValueError(f"the 0-1 test only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"the 0-1 test only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
     if tensor.is_complex():
         raise ValueError("the 0-1 test does not support complex input")
 
@@ -102,7 +104,9 @@ def _growth_rate(tensor: torch.Tensor, frequencies, max_lag) -> tuple[torch.Tens
 
     if lag is None:
         # Zero-weighted sums keep the result connected to both inputs.
-        result = torch.full((frequency.numel(), values.shape[0]), float("nan"), dtype=torch.float64, device=values.device)
+        result = torch.full(
+            (frequency.numel(), values.shape[0]), float("nan"), dtype=torch.float64, device=values.device
+        )
         result = result + values.sum(dim=-1) * 0 + frequency.sum() * 0
     else:
         # phi = mean + psi. A window sum of phi e^{ijc} is A + B with
@@ -151,7 +155,9 @@ def _growth_rate(tensor: torch.Tensor, frequencies, max_lag) -> tuple[torch.Tens
         safe = torch.where(degenerate[..., None], lags_centered.expand_as(centered), centered)
         scale = safe.detach().abs().amax(dim=-1, keepdim=True)
         safe = safe / scale
-        correlation = (safe * lags_centered).sum(dim=-1) / (safe.square().sum(dim=-1) * lags_centered.square().sum()).sqrt()
+        correlation = (safe * lags_centered).sum(dim=-1) / (
+            safe.square().sum(dim=-1) * lags_centered.square().sum()
+        ).sqrt()
         result = torch.where(degenerate, torch.full_like(correlation, float("nan")), correlation)
 
     return result.to(dtype), swept

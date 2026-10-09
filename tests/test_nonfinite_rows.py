@@ -116,7 +116,9 @@ def test_rosenstein_nonfinite_sample_outside_embedding():
     batch[1, 25] = float("nan")
     result = rosenstein_divergence(batch, [0, 1], embedding_dim=2, delay=30, theiler_window=1)
     assert torch.isnan(result[:, 1]).all()
-    assert torch.equal(result[:, 0], rosenstein_divergence(batch[0], [0, 1], embedding_dim=2, delay=30, theiler_window=1))
+    assert torch.equal(
+        result[:, 0], rosenstein_divergence(batch[0], [0, 1], embedding_dim=2, delay=30, theiler_window=1)
+    )
 
 
 def test_mask_nonfinite_rows_empty_batch():

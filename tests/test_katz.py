@@ -156,7 +156,9 @@ def test_katz_dimension_interior_farthest_point():
     step = math.sqrt(1 + 100**2)
     for amplitude_only, length, extent in ((False, 2 * step + 1, step), (True, 200.0, 100.0)):
         expected = math.log10(3) / (math.log10(3) + math.log10(extent / length))
-        assert torch.isclose(katz_dimension(trajectory, amplitude_only=amplitude_only), torch.tensor(expected, dtype=torch.float64))
+        assert torch.isclose(
+            katz_dimension(trajectory, amplitude_only=amplitude_only), torch.tensor(expected, dtype=torch.float64)
+        )
 
 
 def test_katz_dimension_zero_denominator_is_nan():
@@ -185,7 +187,11 @@ def test_katz_dimension_invalid_input_raises():
 
 def test_katz_dimension_integer_and_half_input():
     unsigned = torch.tensor([1, 2, 1, 3], dtype=torch.uint8)  # 1 - 2 would wrap in uint8
-    assert torch.isclose(katz_dimension(unsigned, amplitude_only=True).double(), katz_dimension(unsigned.double(), amplitude_only=True), atol=1e-6)
+    assert torch.isclose(
+        katz_dimension(unsigned, amplitude_only=True).double(),
+        katz_dimension(unsigned.double(), amplitude_only=True),
+        atol=1e-6,
+    )
     # index 256 squared overflows float16; a constant series is a straight line.
     half = katz_dimension(torch.zeros(257, dtype=torch.float16))
     assert half.dtype == torch.float16 and half.item() == 1.0
@@ -221,11 +227,18 @@ def test_katz_dimension_pole_within_rounding_is_nan():
     below = torch.nextafter(one, torch.zeros_like(one))
     assert torch.isnan(katz_dimension(torch.stack([one * 0, one, one * 0, below]), amplitude_only=True))
     single = torch.stack([one * 0, one, one * 0, torch.nextafter(one.float(), torch.zeros(())).double()]).float()
-    assert torch.isclose(katz_dimension(single, amplitude_only=True).double(), katz_dimension(single.double(), amplitude_only=True), rtol=1e-6)
+    assert torch.isclose(
+        katz_dimension(single, amplitude_only=True).double(),
+        katz_dimension(single.double(), amplitude_only=True),
+        rtol=1e-6,
+    )
     # A genuinely large but determined value is kept: [0, 1, 0, 0.9]
     # (amplitude only): L = 2.9, d = 1, n = 3.
     expected = math.log10(3) / (math.log10(3) + math.log10(1 / 2.9))
-    assert torch.isclose(katz_dimension(torch.tensor([0.0, 1.0, 0.0, 0.9], dtype=torch.float64), amplitude_only=True), torch.tensor(expected, dtype=torch.float64))
+    assert torch.isclose(
+        katz_dimension(torch.tensor([0.0, 1.0, 0.0, 0.9], dtype=torch.float64), amplitude_only=True),
+        torch.tensor(expected, dtype=torch.float64),
+    )
 
 
 def test_katz_dimension_extreme_amplitude():
@@ -276,7 +289,6 @@ def test_katz_dimension_resolved_value_near_pole_is_kept():
     single = katz_dimension(trajectory, amplitude_only=True)
     double = katz_dimension(trajectory.double(), amplitude_only=True)
     assert torch.isfinite(single) and abs(single.item() / double.item() - 1) < 1e-3
-
 
 
 def test_katz_dimension_exact_pole_needs_rounding_tolerance():

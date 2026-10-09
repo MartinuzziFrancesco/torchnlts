@@ -21,7 +21,14 @@ from torchnlts.dimension.correlation import correlation_dimension, soft_correlat
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
 from torchnlts.recurrence.matrix import soft_recurrence_matrix
 from torchnlts.recurrence.rqa import recurrence_rate
-from torchnlts.sciml.losses import AttractorLoss, CorrelationDimensionLoss, LyapunovLoss, RecurrenceLoss, SinkhornLoss, _sinkhorn_cost
+from torchnlts.sciml.losses import (
+    AttractorLoss,
+    CorrelationDimensionLoss,
+    LyapunovLoss,
+    RecurrenceLoss,
+    SinkhornLoss,
+    _sinkhorn_cost,
+)
 
 
 def _henon_step(x, a=1.4, b=0.3):
@@ -323,7 +330,9 @@ def test_sinkhorn_cost_matches_brute_force_regularized_objective():
     ).unsqueeze(0)
     brute_force = (plan * cost).sum() + reg * (plan * torch.log(plan / reference)).sum()
 
-    assert torch.isclose(_sinkhorn_cost(cost, torch.tensor(reg, dtype=torch.float64), num_iters), brute_force, atol=1e-6)
+    assert torch.isclose(
+        _sinkhorn_cost(cost, torch.tensor(reg, dtype=torch.float64), num_iters), brute_force, atol=1e-6
+    )
 
 
 def test_sinkhorn_loss_rejects_non_positive_reg():

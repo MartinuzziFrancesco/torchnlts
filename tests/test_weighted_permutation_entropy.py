@@ -51,9 +51,7 @@ def test_amplitude_weighting_hand_derived():
     # A = 0.5, m = 3: w = 0.5/3 * sum|x| + 0.5/2 * sum|diff|
     # e.g. (4,7,9): 0.5/3*20 + 0.25*5 = 10/3 + 1.25
     windows = [(4, 7, 9), (7, 9, 10), (9, 10, 6), (10, 6, 11), (6, 11, 3)]
-    weights = [
-        0.5 / 3 * sum(abs(v) for v in w) + 0.5 / 2 * (abs(w[1] - w[0]) + abs(w[2] - w[1])) for w in windows
-    ]
+    weights = [0.5 / 3 * sum(abs(v) for v in w) + 0.5 / 2 * (abs(w[1] - w[0]) + abs(w[2] - w[1])) for w in windows]
     assert math.isclose(weights[0], 20 / 6 + 5 / 4, rel_tol=1e-12)
     total = sum(weights)
     expected = torch.zeros(6, dtype=torch.float64)
@@ -186,7 +184,11 @@ def test_variance_exact_shift_invariance_and_nonbinary_constant():
     trajectory = torch.randn(200, dtype=torch.float64)
     shifted = trajectory + 2.0**24
     assert torch.equal(torch.argsort(trajectory), torch.argsort(shifted))
-    assert torch.isclose(permutation_entropy(trajectory, weighting="variance"), permutation_entropy(shifted, weighting="variance"), rtol=1e-6)
+    assert torch.isclose(
+        permutation_entropy(trajectory, weighting="variance"),
+        permutation_entropy(shifted, weighting="variance"),
+        rtol=1e-6,
+    )
     assert torch.isnan(permutation_entropy(torch.full((20,), 0.1, dtype=torch.float64), weighting="variance"))
 
 
@@ -212,7 +214,9 @@ def _run_julia(trajectory, constructor, embedding_dim, delay, extra=""):
     est = {constructor}{{{embedding_dim}}}({delay}{extra})
     println(entropy(Shannon(base=MathConstants.e), est, x))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr
     return torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
 
@@ -235,7 +239,9 @@ def test_amplitude_matches_complexitymeasures_jl(amplitude_weight, embedding_dim
     torch.manual_seed(6)
     trajectory = torch.randn(60, dtype=torch.float64)
     julia = _run_julia(trajectory, "AmplitudeAwareOrdinalPatterns", embedding_dim, delay, f", {amplitude_weight}")
-    ours = permutation_entropy(trajectory, embedding_dim, delay, weighting="amplitude", amplitude_weight=amplitude_weight)
+    ours = permutation_entropy(
+        trajectory, embedding_dim, delay, weighting="amplitude", amplitude_weight=amplitude_weight
+    )
     assert torch.isclose(ours, julia, rtol=1e-9, atol=1e-9)
 
 

@@ -7,10 +7,10 @@ from torchnlts.entropy.generalized import renyi_entropy, tsallis_entropy
 from torchnlts.entropy.lempel_ziv import lempel_ziv_complexity
 from torchnlts.entropy.multiscale import (
     coarse_grain,
-    multiscale_entropy,
-    soft_multiscale_entropy,
     composite_multiscale_entropy,
+    multiscale_entropy,
     soft_composite_multiscale_entropy,
+    soft_multiscale_entropy,
 )
 from torchnlts.entropy.mutual_information import mutual_information
 from torchnlts.entropy.permutation import (

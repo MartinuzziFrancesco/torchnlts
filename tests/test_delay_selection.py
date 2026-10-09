@@ -18,7 +18,9 @@ JULIA_PROJECT = "juliaenv"
 
 
 def _julia(code):
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()
 
@@ -114,7 +116,9 @@ def test_ami_julia_deviation_is_locked_in_off_periodic_windows():
     # Delayed marginal counted from the delayed samples (see module docstring):
     # delay 0 is exact, other delays differ by a small amount.
     trajectory = _mixed()
-    expected = torch.tensor(_parse(_julia_vector(trajectory, "println(selfmutualinfo(x, 0:15; nbins=8))")), dtype=torch.float64) * math.log(2)
+    expected = torch.tensor(
+        _parse(_julia_vector(trajectory, "println(selfmutualinfo(x, 0:15; nbins=8))")), dtype=torch.float64
+    ) * math.log(2)
     actual = auto_mutual_information(trajectory, 15, num_bins=8)
     assert abs(actual[0] - expected[0]) < 1e-12
     difference = (actual - expected).abs().max().item()
@@ -123,7 +127,9 @@ def test_ami_julia_deviation_is_locked_in_off_periodic_windows():
 
 def test_estimate_delay_matches_julia_for_each_method():
     trajectory = _mixed()
-    julia = _julia_vector(trajectory, 'println([estimate_delay(x, m, 1:30; nbins=8) for m in ["mi_min", "ac_zero", "ac_min"]])')
+    julia = _julia_vector(
+        trajectory, 'println([estimate_delay(x, m, 1:30; nbins=8) for m in ["mi_min", "ac_zero", "ac_min"]])'
+    )
     expected = [int(value) for value in _parse(julia)]
     actual = [estimate_delay(trajectory, 30, method, num_bins=8).item() for method in ("mi_min", "ac_zero", "ac_min")]
     assert actual == expected
@@ -132,7 +138,9 @@ def test_estimate_delay_matches_julia_for_each_method():
 def test_autocorrelation_matches_julia():
     trajectory = _mixed()
     expected = _parse(_julia_vector(trajectory, "using StatsBase\nprintln(autocor(x, 0:20; demean=true))"))
-    assert torch.allclose(autocorrelation(trajectory, 20), torch.tensor(expected, dtype=torch.float64), atol=1e-12, rtol=0)
+    assert torch.allclose(
+        autocorrelation(trajectory, 20), torch.tensor(expected, dtype=torch.float64), atol=1e-12, rtol=0
+    )
 
 
 def test_shapes_agree_and_batch_matches_loop():
@@ -159,7 +167,9 @@ def test_nonfinite_row_is_nan_and_does_not_poison_others():
 
 def test_constant_row_autocorrelation_is_nan():
     assert torch.isnan(autocorrelation(torch.ones(20), 3)).all()
-    assert all(estimate_delay(torch.ones(20), 5, method).item() == -1 for method in ("mi_min", "ac_zero", "ac_min", "ac_1/e"))
+    assert all(
+        estimate_delay(torch.ones(20), 5, method).item() == -1 for method in ("mi_min", "ac_zero", "ac_min", "ac_1/e")
+    )
 
 
 @pytest.mark.parametrize(
@@ -200,7 +210,6 @@ def test_ami_range_uses_only_the_pair_window():
     assert abs(auto_mutual_information(trajectory, 2, num_bins=2)[0].item() - _binary_entropy(4 / 7)) < 1e-12
 
 
-
 @pytest.mark.parametrize("scale", [1e20, 1e-25])
 def test_autocorrelation_is_scale_invariant_in_float32(scale):
     trajectory = torch.tensor([1.0, 2.0, 4.0, 3.0], dtype=torch.float32) * scale
@@ -233,10 +242,24 @@ def test_autocorrelation_gradient_isolated_from_nonfinite_row():
 @pytest.mark.parametrize("method", ["ac_min", "ac_zero", "ac_1/e", "mi_min"])
 def test_estimate_delay_half_precision_matches_float32(method):
     # Regression: intermediate curves were rounded to half precision.
-    values = [0.0992431640625, 0.70166015625, 0.357421875, 1.6484375, 0.708984375, 1.701171875, 0.5830078125,
-              -0.1846923828125, -1.6748046875, -0.7333984375, 0.289794921875, -0.0281219482421875]
+    values = [
+        0.0992431640625,
+        0.70166015625,
+        0.357421875,
+        1.6484375,
+        0.708984375,
+        1.701171875,
+        0.5830078125,
+        -0.1846923828125,
+        -1.6748046875,
+        -0.7333984375,
+        0.289794921875,
+        -0.0281219482421875,
+    ]
     half = torch.tensor(values, dtype=torch.float16)
-    assert estimate_delay(half, 6, method, num_bins=4).item() == estimate_delay(half.float(), 6, method, num_bins=4).item()
+    assert (
+        estimate_delay(half, 6, method, num_bins=4).item() == estimate_delay(half.float(), 6, method, num_bins=4).item()
+    )
     assert estimate_delay(half, 6, "ac_min").item() == 6
 
 

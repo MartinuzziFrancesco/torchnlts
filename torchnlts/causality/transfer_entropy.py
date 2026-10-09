@@ -136,7 +136,9 @@ def conditional_mutual_information(
 
     length = min(x_batched.shape[-2], y_batched.shape[-2], z_batched.shape[-2])
     x_batched, y_batched, z_batched = x_batched[..., :length, :], y_batched[..., :length, :], z_batched[..., :length, :]
-    invalid_point = torch.isnan(x_batched).any(dim=-1) | torch.isnan(y_batched).any(dim=-1) | torch.isnan(z_batched).any(dim=-1)
+    invalid_point = (
+        torch.isnan(x_batched).any(dim=-1) | torch.isnan(y_batched).any(dim=-1) | torch.isnan(z_batched).any(dim=-1)
+    )
 
     dist_x = pairwise_distance(x_batched, norm_order=norm_order)
     dist_y = pairwise_distance(y_batched, norm_order=norm_order)
@@ -238,5 +240,7 @@ def transfer_entropy(
     # from this function's own _ensure_batched calls above), so its own
     # internal restoration always treats them as genuinely batched.
     # Restore again here, against this function's own source/target ndim.
-    cmi = conditional_mutual_information(target_future, source_past, target_past, num_neighbors, theiler_window, norm_order)
+    cmi = conditional_mutual_information(
+        target_future, source_past, target_past, num_neighbors, theiler_window, norm_order
+    )
     return _restore_batch(cmi, max(source_ndim, target_ndim))

@@ -59,7 +59,9 @@ for num_points in (256, 1024):
         print(f"{true_dimension:>8.2f}  {katz_estimate:>8.4f}  {higuchi_estimate:>8.3f}")
         assert abs(higuchi_estimate - true_dimension) < 0.1, "Higuchi should track the true dimension"
         assert katz_estimate < true_dimension, "Katz should be biased low"
-    assert all(later > earlier for earlier, later in zip(katz_estimates, katz_estimates[1:])), "Katz should increase with the true dimension"
+    assert all(later > earlier for earlier, later in zip(katz_estimates, katz_estimates[1:])), (
+        "Katz should increase with the true dimension"
+    )
     katz_range[num_points] = katz_estimates[-1] - katz_estimates[0]
 
 assert katz_range[256] > katz_range[1024], "Katz's range should be wider for the shorter window"

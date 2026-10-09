@@ -138,7 +138,9 @@ def test_lz76_count_matches_complexitymeasures_jl():
         x = [{values}]
         println(complexity(LempelZiv76(), x))
         """
-        result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+        result = subprocess.run(
+            ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+        )
         assert result.returncode == 0, result.stderr
         julia_count = int(result.stdout.strip())
         assert _lz76_count(sequence) == julia_count
@@ -160,7 +162,9 @@ def test_lempel_ziv_complexity_full_pipeline_matches_complexitymeasures_jl():
     binary = Int.(x .>= sum(x)/length(x))
     println(complexity(LempelZiv76(), binary))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_count = int(result.stdout.strip())
     assert lempel_ziv_complexity(trajectory).item() == julia_count

@@ -148,10 +148,14 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_hand_example():
     est = Dispersion(c=3, m=2, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
-    torch_entropy = dispersion_entropy(torch.tensor(trajectory, dtype=torch.float64), num_classes=3, embedding_dim=2, delay=1)
+    torch_entropy = dispersion_entropy(
+        torch.tensor(trajectory, dtype=torch.float64), num_classes=3, embedding_dim=2, delay=1
+    )
     assert torch.isclose(torch_entropy, julia_entropy, atol=1e-12, rtol=0)
 
 
@@ -172,10 +176,14 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_at_exact_rounding_tie(
     est = Dispersion(c=4, m=2, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
-    torch_entropy = dispersion_entropy(torch.tensor(trajectory, dtype=torch.float64), num_classes=4, embedding_dim=2, delay=1)
+    torch_entropy = dispersion_entropy(
+        torch.tensor(trajectory, dtype=torch.float64), num_classes=4, embedding_dim=2, delay=1
+    )
     assert torch.isclose(torch_entropy, julia_entropy, atol=1e-12, rtol=0)
 
 
@@ -189,7 +197,9 @@ def test_dispersion_entropy_disagrees_with_complexitymeasures_jl_on_constant_inp
     est = Dispersion(c=4, m=2, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_entropy = float(result.stdout.strip())
     assert julia_entropy == 0.0  # Julia's -0.0, not NaN and not an error
@@ -209,7 +219,9 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_random():
     est = Dispersion(c=6, m=3, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
     torch_entropy = dispersion_entropy(trajectory, num_classes=6, embedding_dim=3, delay=1)

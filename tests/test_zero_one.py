@@ -50,13 +50,16 @@ def _oracle(series: list[float], frequency: float, max_lag: int) -> float:
         modified = []
         for lag in range(1, max_lag + 1):
             msd = sum(
-                (trans_cos[j + lag] - trans_cos[j]) ** 2 + (trans_sin[j + lag] - trans_sin[j]) ** 2 for j in range(1, count - lag + 1)
+                (trans_cos[j + lag] - trans_cos[j]) ** 2 + (trans_sin[j + lag] - trans_sin[j]) ** 2
+                for j in range(1, count - lag + 1)
             ) / (count - lag)
             modified.append(msd - mean**2 * (1 - mpmath.cos(lag * freq)) / (1 - mpmath.cos(freq)))
         lags = [mpmath.mpf(lag) for lag in range(1, max_lag + 1)]
         lag_mean, modified_mean = sum(lags) / max_lag, sum(modified) / max_lag
         covariance = sum((lag - lag_mean) * (item - modified_mean) for lag, item in zip(lags, modified))
-        spread = mpmath.sqrt(sum((lag - lag_mean) ** 2 for lag in lags) * sum((item - modified_mean) ** 2 for item in modified))
+        spread = mpmath.sqrt(
+            sum((lag - lag_mean) ** 2 for lag in lags) * sum((item - modified_mean) ** 2 for item in modified)
+        )
         return float(covariance / spread)
 
 
@@ -69,7 +72,9 @@ def _julia_growth_rates(series: torch.Tensor, frequencies: torch.Tensor, max_lag
         println(ChaosTools.testchaos01(series, frequency, {max_lag}))
     end
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=300)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=300
+    )
     assert result.returncode == 0, result.stderr
     return torch.tensor([float(line) for line in result.stdout.split()], dtype=torch.float64)
 
@@ -80,7 +85,9 @@ def test_hand_derived_three_samples():
     # M(1) = ((4 + 4) + (0 + 9)) / 2 = 8.5, M(2) = 4 + 9 = 13; mean = 2 and
     # V_osc(n) = 4 (1 - cos(n pi/2)) = 4, 8, so D = [4.5, 5]: two points, K_c = +1.
     trajectory = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64)
-    assert torch.isclose(zero_one_growth_rate(trajectory, math.pi / 2, max_lag=2), torch.tensor(1.0, dtype=torch.float64))
+    assert torch.isclose(
+        zero_one_growth_rate(trajectory, math.pi / 2, max_lag=2), torch.tensor(1.0, dtype=torch.float64)
+    )
 
 
 def test_matches_high_precision_paper_definitions():
@@ -88,7 +95,6 @@ def test_matches_high_precision_paper_definitions():
     result = zero_one_growth_rate(series, FREQUENCIES, max_lag=6)
     expected = [_oracle(series.tolist(), frequency.item(), 6) for frequency in FREQUENCIES]
     assert torch.allclose(result, torch.tensor(expected, dtype=torch.float64), atol=1e-10)
-
 
 
 def test_matches_chaostools_logistic_map():
@@ -147,8 +153,12 @@ def test_batched_matches_individual_rows():
 
 def test_max_lag_changes_result_and_default_is_tenth():
     series = _logistic(3.9, 400)
-    assert torch.allclose(zero_one_growth_rate(series, FREQUENCIES), zero_one_growth_rate(series, FREQUENCIES, max_lag=40))
-    assert not torch.allclose(zero_one_growth_rate(series, FREQUENCIES, max_lag=20), zero_one_growth_rate(series, FREQUENCIES, max_lag=40))
+    assert torch.allclose(
+        zero_one_growth_rate(series, FREQUENCIES), zero_one_growth_rate(series, FREQUENCIES, max_lag=40)
+    )
+    assert not torch.allclose(
+        zero_one_growth_rate(series, FREQUENCIES, max_lag=20), zero_one_growth_rate(series, FREQUENCIES, max_lag=40)
+    )
 
 
 def test_dtypes():
@@ -252,7 +262,9 @@ def test_small_frequency_matches_oracle_and_is_stable():
     series = [0.1 + 0.9 * math.sin(index * index) for index in range(200)]
     tensor = torch.tensor(series, dtype=torch.float64)
     for frequency in (1e-8, 0.01):
-        assert zero_one_growth_rate(tensor, frequency, max_lag=20).item() == pytest.approx(_oracle(series, frequency, 20), abs=1e-10)
+        assert zero_one_growth_rate(tensor, frequency, max_lag=20).item() == pytest.approx(
+            _oracle(series, frequency, 20), abs=1e-10
+        )
     rates = zero_one_growth_rate(tensor, torch.tensor([1e-8, 0.5], dtype=torch.float64))
     assert torch.isfinite(rates).all()
 
@@ -324,7 +336,9 @@ def test_inf_rows_with_shared_parameter_and_differentiable_frequencies():
     # Non-finite entries are written in place, so they carry no gradient of their own.
     scaled = (torch.where(nonfinite, 1.0, base) * scale).masked_scatter(nonfinite, base[nonfinite])
     result = zero_one_growth_rate(scaled, frequencies)
-    assert torch.isnan(result[:, 1]).all() and torch.isnan(result[:, 2]).all() and torch.isfinite(result[:, [0, 3]]).all()
+    assert (
+        torch.isnan(result[:, 1]).all() and torch.isnan(result[:, 2]).all() and torch.isfinite(result[:, [0, 3]]).all()
+    )
     result.nansum().backward()
     assert torch.isfinite(scale.grad) and torch.isfinite(frequencies.grad).all()
     # The finite rows alone give the same gradients (non-finite rows contribute nothing).

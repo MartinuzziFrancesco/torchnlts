@@ -348,7 +348,9 @@ def test_renyi_entropy_matches_complexitymeasures_jl():
         println(information(Renyi(q=q, base=ℯ), p))
     end
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_values = [float(v) for v in result.stdout.strip().splitlines()]
     torch_probability = torch.tensor(probability, dtype=torch.float64)
@@ -367,7 +369,9 @@ def test_tsallis_entropy_matches_complexitymeasures_jl_including_negative_q():
         println(information(Tsallis(q=q, k=1.0, base=ℯ), p))
     end
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_values = [float(v) for v in result.stdout.strip().splitlines()]
     torch_probability = torch.tensor(probability, dtype=torch.float64)
@@ -389,7 +393,9 @@ def test_tsallis_entropy_disagrees_with_complexitymeasures_jl_at_q_1_k_not_1():
     println(information(Tsallis(q=1.0, k=2.0, base=ℯ), p))
     println(information(Tsallis(q=1.0000001, k=2.0, base=ℯ), p))
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stderr
     julia_at_exactly_1, julia_near_1 = (float(v) for v in result.stdout.strip().splitlines())
 

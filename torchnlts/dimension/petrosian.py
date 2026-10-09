@@ -20,8 +20,7 @@ from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows, _output_dtyp
 def _require_univariate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
         raise ValueError(
-            f"petrosian_dimension only supports a univariate (D=1) trajectory, "
-            f"got feature dim {tensor.shape[-1]}"
+            f"petrosian_dimension only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
         )
 
 

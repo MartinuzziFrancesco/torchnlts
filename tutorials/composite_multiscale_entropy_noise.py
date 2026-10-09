@@ -48,7 +48,14 @@ for name, generate in (("white", white_noise), ("1/f", pink_noise)):
         "CMSE": torch.stack([composite_multiscale_entropy(row, scales, radius) for row in series]),
     }
 
-print(f"{'scale':>5}  " + "  ".join(f"{name + ' ' + kind + ' mean':>14}  {name + ' ' + kind + ' std':>13}" for name in curves for kind in ("MSE", "CMSE")))
+print(
+    f"{'scale':>5}  "
+    + "  ".join(
+        f"{name + ' ' + kind + ' mean':>14}  {name + ' ' + kind + ' std':>13}"
+        for name in curves
+        for kind in ("MSE", "CMSE")
+    )
+)
 for idx, scale in enumerate(scales):
     cells = []
     for name in curves:
@@ -68,5 +75,7 @@ white_cmse = curves["white"]["CMSE"].mean(dim=0)
 pink_cmse = curves["1/f"]["CMSE"].mean(dim=0)
 assert white_cmse[0] > pink_cmse[0], "at scale 1 white noise should be the more entropic"
 assert white_cmse[-1] < white_cmse[0] - 0.5, "white-noise CMSE should decay with scale"
-assert (pink_cmse[-1] - pink_cmse[0]).abs() < 0.5 * (white_cmse[0] - white_cmse[-1]), "1/f CMSE should stay flatter than white"
+assert (pink_cmse[-1] - pink_cmse[0]).abs() < 0.5 * (white_cmse[0] - white_cmse[-1]), (
+    "1/f CMSE should stay flatter than white"
+)
 print("\nAll checks passed: CMSE has lower spread than MSE at large scales; white noise decays, 1/f stays flat.")

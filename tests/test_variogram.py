@@ -35,7 +35,12 @@ def _fgn_davies_harte(hurst: float, length: int, dtype=torch.float64) -> torch.T
     def autocovariance(lag: int) -> float:
         return 0.5 * (abs(lag - 1) ** (2 * hurst) - 2 * abs(lag) ** (2 * hurst) + abs(lag + 1) ** (2 * hurst))
 
-    row = [autocovariance(0)] + [autocovariance(index) for index in range(1, length)] + [0.0] + [autocovariance(index) for index in range(length - 1, 0, -1)]
+    row = (
+        [autocovariance(0)]
+        + [autocovariance(index) for index in range(1, length)]
+        + [0.0]
+        + [autocovariance(index) for index in range(length - 1, 0, -1)]
+    )
     complex_dtype = torch.complex128 if dtype == torch.float64 else torch.complex64
     eigenvalues = torch.fft.fft(torch.tensor(row, dtype=dtype).to(complex_dtype)).real
     assert (eigenvalues >= -1e-6).all(), "Davies-Harte embedding is not positive semi-definite for this (hurst, length)"
@@ -47,8 +52,12 @@ def _fgn_davies_harte(hurst: float, length: int, dtype=torch.float64) -> torch.T
     weights[0] = torch.sqrt(eigenvalues[0] / (2 * length)) * gaussian_one[0]
     weights[length] = torch.sqrt(eigenvalues[length] / (2 * length)) * gaussian_two[0]
     middle = torch.arange(1, length)
-    weights[middle] = torch.sqrt(eigenvalues[middle] / (4 * length)) * (gaussian_one[middle] + 1j * gaussian_two[middle])
-    weights[2 * length - middle] = torch.sqrt(eigenvalues[2 * length - middle] / (4 * length)) * (gaussian_one[middle] - 1j * gaussian_two[middle])
+    weights[middle] = torch.sqrt(eigenvalues[middle] / (4 * length)) * (
+        gaussian_one[middle] + 1j * gaussian_two[middle]
+    )
+    weights[2 * length - middle] = torch.sqrt(eigenvalues[2 * length - middle] / (4 * length)) * (
+        gaussian_one[middle] - 1j * gaussian_two[middle]
+    )
     return torch.fft.fft(weights).real[:length]
 
 
@@ -134,7 +143,9 @@ def test_power_variogram_invalid_power_raises():
         with pytest.raises(ValueError):
             power_variogram(trajectory, [1, 2], power=bad_power)
     with pytest.raises(ValueError):
-        variogram_dimension(torch.tensor([1.0, 2.0], dtype=torch.float64), torch.tensor([1.0, 2.0], dtype=torch.float64), power=0.0)
+        variogram_dimension(
+            torch.tensor([1.0, 2.0], dtype=torch.float64), torch.tensor([1.0, 2.0], dtype=torch.float64), power=0.0
+        )
 
 
 def test_power_variogram_empty_or_bad_lag_raises():
@@ -247,7 +258,9 @@ def test_power_variogram_matches_fractaldim_r_convention_normalization():
     power = 2.0
     values = trajectory.tolist()
     num_points = len(values)
-    expected = sum(abs(values[index + lag] - values[index]) ** power for index in range(num_points - lag)) / (2 * (num_points - lag))
+    expected = sum(abs(values[index + lag] - values[index]) ** power for index in range(num_points - lag)) / (
+        2 * (num_points - lag)
+    )
     assert torch.isclose(power_variogram(trajectory, lag, power=power), torch.tensor(expected, dtype=torch.float64))
 
 
@@ -259,7 +272,9 @@ def test_power_variogram_integer_and_half_input():
     # power=2 pushes values into the thousands, where float16's absolute
     # step size is itself large; compare in relative terms.
     wide = torch.tensor([0.0, 300.0, 0.0, 100.0])
-    assert torch.allclose(power_variogram(wide.half(), [1, 2]).double(), power_variogram(wide.double(), [1, 2]), rtol=1e-2)
+    assert torch.allclose(
+        power_variogram(wide.half(), [1, 2]).double(), power_variogram(wide.double(), [1, 2]), rtol=1e-2
+    )
 
 
 def test_variogram_dimension_brownian_motion_is_one_half():
@@ -289,8 +304,12 @@ def test_variogram_dimension_fractional_gaussian_noise_known_hurst(hurst):
     fractional_gaussian_noise = _fgn_davies_harte(hurst, 20000)
     fractional_brownian_motion = fractional_gaussian_noise.cumsum(0)
     lag = torch.tensor([1.0, 2.0], dtype=torch.float64)
-    variogram_estimate = variogram_dimension(lag, power_variogram(fractional_brownian_motion, [1, 2], power=2.0), power=2.0)
-    madogram_estimate = variogram_dimension(lag, power_variogram(fractional_brownian_motion, [1, 2], power=1.0), power=1.0)
+    variogram_estimate = variogram_dimension(
+        lag, power_variogram(fractional_brownian_motion, [1, 2], power=2.0), power=2.0
+    )
+    madogram_estimate = variogram_dimension(
+        lag, power_variogram(fractional_brownian_motion, [1, 2], power=1.0), power=1.0
+    )
     expected = 2.0 - hurst
     assert torch.isclose(variogram_estimate, torch.tensor(expected, dtype=torch.float64), atol=0.03)
     assert torch.isclose(madogram_estimate, torch.tensor(expected, dtype=torch.float64), atol=0.03)
@@ -347,7 +366,11 @@ def test_variogram_dimension_half_close_values_and_integer_input():
     # log(10008) - log(10000) = 8e-4 is below float16 resolution at 9.2.
     half = variogram_dimension([1000, 1001], torch.tensor([10000.0, 10008.0]).half())
     assert half.dtype == torch.float16
-    assert torch.isclose(half.float(), variogram_dimension([1000, 1001], torch.tensor([10000.0, 10008.0], dtype=torch.float64)).float(), atol=2e-3)
+    assert torch.isclose(
+        half.float(),
+        variogram_dimension([1000, 1001], torch.tensor([10000.0, 10008.0], dtype=torch.float64)).float(),
+        atol=2e-3,
+    )
     integer = variogram_dimension([1, 2], torch.tensor([1, 4]))
     assert integer.dtype == torch.get_default_dtype() and integer.item() == 1.0
 

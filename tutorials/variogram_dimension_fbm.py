@@ -35,7 +35,12 @@ def fractional_gaussian_noise(hurst: float, length: int, dtype=torch.float64) ->
     def autocovariance(lag: int) -> float:
         return 0.5 * (abs(lag - 1) ** (2 * hurst) - 2 * abs(lag) ** (2 * hurst) + abs(lag + 1) ** (2 * hurst))
 
-    row = [autocovariance(0)] + [autocovariance(index) for index in range(1, length)] + [0.0] + [autocovariance(index) for index in range(length - 1, 0, -1)]
+    row = (
+        [autocovariance(0)]
+        + [autocovariance(index) for index in range(1, length)]
+        + [0.0]
+        + [autocovariance(index) for index in range(length - 1, 0, -1)]
+    )
     eigenvalues = torch.fft.fft(torch.tensor(row, dtype=dtype).to(torch.complex128)).real
     # Clamping only removes rounding-level negatives; a genuinely negative
     # eigenvalue means the embedding is invalid for this (hurst, length).
@@ -48,8 +53,12 @@ def fractional_gaussian_noise(hurst: float, length: int, dtype=torch.float64) ->
     weights[0] = torch.sqrt(eigenvalues[0] / (2 * length)) * gaussian_one[0]
     weights[length] = torch.sqrt(eigenvalues[length] / (2 * length)) * gaussian_two[0]
     middle = torch.arange(1, length)
-    weights[middle] = torch.sqrt(eigenvalues[middle] / (4 * length)) * (gaussian_one[middle] + 1j * gaussian_two[middle])
-    weights[2 * length - middle] = torch.sqrt(eigenvalues[2 * length - middle] / (4 * length)) * (gaussian_one[middle] - 1j * gaussian_two[middle])
+    weights[middle] = torch.sqrt(eigenvalues[middle] / (4 * length)) * (
+        gaussian_one[middle] + 1j * gaussian_two[middle]
+    )
+    weights[2 * length - middle] = torch.sqrt(eigenvalues[2 * length - middle] / (4 * length)) * (
+        gaussian_one[middle] - 1j * gaussian_two[middle]
+    )
     return torch.fft.fft(weights).real[:length]
 
 
@@ -80,7 +89,9 @@ for hurst in hurst_values:
     squared_error["higuchi"].extend((estimate - true_dimension) ** 2 for estimate in higuchi_estimates)
 
 rmse = {name: (sum(errors) / len(errors)) ** 0.5 for name, errors in squared_error.items()}
-print(f"\nOverall RMSE across all H: madogram={rmse['madogram']:.4f}  variogram={rmse['variogram']:.4f}  higuchi={rmse['higuchi']:.4f}")
+print(
+    f"\nOverall RMSE across all H: madogram={rmse['madogram']:.4f}  variogram={rmse['variogram']:.4f}  higuchi={rmse['higuchi']:.4f}"
+)
 
 assert rmse["variogram"] < rmse["madogram"], "the paper's ranking on clean Gaussian data: variogram below madogram"
 print("\nThe variogram (p=2) has lower RMSE than the madogram (p=1) on this clean fBm, the ranking the")

@@ -39,7 +39,16 @@ def lyapunov_exponent(parameter: float, orbit: torch.Tensor) -> float:
 frequencies = torch.linspace(math.pi / 5, 4 * math.pi / 5, 100, dtype=torch.float64)
 
 print(f"{'r':>6}  {'K':>7}  {'lyapunov':>9}  regime")
-cases = [(3.2, "period 2"), (3.55, "period 8"), (3.835, "period 3"), (3.6, "chaotic, 2 bands"), (3.7, "chaotic"), (3.9, "chaotic"), (3.97, "chaotic"), (4.0, "chaotic")]
+cases = [
+    (3.2, "period 2"),
+    (3.55, "period 8"),
+    (3.835, "period 3"),
+    (3.6, "chaotic, 2 bands"),
+    (3.7, "chaotic"),
+    (3.9, "chaotic"),
+    (3.97, "chaotic"),
+    (4.0, "chaotic"),
+]
 for parameter, regime in cases:
     orbit = logistic_orbit(parameter, 2000)
     statistic = zero_one_test(orbit, frequencies).item()

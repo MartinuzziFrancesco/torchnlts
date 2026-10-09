@@ -59,7 +59,9 @@ assert all(dimensions[i] >= dimensions[i + 1] - 1e-6 for i in range(len(dimensio
 # estimator too; this cascade's own D_q genuinely varies with order (unlike
 # a uniform interval's, whose D_q is close to 1 for every order), so this
 # also rules that degenerate case out.
-assert dimensions[0] - dimensions[-1] > 0.1, "D_q should vary substantially with order for this strongly multifractal cascade"
+assert dimensions[0] - dimensions[-1] > 0.1, (
+    "D_q should vary substantially with order for this strongly multifractal cascade"
+)
 
 # Part 2: the Lorenz attractor -- box-counting D2 vs the library's
 # existing pairwise-distance D2, an illustrative (not tight) comparison.
@@ -72,7 +74,7 @@ box_counting_d2 = generalized_dimension(box_size_lorenz, box_counting_entropy(st
 radius_lorenz = torch.logspace(-1.5, -0.3, 12, dtype=torch.float64)
 correlation_sum_d2 = correlation_dimension(radius_lorenz, correlation_sum(state, radius_lorenz, theiler_window=10))
 
-print(f"\nLorenz attractor, N=5000 points:")
+print("\nLorenz attractor, N=5000 points:")
 print(f"  box-counting D2:      {box_counting_d2.item():.3f}")
 print(f"  correlation-sum D2:   {correlation_sum_d2.item():.3f}  (literature value commonly cited around 2.05)")
 print("  (box-counting undershoots at this sample size -- it needs far more data than the correlation sum")

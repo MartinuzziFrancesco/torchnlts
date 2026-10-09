@@ -12,25 +12,23 @@ dl_max, and dl_entropy:
      `theiler = theiler_window + 1`.
 """
 
+import math
 import subprocess
 
+import pytest
 import torch
 
 from torchnlts.recurrence.matrix import hard_recurrence_matrix, soft_recurrence_matrix
-import math
-
-import pytest
-
 from torchnlts.recurrence.rqa import (
     _recurrence_time_histogram,
     determinism,
+    divergence,
     dl_average,
     dl_entropy,
     dl_max,
     laminarity,
-    recurrence_rate,
-    divergence,
     ratio,
+    recurrence_rate,
     rt_entropy,
     trapping_time,
     vl_entropy,
@@ -318,9 +316,13 @@ def test_dl_average_max_entropy_match_recurrenceanalysis_jl():
         )
         assert result.returncode == 0, result.stderr
         julia_avg, julia_max, julia_entr = (float(v) for v in result.stdout.strip().splitlines())
-        assert torch.isclose(dl_average(recurrence, lmin=lmin, theiler_window=theiler_window), torch.tensor(julia_avg), atol=1e-5)
+        assert torch.isclose(
+            dl_average(recurrence, lmin=lmin, theiler_window=theiler_window), torch.tensor(julia_avg), atol=1e-5
+        )
         assert dl_max(recurrence, lmin=lmin, theiler_window=theiler_window).item() == julia_max
-        assert torch.isclose(dl_entropy(recurrence, lmin=lmin, theiler_window=theiler_window), torch.tensor(julia_entr), atol=1e-5)
+        assert torch.isclose(
+            dl_entropy(recurrence, lmin=lmin, theiler_window=theiler_window), torch.tensor(julia_entr), atol=1e-5
+        )
 
 
 def _vertical_example():
@@ -479,7 +481,11 @@ def test_vertical_measures_longest_possible_line():
 
 def _banded_recurrence(num_points=5):
     # Identity plus the first off-diagonals: one diagonal line of length T - 1 on each side.
-    return torch.eye(num_points, dtype=torch.bool) | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), 1) | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), -1)
+    return (
+        torch.eye(num_points, dtype=torch.bool)
+        | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), 1)
+        | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), -1)
+    )
 
 
 def _julia_values(recurrence, expressions, julia_theiler=1, lmin=2):
@@ -490,7 +496,9 @@ def _julia_values(recurrence, expressions, julia_theiler=1, lmin=2):
     kw = (theiler={julia_theiler}, lmin={lmin})
     {expressions}
     """
-    result = subprocess.run(["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr
     return [float(line) for line in result.stdout.split()]
 
@@ -563,7 +571,10 @@ def test_windowed_rqa_batched_and_kwargs():
     assert values.shape == (2, 6)
     for index in range(2):
         assert torch.equal(values[index], windowed_rqa(batch[index], determinism, 10, 4, lmin=3, theiler_window=1))
-    assert torch.equal(torch.vmap(lambda matrix: windowed_rqa(matrix, laminarity, 10, 4))(batch), windowed_rqa(batch, laminarity, 10, 4))
+    assert torch.equal(
+        torch.vmap(lambda matrix: windowed_rqa(matrix, laminarity, 10, 4))(batch),
+        windowed_rqa(batch, laminarity, 10, 4),
+    )
     assert windowed_rqa(batch, dl_max, 10, 4).dtype == torch.long
 
 

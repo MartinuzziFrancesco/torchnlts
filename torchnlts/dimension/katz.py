@@ -20,12 +20,20 @@ import math
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows, _output_dtype, _restore_batch, _safe_scale, _work_dtype
+from torchnlts._shape import (
+    _ensure_batched,
+    _mask_nonfinite_rows,
+    _output_dtype,
+    _restore_batch,
+    _safe_scale,
+)
 
 
 def _validate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
-        raise ValueError(f"katz_dimension only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"katz_dimension only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
     if tensor.is_complex():
         raise ValueError("katz_dimension does not support complex input")
 
@@ -112,7 +120,9 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     with torch.no_grad():
         zero_length = length == 0
         relative_gap = (extent * num_steps - length) / torch.where(zero_length, torch.ones_like(length), length)
-        degenerate = nonfinite | zero_length | (relative_gap.abs() <= 8 * math.log2(num_points) * torch.finfo(work_dtype).eps)
+        degenerate = (
+            nonfinite | zero_length | (relative_gap.abs() <= 8 * math.log2(num_points) * torch.finfo(work_dtype).eps)
+        )
     safe_extent = torch.where(degenerate, torch.ones_like(extent), extent)
     safe_length = torch.where(degenerate, torch.ones_like(length), length)
     denominator = torch.log1p((safe_extent * num_steps - safe_length) / safe_length) / math.log(10)

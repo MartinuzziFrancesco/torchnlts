@@ -137,7 +137,9 @@ def lyapunov_spectrum(
         deviations = deviations.unsqueeze(0).expand(initial_state.shape[0], -1, -1).clone()
 
     state = initial_state
-    log_growth = torch.zeros(deviations.shape[:-2] + (num_exponents,), dtype=initial_state.dtype, device=initial_state.device)
+    log_growth = torch.zeros(
+        deviations.shape[:-2] + (num_exponents,), dtype=initial_state.dtype, device=initial_state.device
+    )
 
     for step in range(transient_steps + num_steps):
         jacobian = step_jacobian(step_fn, state)

@@ -25,7 +25,9 @@ spectrum = lyapunov_spectrum(henon_step, initial_state, num_steps=10000)
 
 print(f"Lyapunov spectrum: {spectrum.tolist()}")
 print("literature values are approximately [0.42, -1.62]")
-print(f"sum of exponents: {spectrum.sum().item():.4f} (expected log|det J| = log(0.3) = {torch.tensor(0.3).log().item():.4f})")
+print(
+    f"sum of exponents: {spectrum.sum().item():.4f} (expected log|det J| = log(0.3) = {torch.tensor(0.3).log().item():.4f})"
+)
 print("This negative sum is the log-area growth per iteration, not the determinant.")
 
 # Kaplan & Yorke (1979): the attractor's information dimension is estimated

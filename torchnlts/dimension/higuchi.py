@@ -60,12 +60,23 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_positive_int_list, _as_sweep, _ensure_batched, _mask_nonfinite_rows, _ols_slope, _output_dtype, _safe_log, _work_dtype
+from torchnlts._shape import (
+    _as_positive_int_list,
+    _as_sweep,
+    _ensure_batched,
+    _mask_nonfinite_rows,
+    _ols_slope,
+    _output_dtype,
+    _safe_log,
+    _work_dtype,
+)
 
 
 def _require_univariate(tensor: torch.Tensor) -> None:
     if tensor.shape[-1] != 1:
-        raise ValueError(f"higuchi_length only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+        raise ValueError(
+            f"higuchi_length only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
+        )
 
 
 def _higuchi_length_single_k(values: torch.Tensor, k: int) -> torch.Tensor:
