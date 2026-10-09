@@ -9,7 +9,7 @@ import torchnlts
 ROOT = pathlib.Path(torchnlts.__file__).parent
 SUBPACKAGES = [
     "causality", "chaos", "dimension", "embedding", "entropy", "fluctuations",
-    "lyapunov", "matrixprofile", "neighbors", "recurrence", "sciml", "surrogate",
+    "lyapunov", "matrixprofile", "neighbors", "prediction", "recurrence", "sciml", "surrogate",
 ]  # fmt: skip
 
 
