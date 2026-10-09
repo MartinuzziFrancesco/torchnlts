@@ -160,7 +160,6 @@ def test_shape_conventions():
 def test_matches_estimator_on_detected_region(estimator):
     torch.manual_seed(0)
     steps = torch.arange(1, 13, dtype=DOUBLE)
-    # Two power-law regimes with a bend, so the detected region is a proper subset.
     curve = torch.where(steps <= 5, steps, 5.0 * (steps / 5.0) ** 2.0)
     curve = curve * (1 + 0.01 * torch.randn(12, dtype=DOUBLE))
     if estimator == "correlation":
@@ -258,7 +257,6 @@ def test_half_precision_computes_in_float32_and_casts_back():
     sweep, values = _curve(*CURVES["wiggly"])
     half_result = scaling_slope(sweep.to(torch.float16), values.to(torch.float16))
     assert half_result.dtype == torch.float16
-    # Same as computing the half-rounded inputs in float32 and casting back.
     reference = scaling_slope(sweep.to(torch.float16).float(), values.to(torch.float16).float()).to(torch.float16)
     assert half_result.item() == reference.item()
     assert scaling_slope(sweep, values.float()).dtype == torch.float32
@@ -266,9 +264,7 @@ def test_half_precision_computes_in_float32_and_casts_back():
 
 
 def test_half_labels_use_float32_slopes():
-    # Slopes 1000 and 1001 are one half-precision step apart (1000 / 1001 both
-    # representable only up to spacing 0.5 near 1024): tolerance 1e-4 separates
-    # them in float32 but not if the segment slopes were rounded to half.
+    # Slopes 1000 and 1001 are one half-precision step apart (spacing 0.5 near 1024); 1e-4 separates them only in float32.
     sweep = torch.arange(4, dtype=torch.float16)
     values = torch.tensor([0.0, 1000.0, 2001.0, 3002.0], dtype=torch.float16)
     reference = linear_regions(sweep.float(), values.float(), tolerance=1e-4)

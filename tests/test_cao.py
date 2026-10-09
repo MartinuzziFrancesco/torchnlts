@@ -82,11 +82,7 @@ def test_cao_e2_matches_brute_force_reference():
 
 
 def test_cao_e2_random_noise_stays_further_from_one_than_deterministic():
-    # Cao's qualitative claim (eq. 5's purpose): E2 approaches 1 much
-    # more slowly, as embedding_dim grows, for a random signal than for
-    # a deterministic one -- not that E2 sits near 1 at any single small
-    # embedding_dim (a common misreading; finite-sample E2 can be far
-    # from 1 at low dimensions even for pure noise).
+    # Cao's claim (eq. 5): E2 approaches 1 more slowly with embedding_dim for a random signal than a deterministic one.
     torch.manual_seed(2)
     noise = torch.randn(600, dtype=torch.float64)
     t = torch.linspace(0, 60 * math.pi, 600, dtype=torch.float64)

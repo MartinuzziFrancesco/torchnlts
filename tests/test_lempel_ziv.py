@@ -50,8 +50,7 @@ def _naive_phrase_count(sequence):
 
 
 def test_lz76_count_classic_example():
-    # Widely cited example (e.g. antropy's own docstring/tests, various
-    # EEG Lempel-Ziv-complexity papers): "10011110110000 10" -> 6.
+    # Widely cited example (antropy docstring): "10011110110000 10" -> 6.
     sequence = [int(c) for c in "1001111011000010"]
     assert _lz76_count(sequence) == 6
 
@@ -66,10 +65,7 @@ def test_lz76_count_alternating_sequence():
 
 
 def test_lz76_count_matches_independent_phrase_decomposition_exhaustively():
-    # Genuinely independent ground truth (not Julia, which implements
-    # the same Kaspar & Schuster pointer algorithm): every binary
-    # string of length 2-12 (8188 strings), checked against a
-    # structurally unrelated brute-force phrase decomposition.
+    # Independent ground truth: brute-force phrase decomposition over every binary string of length 2-12.
     import itertools
 
     for length in range(2, 13):
@@ -147,11 +143,7 @@ def test_lz76_count_matches_complexitymeasures_jl():
 
 
 def test_lempel_ziv_complexity_full_pipeline_matches_complexitymeasures_jl():
-    # End-to-end: mean-threshold binarization + counting on a raw,
-    # continuous, random trajectory, cross-checked against Julia's own
-    # binarize-then-LempelZiv76 pipeline (Julia's own docstring for
-    # LempelZiv76 names mean-threshold binarization as the standard
-    # convention, matching this module's default).
+    # Cross-checked against Julia's binarize-then-LempelZiv76 pipeline (mean-threshold binarization, as here).
     torch.manual_seed(2)
     trajectory = torch.randn(50, dtype=torch.float64)
 

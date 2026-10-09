@@ -80,10 +80,8 @@ def _julia_growth_rates(series: torch.Tensor, frequencies: torch.Tensor, max_lag
 
 
 def test_hand_derived_three_samples():
-    # x = [1, 2, 3], c = pi/2, max_lag = 2: cos(jc) = 0, -1, 0 and sin(jc) = 1, 0, -1
-    # so p = [0, -2, -2], q = [1, 1, -2] (j = 1..3).
-    # M(1) = ((4 + 4) + (0 + 9)) / 2 = 8.5, M(2) = 4 + 9 = 13; mean = 2 and
-    # V_osc(n) = 4 (1 - cos(n pi/2)) = 4, 8, so D = [4.5, 5]: two points, K_c = +1.
+    # x=[1,2,3], c=pi/2, max_lag=2: p=[0,-2,-2], q=[1,1,-2]; M(1)=8.5, M(2)=13, mean=2, V_osc=4, 8,
+    # so D=[4.5, 5]: two points, K_c=+1.
     trajectory = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64)
     assert torch.isclose(
         zero_one_growth_rate(trajectory, math.pi / 2, max_lag=2), torch.tensor(1.0, dtype=torch.float64)
@@ -358,9 +356,8 @@ def test_short_series_backward_is_connected():
 
 
 def test_nonconstant_series_with_exactly_zero_modified_displacement_is_nan():
-    # Regression: for [-199, 1, ..., 1] the mean is exactly -1 and every window
-    # holds only ones, so D(n) = M(n) - V_osc(n) is exactly 0 although the series
-    # is not constant; only the rounding guard catches it.
+    # Regression: for [-199, 1, ..., 1] the mean is exactly -1 and D(n) = M(n) - V_osc(n) is exactly 0 although
+    # the series is not constant; only the rounding guard catches it.
     series = torch.ones(100, dtype=torch.float64)
     series[0] = -199.0
     series.requires_grad_()

@@ -48,21 +48,17 @@ def trajectory():
 
 
 def test_global_rate_hand_derived():
-    # Distances (upper triangle): 1, 3, 2 plus nine entries of the 3x3 matrix
-    # sorted: 0 0 0 1 1 2 2 3 3. Rate 5/9 interpolates at index 8*5/9, so
-    # the quantile lands between 1 and 2 -> only distances <= 1 recur.
+    # Sorted distances: 0 0 0 1 1 2 2 3 3. Rate 5/9 interpolates at index 8*5/9, between 1 and 2, so only distances <= 1
+    # recur.
     trajectory = torch.tensor([0.0, 1.0, 3.0])
     actual = hard_recurrence_matrix(trajectory, recurrence_rate=0.5)
     expected = torch.tensor([[True, True, False], [True, True, False], [False, False, True]])
     assert torch.equal(actual, expected)
-    # Rate 1: threshold = max distance, everything recurs.
     assert hard_recurrence_matrix(trajectory, recurrence_rate=1.0).all()
 
 
 def test_local_rate_hand_derived():
-    # Points 0, 1, 3, 7. Column distances sorted (incl. self): col0: 0 1 3 7,
-    # col1: 0 1 2 6, col2: 0 2 3 4, col3: 0 4 6 7. local_rate=0.25 -> one
-    # neighbour besides self per column: the nearest one.
+    # Points 0, 1, 3, 7; local_rate=0.25 keeps one neighbour besides self per column: the nearest one.
     trajectory = torch.tensor([0.0, 1.0, 3.0, 7.0])
     actual = hard_recurrence_matrix(trajectory, local_rate=0.25)
     expected = torch.tensor(
@@ -85,7 +81,7 @@ def test_local_rate_columns_have_fixed_neighbours(trajectory):
 
 def test_scaled_hand_derived():
     trajectory = torch.tensor([0.0, 1.0, 4.0])
-    # distances 1, 4, 3: max 4, mean 8/3, std of the 9 entries (diagonal included)
+    # Distances 1, 4, 3: max 4, mean 8/3, std over the 9 entries (diagonal included).
     expected_max = hard_recurrence_matrix(trajectory, 2.0)
     assert torch.equal(hard_recurrence_matrix(trajectory, 0.5, scale="max"), expected_max)
     assert torch.equal(hard_recurrence_matrix(trajectory, 0.75, scale="mean"), hard_recurrence_matrix(trajectory, 2.0))
@@ -97,8 +93,7 @@ def test_scaled_hand_derived():
 
 
 def test_std_scale_uses_sample_std():
-    # Entries 0, 1, 1, 0: sample std 1/sqrt(3) = 0.577, population std 0.5.
-    # Ratio 1.8 gives a threshold above 1 only for the sample std.
+    # Entries 0, 1, 1, 0: sample std 1/sqrt(3) = 0.577, population std 0.5; ratio 1.8 exceeds 1 only for the sample std.
     assert hard_recurrence_matrix(torch.tensor([0.0, 1.0]), 1.8, scale="std").all()
     assert not hard_recurrence_matrix(torch.tensor([0.0, 1.0]), 1.7, scale="std")[0, 1]
 
@@ -116,10 +111,8 @@ def test_global_rate_matches_julia(trajectory, rate):
 
 @pytest.mark.parametrize("rate", [0.05, 0.1, 0.3, 0.5])
 def test_local_rate_matches_julia(trajectory, rate):
-    # Deviation: RecurrenceAnalysis.jl thresholds column j with the j-th quantile
-    # but stores only the upper triangle (mirrored), contradicting its own
-    # documentation of exactly k entries per column. Here every column keeps its
-    # k neighbours (asymmetric); the Julia matrix is this one's mirrored upper triangle.
+    # Deviation: RecurrenceAnalysis.jl stores only the mirrored upper triangle of its j-th-quantile thresholds.
+    # Here every column keeps its k neighbours; the Julia matrix is this one's mirrored upper triangle.
     expected = _julia_matrix(f"RecurrenceMatrix(x, LocalRecurrenceRate({rate}))", trajectory)
     assert torch.equal(_upper_mirror(hard_recurrence_matrix(trajectory, local_rate=rate)), expected)
 
@@ -155,10 +148,9 @@ def test_joint_matches_julia_with_unequal_lengths(trajectory):
         ({"local_rate": 0.2}, "LocalRecurrenceRate(0.2)"),
         ({"epsilon": 0.4, "scale": "max"}, "RecurrenceThresholdScaled(0.4, maximum)"),
     ):
-        # Julia truncates, then thresholds each trajectory.
         expected = _julia_matrix(f"JointRecurrenceMatrix(x, y, {rt})", trajectory, other)
         actual = hard_joint_recurrence_matrix(trajectory, other, **option)
-        if "local_rate" in option:  # see test_local_rate_matches_julia
+        if "local_rate" in option:
             first = _upper_mirror(hard_recurrence_matrix(trajectory[:30], **option))
             second = _upper_mirror(hard_recurrence_matrix(other, **option))
             assert torch.equal(first & second, expected)
@@ -179,7 +171,6 @@ def test_batched_rows_have_own_threshold():
         batched = hard_recurrence_matrix(batch, **option)
         for index in range(3):
             assert torch.equal(batched[index], hard_recurrence_matrix(batch[index], **option))
-    # Rows differ only by scale, so a rate threshold gives identical matrices.
     matrices = hard_recurrence_matrix(
         batch / torch.tensor([1.0, 10.0, 100.0], dtype=torch.float64)[:, None, None], recurrence_rate=0.15
     )
@@ -289,8 +280,8 @@ def test_nan_padding_preserves_local_rate_matrix():
 
 
 def test_quantile_index_arithmetic_is_float64():
-    # Regression: float32 index arithmetic picks the wrong neighbour near an
-    # order-statistic boundary: aleph = 1000000.99 rounds to 1000001 in float32.
+    # Regression: float32 index arithmetic picked the wrong neighbour near an order-statistic boundary (aleph =
+    # 1000000.99 rounds to 1000001).
     count = 2_000_001
     values = torch.arange(count, dtype=torch.float64)
     probability = (1_000_000 - 0.01) / (count - 1)

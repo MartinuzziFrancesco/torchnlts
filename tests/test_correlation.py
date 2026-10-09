@@ -212,10 +212,7 @@ def test_correlation_dimension_zero_correlation_sum_is_nan_not_crash():
 
 
 def test_correlation_dimension_gradcheck_direct_radius_and_correlation_sum():
-    # Direct gradcheck of the OLS formula itself, differentiating w.r.t.
-    # both inputs (not just through a trajectory) -- "exact" gradient
-    # class claims ordinary autodiff through whatever's passed in, which
-    # includes radius itself (e.g. learning optimal sweep points).
+    # Gradcheck of the OLS formula w.r.t. both inputs, including radius (e.g. learned sweep points).
     radius = torch.tensor([0.5, 0.75, 1.0, 1.5], dtype=torch.float64, requires_grad=True)
     correlation_sum_values = torch.tensor([0.1, 0.2, 0.35, 0.6], dtype=torch.float64, requires_grad=True)
 
@@ -239,9 +236,7 @@ def test_correlation_dimension_matches_fractaldimensions_jl_linear_regression():
     radii = [0.4, 0.6, 0.9, 1.3, 1.9]
 
     values = ", ".join(f"{v:.17g}" for v in trajectory.numpy())
-    # ignore_saturation=false: slopefit's default (true) can silently trim
-    # endpoints where adjacent log-differences look flat, which would no
-    # longer match our all-point OLS by construction rather than by luck.
+    # ignore_saturation=false: slopefit's default can trim endpoints, which would not match our all-point OLS.
     julia_code = f"""
     using FractalDimensions
     x = [{values}]
@@ -260,9 +255,7 @@ def test_correlation_dimension_matches_fractaldimensions_jl_linear_regression():
     julia_dimension = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
     radius = torch.tensor(radii, dtype=torch.float64)
     torch_dimension = correlation_dimension(radius, correlation_sum(trajectory, radius=radius))
-    # atol=1e-9: both sides do the same closed-form OLS in float64 on an
-    # identical correlation sum, so the residual is float64 rounding noise
-    # (parsed-string round-trip + log-base conversion), not model mismatch.
+    # atol=1e-9: both sides do closed-form OLS in float64; the residual is parsed-string and log-base conversion noise.
     assert torch.isclose(torch_dimension, julia_dimension, atol=1e-9)
 
 

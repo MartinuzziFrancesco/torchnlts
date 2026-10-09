@@ -35,9 +35,6 @@ def _henon_step(x, a=1.4, b=0.3):
     return torch.stack([1.0 - a * x[0] ** 2 + x[1], b * x[0]])
 
 
-# ---------------------------------------------------------------- Lyapunov
-
-
 def test_lyapunov_loss_matches_direct_computation():
     state = torch.zeros(2, dtype=torch.float64)
     target = torch.tensor([0.3, -1.5], dtype=torch.float64)
@@ -91,9 +88,6 @@ def test_lyapunov_loss_gradcheck_w_r_t_model_parameter():
     assert torch.autograd.gradcheck(f, (values,))
 
 
-# ------------------------------------------------------- CorrelationDimension
-
-
 def test_correlation_dimension_loss_matches_direct_computation():
     torch.manual_seed(0)
     trajectory = torch.randn(100, 2, dtype=torch.float64).cumsum(0) * 0.1
@@ -123,9 +117,6 @@ def test_correlation_dimension_loss_gradcheck():
     assert torch.autograd.gradcheck(loss_module, (trajectory,))
 
 
-# ------------------------------------------------------------- Recurrence
-
-
 def test_recurrence_loss_matches_direct_computation():
     torch.manual_seed(3)
     trajectory = torch.randn(50, 2, dtype=torch.float64)
@@ -152,9 +143,6 @@ def test_recurrence_loss_gradcheck():
     assert torch.autograd.gradcheck(loss_module, (trajectory,))
 
 
-# --------------------------------------------------------------- Attractor
-
-
 def test_attractor_loss_zero_for_identical_trajectory():
     torch.manual_seed(6)
     trajectory = torch.randn(40, 2, dtype=torch.float64)
@@ -173,7 +161,7 @@ def test_attractor_loss_symmetric():
 def test_attractor_loss_positive_for_different_trajectories():
     torch.manual_seed(8)
     a = torch.randn(40, 2, dtype=torch.float64)
-    b = torch.randn(40, 2, dtype=torch.float64) + 5.0  # well-separated clusters
+    b = torch.randn(40, 2, dtype=torch.float64) + 5.0
     loss_module = AttractorLoss(temperature=0.5)
     assert loss_module(a, b).item() > 0.1
 
@@ -215,20 +203,12 @@ def test_attractor_loss_batched_matches_independent_loop():
 
 
 def test_attractor_loss_rejects_norm_order():
-    # Regression: a non-Euclidean norm_order can make the
-    # Gaussian/Laplacian kernel non-positive-semidefinite, letting the
-    # "squared" MMD go negative (reproduced with these exact points and
-    # norm_order=1 before the parameter was removed). No longer exposed
-    # as a parameter at all, rather than validated-and-rejected, since
-    # Euclidean is the only value with the MMD non-negativity guarantee.
+    # Regression: a non-Euclidean norm_order made the kernel non-PSD, so squared MMD went negative; the parameter was removed.
     try:
         AttractorLoss(temperature=2.0, norm_order=1)
         assert False, "expected TypeError"
     except TypeError:
         pass
-
-
-# ---------------------------------------------------------------- Sinkhorn
 
 
 def test_sinkhorn_loss_zero_for_identical_trajectory():
@@ -249,7 +229,7 @@ def test_sinkhorn_loss_symmetric():
 def test_sinkhorn_loss_positive_for_different_trajectories():
     torch.manual_seed(14)
     a = torch.randn(40, 2, dtype=torch.float64)
-    b = torch.randn(40, 2, dtype=torch.float64) + 5.0  # well-separated clusters
+    b = torch.randn(40, 2, dtype=torch.float64) + 5.0
     loss_module = SinkhornLoss(reg=0.5)
     assert loss_module(a, b).item() > 0.1
 
@@ -275,13 +255,8 @@ def test_sinkhorn_loss_batched_matches_independent_loop():
 
 
 def test_sinkhorn_cost_converges_to_exact_optimal_transport():
-    # Independent ground truth (SinkhornLoss is this module's one truly
-    # new primitive -- see the module docstring): for equal-size point
-    # clouds with uniform marginals, the exact (unregularized) discrete
-    # OT plan is a permutation -- the minimum-cost perfect matching,
-    # found independently via scipy's Hungarian algorithm. As entropic
-    # regularization shrinks and iterations grow, _sinkhorn_cost should
-    # converge to that exact value.
+    # Ground truth: for equal-size uniform clouds the unregularized OT plan is the minimum-cost matching (scipy Hungarian);
+    # _sinkhorn_cost should converge to it as reg shrinks and iterations grow.
     from scipy.optimize import linear_sum_assignment
 
     from torchnlts.neighbors.distance import pairwise_distance
@@ -299,16 +274,7 @@ def test_sinkhorn_cost_converges_to_exact_optimal_transport():
 
 
 def test_sinkhorn_cost_matches_brute_force_regularized_objective():
-    # Regression: an earlier version of _sinkhorn_cost
-    # returned only the transport term <P,C> at the entropic-optimal
-    # plan, silently dropping the reg*KL(P | a(x)b) term that makes it
-    # the actual Feydy et al. (2019) regularized OT objective the
-    # docstring/SinkhornLoss cite -- a materially different (and always
-    # smaller) number for reg > 0, confirmed here by computing that
-    # objective a second, independent way: forming the transport plan
-    # explicitly from converged dual potentials and its KL divergence
-    # by hand, rather than reading it off the same potentials
-    # _sinkhorn_cost itself already computed internally.
+    # Regression: _sinkhorn_cost dropped the reg*KL(P | a(x)b) term; checked against the objective built from the explicit plan.
     torch.manual_seed(18)
     a = torch.randn(6, dtype=torch.float64)
     b = torch.randn(8, dtype=torch.float64) + 0.4
@@ -367,15 +333,8 @@ def test_sinkhorn_loss_rejects_bad_reduction():
         pass
 
 
-# --------------------------------------------------------- dtype regressions
-
-
 def test_loss_modules_preserve_float64_target_and_temperature_precision():
-    # Regression: register_buffer used to force
-    # torch.get_default_dtype() (float32) regardless of the dtype
-    # actually passed in, silently losing precision no later .to() call
-    # could recover. [1.0, 1.0 + 1e-8] only survives round-tripping in
-    # float64 -- float32 collapses it to [1.0, 1.0].
+    # Regression: register_buffer forced float32; [1.0, 1.0 + 1e-8] only survives in float64.
     close_values = torch.tensor([1.0, 1.0 + 1e-8], dtype=torch.float64)
 
     cdl = CorrelationDimensionLoss(target=2.0, temperature=close_values)

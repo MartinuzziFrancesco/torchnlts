@@ -44,10 +44,7 @@ def test_hard_cross_recurrence_matrix_not_square_or_symmetric():
 
 
 def test_hard_cross_recurrence_matrix_rejects_batch_mismatch():
-    # Regression: batch/feature-dim mismatches between the two
-    # trajectories are validated by pairwise_distance (see test_distance.py)
-    # and must surface here too, since cross_recurrence.py is the module
-    # that documents the "must match" batch contract.
+    # Regression: batch/feature-dim mismatches must surface here as in pairwise_distance (test_distance.py).
     unbatched = torch.randn(3)
     batched = torch.randn(2, 5, 1)
     try:
@@ -63,8 +60,6 @@ def test_hard_cross_recurrence_matrix_batched():
     y = torch.randn(4, 5, 3, dtype=torch.float64)
     actual = hard_cross_recurrence_matrix(x, y, epsilon=1.0)
     assert actual.shape == (4, 8, 5)
-    # Brute-force per-batch check catches an axis-transposition bug that a
-    # shape-only assertion would miss.
     brute = torch.zeros(4, 8, 5, dtype=torch.bool)
     for b in range(4):
         for i in range(8):
@@ -113,9 +108,7 @@ def test_hard_cross_recurrence_matrix_matches_recurrenceanalysis_jl():
 
 
 def test_soft_cross_recurrence_matrix_monotone_in_distance():
-    # y=0 is fixed; x=1 is closer to it than x=4, so must get the larger
-    # recurrence weight, straight from the paper's notion that recurrence
-    # weakens with distance.
+    # y=0 is fixed; x=1 is closer than x=4, so it gets the larger recurrence weight.
     x = torch.tensor([1.0, 4.0])
     y = torch.tensor([0.0])
     actual = soft_cross_recurrence_matrix(x, y, temperature=1.0)
@@ -136,8 +129,6 @@ def test_soft_cross_recurrence_matrix_batched_and_exponential():
     y = torch.randn(4, 5, 2, dtype=torch.float64)
     actual = soft_cross_recurrence_matrix(x, y, temperature=0.5, kind="exponential")
     assert actual.shape == (4, 6, 5)
-    # Brute-force per-batch check catches an axis-transposition bug that a
-    # shape-only assertion would miss.
     brute = torch.zeros(4, 6, 5, dtype=torch.float64)
     for b in range(4):
         for i in range(6):

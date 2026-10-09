@@ -53,9 +53,6 @@ def _henon_x(num_points):
     return torch.stack(values)
 
 
-# --- generators ---------------------------------------------------------
-
-
 def test_shuffle_preserves_values_and_shape_and_dtype():
     x = torch.randn(3, 50, 2, dtype=torch.float64)
     out = random_shuffle_surrogate(x, generator=torch.Generator().manual_seed(0))
@@ -158,13 +155,9 @@ def test_generators_reproducible_and_nonfinite_values_move_not_raise(surrogate):
         surrogate(torch.zeros(2, 2, 2, 2))
 
 
-# --- surrogate_test -----------------------------------------------------
-
-
 def test_p_value_hand_derived_on_deterministic_statistic():
-    # Data [5,...]; statistic = first value; shuffles of 1..10 put each
-    # value first with probability 0.1. Fix the surrogates with a stub
-    # generator returning rows whose first values are 1, 2, 5, 5, 9.
+    # Statistic = first value; shuffles of 1..10 put each value first with probability 0.1.
+    # A stub generator fixes the surrogates' first values to 1, 2, 5, 5, 9.
     firsts = torch.tensor([1.0, 2.0, 5.0, 5.0, 9.0])
 
     def stub(data, generator=None):
@@ -183,7 +176,6 @@ def test_p_value_hand_derived_on_deterministic_statistic():
         assert result.p_value.item() == pytest.approx(p_value)
         assert result.statistic.item() == 5.0
         assert torch.equal(result.surrogate_statistics, firsts)
-    # both-tail clip to 1
     assert surrogate_test(x, _first_value, stub, num_surrogates=5, tail="both").p_value.item() <= 1.0
     constant = surrogate_test(
         torch.tensor([5.0, 1.0, 1.0]), _first_value, lambda data, generator=None: data.clone(), 4, tail="both"
@@ -200,7 +192,6 @@ def test_shapes_batched_and_per_row_independent_surrogates():
         result.p_value.shape == (4,) and result.statistic.shape == (4,) and result.surrogate_statistics.shape == (4, 7)
     )
     assert torch.equal(result.statistic, x[:, 0, 0])
-    # Identical rows still receive different surrogates.
     same = x[:1].repeat(4, 1, 1)
     out = surrogate_test(
         same, _first_value, random_shuffle_surrogate, num_surrogates=5, generator=torch.Generator().manual_seed(0)
@@ -254,7 +245,6 @@ def test_nan_rows_and_nan_statistics():
         x, _lag_one_autocorrelation, random_shuffle_surrogate, 9, generator=torch.Generator().manual_seed(0)
     )
     assert torch.isnan(result.p_value[1]) and torch.isfinite(result.p_value[[0, 2]]).all()
-    # A NaN in a single surrogate statistic makes only that row NaN.
     calls = []
 
     def flaky(data):
@@ -266,7 +256,6 @@ def test_nan_rows_and_nan_statistics():
 
     result = surrogate_test(torch.randn(2, 10, 1), flaky, random_shuffle_surrogate, 3)
     assert torch.isnan(result.p_value[0]) and torch.isfinite(result.p_value[1])
-    # NaN data under a spectral surrogate does not raise.
     assert torch.isnan(surrogate_test(x[1], _lag_one_autocorrelation, phase_randomized_surrogate, 3).p_value)
 
 
@@ -327,7 +316,7 @@ def test_nonfinite_rows_and_infinite_statistics_give_nan():
 def test_statistic_views_do_not_keep_surrogate_chunks_alive(monkeypatch):
     # Regression: a view like data[:, 0, 0] pins its whole [chunk*B, T, D] base.
     x = torch.randn(2, 30, 1, dtype=torch.float64)
-    monkeypatch.setattr(hypothesis, "_ELEMENT_BUDGET", x.numel())  # one surrogate per chunk
+    monkeypatch.setattr(hypothesis, "_ELEMENT_BUDGET", x.numel())
     real_cat = torch.cat
     stored = []
 

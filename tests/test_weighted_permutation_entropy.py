@@ -40,7 +40,6 @@ def test_variance_weighting_hand_derived():
         expected[code] += weight / total
     probability = ordinal_pattern_probabilities(TRAJECTORY, 3, 1, weighting="variance")
     assert torch.allclose(probability, expected, rtol=1e-12, atol=0)
-    # literal values guard against a wrong formula
     assert math.isclose(weights[1], 14 / 9, rel_tol=1e-12)
     assert math.isclose(weights[2], 26 / 9, rel_tol=1e-12)
     entropy = permutation_entropy(TRAJECTORY, weighting="variance")
@@ -223,9 +222,7 @@ def _run_julia(trajectory, constructor, embedding_dim, delay, extra=""):
 
 @pytest.mark.parametrize("embedding_dim,delay", [(3, 1), (4, 2)])
 def test_weighted_matches_complexitymeasures_jl(embedding_dim, delay):
-    # Julia computes the population variance of each embedded vector, as in
-    # this implementation (it documents a typo in the paper's index range);
-    # no deviation.
+    # Julia uses the population variance of each embedded vector, as here (documented paper typo).
     torch.manual_seed(5)
     trajectory = torch.randn(60, dtype=torch.float64)
     julia = _run_julia(trajectory, "WeightedOrdinalPatterns", embedding_dim, delay)

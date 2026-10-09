@@ -18,8 +18,7 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_theiler_window_mask_hand_derived():
-    # T=5, w=1: exclude |i-j| <= 1, i.e. the diagonal and its immediate
-    # neighbors, per Theiler (1986) Sec. III.
+    # T=5, w=1: exclude |i-j| <= 1 (Theiler 1986, Sec. III).
     mask = theiler_window_mask(5, 1)
     expected = torch.tensor(
         [
@@ -85,6 +84,5 @@ def test_theiler_window_matches_neighborhood_jl():
     assert result.returncode == 0, result.stderr
     excluded_flat = [c == "1" for c in result.stdout.strip()]
     julia_excluded = torch.tensor(excluded_flat).reshape(t, t)
-    # Neighborhood.jl's Theiler(i, j) is True where the pair is EXCLUDED,
-    # i.e. the logical negation of our "valid pair" mask.
+    # Neighborhood.jl's Theiler(i, j) is True where the pair is EXCLUDED, the negation of our "valid pair" mask.
     assert torch.equal(mask, ~julia_excluded)

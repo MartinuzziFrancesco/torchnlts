@@ -43,9 +43,7 @@ def _run_julia(julia_code: str) -> list[float]:
 
 
 def henon_step(x, a=1.4, b=0.3):
-    # Same formula as PredefinedDynamicalSystems.jl's `henon_rule`:
-    # henon_rule(x, p, n) = SVector{2}(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
-    # (1-indexed x[1], x[2] there vs 0-indexed x[0], x[1] here).
+    # Same formula as PredefinedDynamicalSystems.jl's henon_rule (0-indexed here).
     return torch.stack([1.0 - a * x[0] ** 2 + x[1], b * x[0]])
 
 
@@ -56,8 +54,7 @@ def diagonal_step(x, values):
 def test_step_jacobian_unbatched_matches_hand_derivative():
     x = torch.tensor([2.0, 3.0], dtype=torch.float64)
     jacobian = step_jacobian(henon_step, x)
-    # d/dx0 (1 - 1.4*x0^2 + x1) = -2.8*x0, d/dx1 (...) = 1
-    # d/dx0 (0.3*x0) = 0.3, d/dx1 (...) = 0
+    # Jacobian rows: (-2.8*x0, 1) and (0.3, 0).
     expected = torch.tensor([[-2.8 * 2.0, 1.0], [0.3, 0.0]], dtype=torch.float64)
     assert torch.allclose(jacobian, expected)
 
@@ -79,9 +76,7 @@ def test_step_jacobian_rejects_bad_ndim():
 
 
 def test_lyapunov_spectrum_diagonal_map_is_exact_from_first_step():
-    # See module docstring: a fixed diagonal map's Lyapunov spectrum is
-    # exactly log(abs(diagonal)), already exact at num_steps=1 since the
-    # deviation matrix never leaves the diagonal (up to sign).
+    # Fixed diagonal map: spectrum is exactly log(abs(diagonal)), exact already at num_steps=1 (see module docstring).
     values = torch.tensor([2.0, 0.5], dtype=torch.float64)
 
     def step(x):
@@ -92,18 +87,12 @@ def test_lyapunov_spectrum_diagonal_map_is_exact_from_first_step():
     expected = torch.log(values)
     assert torch.allclose(result, expected)
 
-    # Still exact after many steps (no drift once already diagonal).
     result_many = lyapunov_spectrum(step, state, num_steps=50)
     assert torch.allclose(result_many, expected)
 
 
 def test_lyapunov_spectrum_diagonal_map_negative_entry_and_nonunit_dt():
-    # A negative diagonal entry exercises the |diag(R)| sign handling
-    # (its Jacobian eigenvalue is negative, but the exponent is still
-    # log(abs(value))); dt rescales the exponent's time units without
-    # changing the map's own iteration, so log(abs(values)) / dt is
-    # still exact for this fixed diagonal map (see the first-step-exact
-    # test above).
+    # Negative diagonal entry exercises |diag(R)|; dt rescales time, so log(abs(values)) / dt is exact.
     values = torch.tensor([-2.0, 0.5], dtype=torch.float64)
 
     def step(x):
@@ -124,8 +113,6 @@ def test_lyapunov_spectrum_matches_chaostools_jl_henon_full_spectrum():
     result = lyapunov_spectrum(henon_step, state0, num_steps=10000)
     expected = torch.tensor(julia_lambdas, dtype=torch.float64)
     assert torch.allclose(result, expected, atol=1e-10, rtol=0)
-    # The algorithm's own descending-order property (module docstring),
-    # not a post-hoc sort: check it actually holds for this run.
     assert result[0] > result[1]
 
 
@@ -146,13 +133,8 @@ def test_lyapunov_spectrum_matches_chaostools_jl_henon_with_transient():
 
 
 def test_lyapunov_spectrum_diagonal_map_can_be_non_descending():
-    # See module docstring: a diagonal map whose diagonal isn't already
-    # sorted descending is a confirmed, shared non-generic edge case of
-    # the Benettin/QR method itself, not a divergence from ChaosTools.jl
-    # -- both implementations return the same non-descending spectrum,
-    # since the coordinate-axis deviation vectors both start from are
-    # exact invariant directions of a diagonal map, with no mixing for
-    # either QR decomposition to ever reorder.
+    # Non-descending diagonal: the coordinate axes are invariant directions, so QR never reorders;
+    # ChaosTools.jl returns the same spectrum (see module docstring).
     julia_lambdas = _run_julia(
         "using ChaosTools, DynamicalSystems\n"
         "diag_rule(x, p, n) = SVector{2}(p[1]*x[1], p[2]*x[2])\n"
@@ -171,12 +153,7 @@ def test_lyapunov_spectrum_diagonal_map_can_be_non_descending():
 
 
 def test_lyapunov_spectrum_matches_analytic_logistic_map_exponent():
-    # Same natural benchmark as Rosenstein/Kantz: the r=4 logistic map's
-    # Lyapunov exponent is exactly ln(2). Kept as a hand-rolled step
-    # function here (not dysts.maps.Logistic) since this estimator's
-    # whole point is operating on a differentiable step callable, not a
-    # numpy trajectory generator -- there is nothing to reimplement from
-    # dysts for a single scalar formula this simple.
+    # r=4 logistic map: exponent exactly ln(2). Hand-rolled because the estimator takes a differentiable step callable.
     def logistic_step(x):
         return 4.0 * x * (1.0 - x)
 
@@ -246,9 +223,7 @@ def test_lyapunov_spectrum_rejects_negative_transient_steps():
 
 
 def test_lyapunov_spectrum_gradcheck_w_r_t_initial_state():
-    # Only 3 steps: enough to exercise the full Jacobian -> QR ->
-    # re-accumulate loop under gradcheck's finite-difference
-    # perturbations without amplifying them through many chaotic steps.
+    # 3 steps: exercises the Jacobian/QR loop under finite-difference perturbations without chaotic amplification.
     state = torch.tensor([0.1, 0.1], dtype=torch.float64, requires_grad=True)
 
     def f(x):
@@ -258,10 +233,7 @@ def test_lyapunov_spectrum_gradcheck_w_r_t_initial_state():
 
 
 def test_lyapunov_spectrum_gradcheck_w_r_t_model_parameter():
-    # The target use case: step_fn's own parameters
-    # (a differentiable dynamics model being trained) require grad, not
-    # just the state. A fixed diagonal map is used instead of Hénon here
-    # to keep the check numerically safe regardless of step count.
+    # step_fn's own parameters require grad (a trained model); a fixed diagonal map keeps the check safe.
     values = torch.tensor([1.5, 0.5], dtype=torch.float64, requires_grad=True)
     state = torch.tensor([1.0, 1.0], dtype=torch.float64)
 

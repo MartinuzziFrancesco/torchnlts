@@ -17,13 +17,8 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_higuchi_length_hand_derived():
-    # x = [1,2,1,3,2,4,1,5], N=8.
-    # k=1: single offset m=0, 7 consecutive diffs: 1,1,2,1,2,3,4 -> sum=14,
-    #   normalization=(8-1)/(7*1*1)=1 -> L(1)=14.
-    # k=2: offset m=0: steps at indices 0,2,4,6 -> diffs |1-1|,|2-1|,|1-2|=0,1,1
-    #   sum=2, num_steps=3, norm=7/(3*4)=7/12 -> L_0=7/6.
-    #   offset m=1: indices 1,3,5,7 -> diffs |3-2|,|4-3|,|5-4|=1,1,1, sum=3,
-    #   num_steps=3, norm=7/12 -> L_1=7/4. L(2)=(7/6+7/4)/2=1.4583333333333335.
+    # x = [1,2,1,3,2,4,1,5]: L(1) = 14 (sum of diffs, normalization 1).
+    # L(2) = (7/6 + 7/4)/2: offsets 0 and 1 have diff sums 2 and 3 over 3 steps, normalization 7/12.
     trajectory = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0], dtype=torch.float64)
     length = higuchi_length(trajectory, [1, 2])
     assert torch.allclose(length, torch.tensor([14.0, 1.4583333333333335], dtype=torch.float64))
@@ -38,9 +33,7 @@ def test_higuchi_dimension_hand_derived():
 
 
 def test_higuchi_length_degenerate_k_is_nan_not_crash():
-    # k=9 on a length-10 trajectory: the offset m=1 has (10-1-1)//9=0 valid
-    # steps, matching Julia's own natural division-by-zero-to-NaN failure
-    # mode for that offset (confirmed directly against FractalDimensions.jl).
+    # k=9 on length 10: offset m=1 has 0 steps, giving NaN as in FractalDimensions.jl.
     trajectory = torch.arange(1.0, 11.0, dtype=torch.float64)
     result = higuchi_length(trajectory, 9)
     assert torch.isnan(result)
@@ -56,10 +49,7 @@ def test_higuchi_length_zero_k_raises():
 
 
 def test_higuchi_length_fractional_k_raises():
-    # k indexes a stride, not a continuous quantity -- unlike
-    # radius/box_size elsewhere, a non-integer value is rejected
-    # rather than silently truncated (confirmed directly: an earlier
-    # version silently truncated [1.9, 2.9] to [1, 2] with no error).
+    # k is a stride, so non-integer values are rejected rather than truncated.
     trajectory = torch.arange(1.0, 21.0, dtype=torch.float64)
     try:
         higuchi_length(trajectory, [1.9, 2.9])
@@ -78,10 +68,7 @@ def test_higuchi_length_empty_k_raises():
 
 
 def test_higuchi_length_empty_trajectory_is_nan_not_crash():
-    # Falls into the same degenerate-k NaN case as any other too-short
-    # trajectory, not a separate crash -- a confirmed, documented
-    # deviation from FractalDimensions.jl's own higuchi_length, which
-    # returns 0.0 (not NaN) for a literally empty input.
+    # Empty input is the degenerate-k NaN case; FractalDimensions.jl returns 0.0 here.
     empty = torch.tensor([], dtype=torch.float64)
     result = higuchi_length(empty, [1, 2])
     assert torch.isnan(result).all()
@@ -134,11 +121,7 @@ def test_higuchi_length_gradcheck():
 
 
 def test_higuchi_length_gradcheck_with_exact_tie():
-    # x[0]=0, x[2]=0: the stride-2 diff between indices 0 and 2 is an
-    # exact abs() kink (a genuine tie, not just a random-data coincidence).
-    # Unlike torchnlts/entropy/fuzzy.py's torch.where-based poisoning
-    # history, this module has no masked/discarded branch for backward
-    # to poison through -- confirmed passing here.
+    # x[0]=0, x[2]=0: the stride-2 diff is an exact abs() kink (a tie).
     trajectory = torch.tensor([0.0, 2.0, 0.0, 5.0, 1.0, 4.0, -1.0, 3.0], dtype=torch.float64, requires_grad=True)
 
     def length(x):
@@ -196,10 +179,7 @@ def test_higuchi_matches_fractaldimensions_jl():
 
 
 def test_higuchi_dimension_in_expected_range_for_known_signals():
-    # A smooth sine wave should be near D_H=1 (smooth curve); white noise
-    # should be near D_H=2 (maximally rough) -- Higuchi's own documented
-    # [1, 2] range, checked here against two clearly-contrasting real
-    # signals rather than trusting the range claim on faith.
+    # Smooth sine is near D_H=1, white noise near 2.
     t = torch.linspace(0, 20 * torch.pi, 2000, dtype=torch.float64)
     sine = torch.sin(t)
     ks = torch.arange(1, 21, dtype=torch.float64)

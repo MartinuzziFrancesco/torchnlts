@@ -37,7 +37,7 @@ JULIA_PROJECT = "juliaenv"
 
 def test_phase_randomized_surrogate_preserves_all_nondc_bins_for_odd_length():
     torch.manual_seed(0)
-    x = torch.randn(15, dtype=torch.float64)  # odd length: no Nyquist bin
+    x = torch.randn(15, dtype=torch.float64)
     surrogate = phase_randomized_surrogate(x)
     original_magnitude = torch.fft.rfft(x).abs()
     surrogate_magnitude = torch.fft.rfft(surrogate).abs()
@@ -46,22 +46,19 @@ def test_phase_randomized_surrogate_preserves_all_nondc_bins_for_odd_length():
 
 def test_phase_randomized_surrogate_nyquist_bin_broken_for_even_length():
     torch.manual_seed(1)
-    x = torch.randn(16, dtype=torch.float64)  # even length: has a Nyquist bin
+    x = torch.randn(16, dtype=torch.float64)
     surrogate = phase_randomized_surrogate(x)
     original_magnitude = torch.fft.rfft(x).abs()
     surrogate_magnitude = torch.fft.rfft(surrogate).abs()
-    # Interior bins (excluding DC at 0 and Nyquist at -1) preserved exactly.
+    # Interior bins are preserved exactly; the Nyquist bin is not (documented quirk, the gap is large, not noise).
     assert torch.allclose(original_magnitude[1:-1], surrogate_magnitude[1:-1], atol=1e-10, rtol=1e-10)
-    # The Nyquist bin is not -- this is the documented, confirmed quirk,
-    # not a numerical-tolerance question (the gap is large, not noise).
     assert not torch.isclose(original_magnitude[-1], surrogate_magnitude[-1], atol=0.05)
 
 
 def test_phase_randomized_surrogate_matches_chaostools_jl_pattern():
-    # Same literal input fed to both languages' own surrogate generator
-    # (not a value-for-value comparison -- see module docstring): each
-    # one's own output is checked against its own original spectrum.
-    trajectory = [0.3, -1.2, 0.7, 2.1, -0.4, 1.0, -0.9, 0.5]  # length 8: has a Nyquist bin
+    # Same literal input to both languages' generators; each output is checked against its own spectrum (see module
+    # docstring).
+    trajectory = [0.3, -1.2, 0.7, 2.1, -0.4, 1.0, -0.9, 0.5]
     julia_code = f"""
     using TimeseriesSurrogates, Random, FFTW
     x = {trajectory}
@@ -80,11 +77,10 @@ def test_phase_randomized_surrogate_matches_chaostools_jl_pattern():
     julia_original_line, julia_surrogate_line = result.stdout.strip().splitlines()
     julia_original_magnitude = torch.tensor([float(v) for v in julia_original_line.split()], dtype=torch.float64)
     julia_surrogate_magnitude = torch.tensor([float(v) for v in julia_surrogate_line.split()], dtype=torch.float64)
-    assert julia_original_magnitude.shape == (5,)  # rfft of length 8 -> 5 bins, index 4 is Nyquist
+    assert julia_original_magnitude.shape == (5,)
     assert torch.allclose(julia_original_magnitude[1:-1], julia_surrogate_magnitude[1:-1], atol=1e-10, rtol=1e-10)
     assert not torch.isclose(julia_original_magnitude[-1], julia_surrogate_magnitude[-1], atol=0.05)
 
-    # Same input, this module's own implementation, same pattern.
     x = torch.tensor(trajectory, dtype=torch.float64)
     surrogate = phase_randomized_surrogate(x, generator=torch.Generator().manual_seed(1))
     original_magnitude = torch.fft.rfft(x).abs()
@@ -98,23 +94,13 @@ def test_phase_randomized_surrogate_mean_approximately_preserved():
     torch.manual_seed(2)
     x = torch.randn(200, dtype=torch.float64) + 5.0
     surrogate = phase_randomized_surrogate(x)
-    # rtol=0: the default rtol=1e-5 would loosen this to ~5e-5 around a
-    # mean of 5, which isn't what "approximately preserved" should mean
-    # here -- only atol, sized well above float64 noise, matters.
+    # rtol=0: the default rtol=1e-5 would loosen this to ~5e-5 around a mean of 5.
     assert torch.isclose(surrogate.mean(), x.mean(), atol=1e-8, rtol=0)
 
 
 def test_phase_randomized_surrogate_zero_phase_matches_hand_derived_formula():
-    # Hand-derived paper-formula check: force every drawn "random" phase
-    # to 0 (mocking
-    # torch.rand, which the production code multiplies by 2*pi to get
-    # the phase actually used, so a 0 draw is a phase of exactly 0) --
-    # shuffled_F is then just the real, non-negative magnitude at every
-    # bin, and the expected surrogate is irfft(magnitude) + mean,
-    # computed here independently of phase_randomized_surrogate's own
-    # code path (though both call torch.fft.irfft itself, a trusted
-    # primitive whose own correctness isn't what this test is checking).
-    x = torch.tensor([1.0, 2.0, -1.0, 0.5, 3.0], dtype=torch.float64)  # odd length
+    # Mock torch.rand to 0 so every phase is exactly 0; the expected surrogate is then irfft(magnitude) + mean.
+    x = torch.tensor([1.0, 2.0, -1.0, 0.5, 3.0], dtype=torch.float64)
     mean = x.mean()
     magnitude = torch.fft.rfft(x - mean).abs()
     expected = torch.fft.irfft(magnitude.to(torch.complex128), n=x.shape[0]) + mean

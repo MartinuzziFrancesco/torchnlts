@@ -55,9 +55,7 @@ for name, signal in signals.items():
 
 assert abs(estimated_alpha["white noise"] - 0.5) < 0.05, "white noise should give alpha close to 0.5"
 assert abs(estimated_alpha["Brownian motion"] - 1.5) < 0.05, "Brownian motion should give alpha close to 1.5"
-# Pink noise's finite-sample estimate is the roughest of the three to pin down exactly
-# (its own defining property is a slowly, not sharply, convergent spectrum); a wider band
-# than the other two is expected here, not a looser implementation of the same estimator.
+# Pink noise's estimate converges slowest of the three, so its band is wider.
 assert abs(estimated_alpha["1/f (pink) noise"] - 1.0) < 0.15, "1/f noise should give alpha reasonably close to 1.0"
 
 print("\nAll checks passed: one realization of each signal lands near the asymptotic values")

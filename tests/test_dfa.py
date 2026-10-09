@@ -14,24 +14,15 @@ from torchnlts.fluctuations.dfa import dfa_exponent, dfa_fluctuation
 
 
 def test_dfa_fluctuation_hand_derived():
-    # x = [1,2,1,3,2,4,1,5], mean=19/8=2.375.
-    # profile y = cumsum(x - mean):
-    #   y = [-1.375, -1.75, -3.125, -2.5, -2.875, -1.25, -2.625, 0.0]
-    # window_size=4, order=1 -> two windows [y0..y3], [y4..y7].
-    # Window 1 ([-1.375,-1.75,-3.125,-2.5] at abscissa 0..3): OLS line has
-    # slope=-0.475, intercept=-1.475 -> residuals [0.1, 0.2, -0.7, 0.4],
-    # sum of squares = 0.01+0.04+0.49+0.16 = 0.7.
-    # Window 2 ([-2.875,-1.25,-2.625,0.0]): slope=0.725, intercept=-2.775
-    # -> residuals [-0.1, 0.8, -1.3, 0.6], sum of squares = 0.01+0.64+1.69+0.36 = 2.7.
-    # F(4) = sqrt((0.7 + 2.7) / 8) = sqrt(0.425) = 0.6519202405202648.
+    # Profile y = cumsum(x - 2.375). window_size=4, order=1: OLS residuals [0.1, 0.2, -0.7, 0.4] and [-0.1, 0.8, -1.3,
+    # 0.6], sums of squares 0.7 and 2.7; F(4) = sqrt((0.7 + 2.7) / 8) = sqrt(0.425) = 0.6519202405202648.
     trajectory = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0], dtype=torch.float64)
     fluctuation = dfa_fluctuation(trajectory, 4, order=1)
     assert torch.isclose(fluctuation, torch.tensor(0.6519202405202648, dtype=torch.float64))
 
 
 def test_dfa_fluctuation_leftover_samples_are_dropped():
-    # T=10, window_size=4: only 2 full windows (8 samples) are used, the
-    # trailing 2 samples are dropped -- same convention as nolds/antropy.
+    # Trailing samples that do not fill a window are dropped, as in nolds/antropy.
     trajectory = torch.arange(1.0, 11.0, dtype=torch.float64)
     full = dfa_fluctuation(trajectory, 4)
     truncated = dfa_fluctuation(trajectory[:8], 4)
@@ -84,8 +75,6 @@ def test_dfa_fluctuation_empty_window_size_raises():
 
 
 def test_dfa_fluctuation_window_too_small_for_order_raises():
-    # window_size must be > order + 1, else the fit is exact and F(n) = 0
-    # identically (no degrees of freedom left to show fluctuation).
     trajectory = torch.randn(10, dtype=torch.float64)
     try:
         dfa_fluctuation(trajectory, 2, order=1)
@@ -149,7 +138,7 @@ def test_dfa_exponent_single_window_size_is_nan_not_crash():
 
 
 def test_dfa_exponent_white_noise_is_near_half():
-    # Peng et al. (1994): alpha ~ 0.5 for uncorrelated (white) noise.
+    # Peng et al. (1994): alpha ~ 0.5 for white noise.
     torch.manual_seed(4)
     trajectory = torch.randn(8000, dtype=torch.float64)
     window_sizes = [10, 13, 16, 21, 26, 34, 43, 55, 70, 89, 113, 144, 183, 234, 298, 379, 483, 616, 785, 1000]
@@ -159,8 +148,7 @@ def test_dfa_exponent_white_noise_is_near_half():
 
 
 def test_dfa_exponent_brownian_motion_is_near_one_point_five():
-    # Peng et al. (1994): alpha ~ 1.5 for Brownian motion (cumsum of
-    # white noise) -- one order of integration above white noise.
+    # Peng et al. (1994): alpha ~ 1.5 for Brownian motion.
     torch.manual_seed(5)
     white_noise = torch.randn(8000, dtype=torch.float64)
     brownian_motion = torch.cumsum(white_noise, dim=0)
@@ -180,9 +168,7 @@ def test_dfa_matches_nolds_non_overlapping():
     torch_fluctuation = dfa_fluctuation(trajectory, window_sizes, order=1)
     torch_alpha = dfa_exponent(torch.tensor(window_sizes, dtype=torch.float64), torch_fluctuation)
 
-    # overlap=False and fit_exp='poly' match this module's convention
-    # exactly (non-overlapping windows, plain OLS log-log slope); nolds'
-    # own defaults (overlap=True, fit_exp='RANSAC') do not.
+    # overlap=False and fit_exp='poly' match this module's non-overlapping windows and OLS log-log slope.
     nolds_alpha = nolds.dfa(
         trajectory.numpy(), nvals=window_sizes, overlap=False, order=1, fit_trend="poly", fit_exp="poly"
     )
@@ -195,8 +181,7 @@ def test_dfa_matches_antropy_default_sweep():
 
     torch.manual_seed(7)
     trajectory = torch.randn(2000, dtype=torch.float64)
-    # antropy.detrended_fluctuation's own fixed sweep: log-spaced nvals
-    # from 4 to 0.1 * len(trajectory) by factor 1.2, order=1, non-overlapping.
+    # antropy's fixed sweep: log-spaced nvals from 4 to 0.1 * len(trajectory) by factor 1.2, order=1, non-overlapping.
     window_sizes = [int(value) for value in _log_n(4, 0.1 * len(trajectory), 1.2)]
 
     torch_fluctuation = dfa_fluctuation(trajectory, window_sizes, order=1)
@@ -205,9 +190,7 @@ def test_dfa_matches_antropy_default_sweep():
     import antropy
 
     antropy_alpha = antropy.detrended_fluctuation(trajectory.numpy())
-    # Numba's internal accumulation order differs slightly from this
-    # module's (torch) reduction order; both use the same formula and
-    # sweep, so the tolerance only needs to absorb float64 roundoff.
+    # Numba and torch reduce in a different order; the tolerance only absorbs float64 roundoff.
     assert abs(torch_alpha.item() - antropy_alpha) < 1e-6
 
 
@@ -247,8 +230,7 @@ def test_dfa_fluctuation_integer_and_half_input():
 
 
 def test_dfa_fluctuation_zero_fluctuation_has_finite_gradient():
-    # Nonconstant series whose single kept window has an exactly linear
-    # profile: F(4) = 0, so the sqrt must be masked for backward.
+    # Single kept window with an exactly linear profile: F(4) = 0, so the sqrt must be masked for backward.
     trajectory = torch.tensor([0.0, 0.0, 0.0, 0.0, 1.0, -1.0], dtype=torch.float64, requires_grad=True)
     fluctuation = dfa_fluctuation(trajectory, 4)
     assert fluctuation.item() == 0.0
@@ -257,8 +239,7 @@ def test_dfa_fluctuation_zero_fluctuation_has_finite_gradient():
 
 
 def test_dfa_fluctuation_high_order_is_well_conditioned():
-    # A degree-20 Legendre polynomial profile is removed exactly by an
-    # order-20 detrend; a monomial Vandermonde basis in float32 left ~2.6e-2.
+    # A degree-20 Legendre profile is removed exactly by an order-20 detrend; a monomial basis in float32 left ~2.6e-2.
     import numpy as np
 
     abscissa = np.linspace(-1, 1, 64)
@@ -273,8 +254,7 @@ def test_dfa_exponent_mismatched_lengths_raise():
 
 
 def test_dfa_fluctuation_extreme_amplitude_scaling():
-    # F is homogeneous of degree 1 in the amplitude; squaring raw float32
-    # residuals overflowed at 1e20 and underflowed to 0 at 1e-25.
+    # F is homogeneous of degree 1; squaring raw float32 residuals overflowed at 1e20 and underflowed to 0 at 1e-25.
     base = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0])
     reference = dfa_fluctuation(base.double(), 4)
     for factor in (1e20, 1e-25):
@@ -293,8 +273,7 @@ def test_dfa_fluctuation_complex_input_raises():
 
 
 def test_dfa_fluctuation_half_profile_exceeding_half_range():
-    # The profile of this ramp reaches about -1e5, beyond float16's 65504;
-    # computing in float16 would overflow the cumulative sum.
+    # The ramp's profile reaches about -1e5, beyond float16's 65504; a float16 cumulative sum would overflow.
     ramp = torch.linspace(0.0, 200.0, 4000)
     result = dfa_fluctuation(ramp.half(), 400)
     assert torch.isfinite(result)
@@ -302,8 +281,7 @@ def test_dfa_fluctuation_half_profile_exceeding_half_range():
 
 
 def test_dfa_fluctuation_profile_does_not_overflow():
-    # Finite float32 input whose mean/profile sums overflow float32 unless
-    # the amplitude is normalized first.
+    # Finite float32 input whose mean/profile sums overflow float32 unless the amplitude is normalized first.
     base = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0])
     result = dfa_fluctuation(base * 5e37, 4)
     assert torch.isfinite(result)
@@ -324,13 +302,11 @@ def test_dfa_exponent_degenerate_column_does_not_poison_shared_gradient():
     exponent = dfa_exponent([4, 8, 16], fluctuation)
     assert torch.isnan(exponent[0]) and torch.isclose(exponent[1], torch.tensor(1.0, dtype=torch.float64))
     (gradient,) = torch.autograd.grad(exponent[1], parameter)
-    # alpha is scale invariant: d alpha / d parameter = 0.
     assert torch.isclose(gradient, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)
 
 
 def test_dfa_matches_fluctuationanalysis_jl():
-    # FluctuationAnalysis.jl's dfa with bidirectional=false uses the same
-    # forward-only segmentation; both are float64, so agreement is to rounding.
+    # bidirectional=false is Julia's forward-only segmentation; both are float64, so agreement is to rounding.
     import pathlib
     import subprocess
 
@@ -361,7 +337,6 @@ def test_dfa_matches_fluctuationanalysis_jl():
 
 
 def test_dfa_fluctuation_large_amplitude_gradient_is_scale_invariant():
-    # F is homogeneous of degree 1, so dF/dx does not depend on the amplitude.
     base = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0])
     unit = base.clone().requires_grad_(True)
     (unit_gradient,) = torch.autograd.grad(dfa_fluctuation(unit, 4), unit)
@@ -371,15 +346,15 @@ def test_dfa_fluctuation_large_amplitude_gradient_is_scale_invariant():
 
 
 def test_dfa_fluctuation_second_derivative():
-    # The amplitude scaling must be exact for double backward too (a
-    # forward-only scaling trick gave a Hessian off by the scale factor).
+    # Amplitude scaling must be exact for double backward too (a forward-only scaling trick gave a Hessian off by the
+    # scale).
     trajectory = torch.tensor([1.0, 2.0, 1.0, 3.0, 2.0, 4.0, 1.0, 5.0], dtype=torch.float64, requires_grad=True)
     assert torch.autograd.gradgradcheck(lambda series: dfa_fluctuation(series, 4), (trajectory,))
 
 
 def test_dfa_fluctuation_small_kept_window_next_to_large_dropped_samples():
-    # The kept window (first 4 samples) is ~1e-25 while the dropped tail is ~1;
-    # normalizing by the row maximum alone underflowed the residual squares to 0.
+    # The kept window is ~1e-25 while the dropped tail is ~1; normalizing by the row maximum alone underflowed the
+    # squares to 0.
     for dtype, tiny in ((torch.float32, 1e-25), (torch.float64, 1e-170)):
         trajectory = torch.tensor([1 * tiny, 2 * tiny, 1 * tiny, 3 * tiny, 1.0, -1.0], dtype=dtype, requires_grad=True)
         result = dfa_fluctuation(trajectory, 4)
@@ -420,9 +395,8 @@ def test_dfa_fluctuation_bfloat16_matches_float32():
 
 
 def test_dfa_fluctuation_same_sign_dropped_tail():
-    # The dropped tail [1, 1] shifts the global mean to ~1/3; subtracting it
-    # before building a global profile erased the 1e-10 kept window (F came
-    # out 715x too large, with sign-flipped gradients).
+    # The dropped tail [1, 1] shifts the global mean to ~1/3; a global profile erased the 1e-10 kept window (F 715x too
+    # large).
     trajectory = torch.tensor([1e-10, 2e-10, 1e-10, 3e-10, 1.0, 1.0], dtype=torch.float32, requires_grad=True)
     result = dfa_fluctuation(trajectory, 4)
     assert abs(result.item() / ((0.7 / 4) ** 0.5 * 1e-10) - 1) < 1e-4
@@ -468,7 +442,6 @@ def test_bfloat16_input_is_computed_in_float32():
 
 
 def test_spike_cancelled_by_detrending():
-    # A first-sample spike adds a constant to the profile, which detrending removes.
     series = torch.tensor([1e8, 1.0, 2.0, 3.0], requires_grad=True)
     result = dfa_fluctuation(series, 4)
     (gradient,) = torch.autograd.grad(result, series)
@@ -477,8 +450,8 @@ def test_spike_cancelled_by_detrending():
 
 
 def test_dominant_dropped_tail_does_not_affect_detrended_windows():
-    # For order >= 1, F depends only on the kept samples; a global profile
-    # would carry the 1e14 tail's mean into every window.
+    # For order >= 1, F depends only on the kept samples; a global profile would carry the 1e14 tail's mean into every
+    # window.
     kept = torch.randn(512, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
     series = torch.cat([kept, torch.full((100,), 1e14, dtype=torch.float64)])
     for order in (1, 2):
@@ -489,8 +462,8 @@ def test_dominant_dropped_tail_does_not_affect_detrended_windows():
 
 @pytest.mark.parametrize("order", [1, 2])
 def test_large_float64_offset_needs_window_centering(order):
-    # An uncentered cumulative sum of 1e10-sized samples loses the unit-sized
-    # residual far beyond epsilon times the largest sample.
+    # An uncentered cumulative sum of 1e10-sized samples loses the unit-sized residual far beyond epsilon times the
+    # largest sample.
     base = torch.randn(1024, generator=torch.Generator().manual_seed(2), dtype=torch.float64)
     expected = dfa_fluctuation(base, 256, order=order)
     assert torch.isclose(dfa_fluctuation(base + 1e10, 256, order=order), expected, rtol=1e-6)

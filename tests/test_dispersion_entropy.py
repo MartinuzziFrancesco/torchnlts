@@ -25,11 +25,8 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_dispersion_entropy_hand_derived():
-    # mean=3.75, std=1.6690459207925603 (sample std, N-1), c=3, m=2, d=1.
-    # NCDF-classified: [1,1,1,2,3,3,3,2]; consecutive pairs:
-    # (1,1)x2, (1,2)x1, (2,3)x1, (3,3)x2, (3,2)x1 -> 5 distinct patterns
-    # over n=7 pairs -> H = -sum(p*ln(p)) = 1.5498260458782016 (computed
-    # independently via Python's statistics/math modules, not torch).
+    # mean=3.75, sample std 1.669, c=3, m=2: classes [1,1,1,2,3,3,3,2], 5 distinct pairs over n=7,
+    # H = -sum(p*ln(p)) = 1.5498260458782016 (computed with statistics/math).
     trajectory = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0], dtype=torch.float64)
     result = dispersion_entropy(trajectory, num_classes=3, embedding_dim=2, delay=1)
     assert torch.isclose(result, torch.tensor(1.5498260458782016, dtype=torch.float64))
@@ -82,19 +79,13 @@ def test_dispersion_entropy_rejects_too_few_classes():
 
 
 def test_dispersion_entropy_constant_trajectory_is_nan():
-    # Zero variance -> division by std=0 in the Gaussian-CDF step.
     trajectory = torch.full((20,), 3.0, dtype=torch.float64)
     result = dispersion_entropy(trajectory, num_classes=4, embedding_dim=2)
     assert torch.isnan(result)
 
 
 def test_dispersion_entropy_near_constant_float32_is_finite_not_nan():
-    # Edge case: a "constant" float32 tensor's
-    # computed std isn't exactly 0 (rounding in the reduction), so the
-    # NaN path documented above only reliably triggers for an *exactly*
-    # zero std, not merely a visually-constant trajectory in every
-    # dtype -- the documented guarantee is precise about this, this
-    # test locks in the actual (not idealized) behavior.
+    # A constant float32 trajectory's std need not be exactly 0 (reduction rounding), so the NaN path is not reliable.
     trajectory = torch.full((30,), 0.1, dtype=torch.float32)
     assert trajectory.std().item() != 0.0
     result = dispersion_entropy(trajectory, num_classes=4, embedding_dim=2)
@@ -102,18 +93,8 @@ def test_dispersion_entropy_near_constant_float32_is_finite_not_nan():
 
 
 def test_dispersion_entropy_pattern_codes_do_not_collide_at_large_scale():
-    # Regression: computing pattern codes in a floating
-    # dtype (matching the trajectory's own) instead of integer
-    # arithmetic silently collided two different embedding_dim=25,
-    # num_classes=2 digit patterns onto the same code once
-    # num_classes**embedding_dim exceeded float32's 2**24 exactly-
-    # representable-integer ceiling -- confirmed directly before the
-    # fix. Reproduced here at the arithmetic level, matching exactly
-    # what dispersion_entropy now computes internally (int64 weights,
-    # int64 embedded values), not through the full function -- at this
-    # scale, dispersion_entropy's one-hot pattern-counting step would
-    # need gigabytes of memory (see the module docstring's
-    # embedding_dim caveat), so this isolates the arithmetic fix itself.
+    # Regression: float pattern codes collided once num_classes**embedding_dim exceeded float32's 2**24.
+    # Checked at the int64 arithmetic level; the full function would need gigabytes at this size.
     weights = 2 ** torch.arange(24, -1, -1, dtype=torch.int64)
     pattern_a = torch.tensor([1] + [0] * 24, dtype=torch.int64)
     pattern_b = torch.tensor([1] + [0] * 23 + [1], dtype=torch.int64)
@@ -160,15 +141,8 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_hand_example():
 
 
 def test_dispersion_entropy_matches_complexitymeasures_jl_at_exact_rounding_tie():
-    # Specifically targets the class-rounding step's tie-breaking
-    # convention (torch.round breaks ties to even): constructed so one
-    # value sits exactly at the trajectory's own mean, making
-    # round(c*y+0.5) land exactly on a half-integer (c=4 -> 2.5).
-    # Confirmed live against Julia (not assumed): both round 2.5 to 2,
-    # giving an exact match here -- worth locking in permanently since
-    # this is the one place PyTorch's specific rounding convention
-    # could plausibly have disagreed with Julia's.
-    trajectory = [-1.0, 0.5, 0.5, 0.5, 0.5, 2.0]  # mean is exactly 0.5
+    # One value sits at the mean so round(c*y+0.5) hits 2.5 (c=4); torch.round ties to even, as Julia does.
+    trajectory = [-1.0, 0.5, 0.5, 0.5, 0.5, 2.0]
     values = ", ".join(f"{v:.17g}" for v in trajectory)
     julia_code = f"""
     using ComplexityMeasures
@@ -188,9 +162,7 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_at_exact_rounding_tie(
 
 
 def test_dispersion_entropy_disagrees_with_complexitymeasures_jl_on_constant_input():
-    # Locks in the confirmed deviation the module docstring describes:
-    # for an exactly-constant trajectory, Julia's Dispersion returns
-    # -0.0 (not an error, not NaN), while this module returns NaN.
+    # Constant trajectory: Julia returns -0.0, this module returns NaN (documented deviation).
     julia_code = """
     using ComplexityMeasures
     x = fill(3.0, 20)
@@ -202,7 +174,7 @@ def test_dispersion_entropy_disagrees_with_complexitymeasures_jl_on_constant_inp
     )
     assert result.returncode == 0, result.stderr
     julia_entropy = float(result.stdout.strip())
-    assert julia_entropy == 0.0  # Julia's -0.0, not NaN and not an error
+    assert julia_entropy == 0.0
 
     torch_entropy = dispersion_entropy(torch.full((20,), 3.0, dtype=torch.float64), num_classes=4, embedding_dim=2)
     assert torch.isnan(torch_entropy)

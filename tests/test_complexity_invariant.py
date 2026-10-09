@@ -28,8 +28,8 @@ def test_complexity_estimate_normalized_hand_derived():
 
 
 def test_cid_hand_derived():
-    # Q = [0, 0, 0, 3] (CE 3), C = [0, 1, 0, 1] (CE sqrt(3)); ED = sqrt(1 + 0 + 1 + 4) ... computed directly:
-    # Q - C = [0, -1, 0, 2] -> ED = sqrt(5); CF = 3 / sqrt(3) = sqrt(3); CID = sqrt(15)
+    # Q = [0, 0, 0, 3] (CE 3), C = [0, 1, 0, 1] (CE sqrt(3)); Q - C = [0, -1, 0, 2] -> ED = sqrt(5);
+    # CF = 3 / sqrt(3) = sqrt(3); CID = sqrt(15)
     first, second = _f64([0.0, 0.0, 0.0, 3.0]), _f64([0.0, 1.0, 0.0, 1.0])
     expected = _f64(math.sqrt(15))
     assert torch.isclose(complexity_invariant_distance(first, second), expected)
@@ -207,7 +207,6 @@ def test_scale_equivariance(dtype, scale):
     # ED = 1, ratio 2 -> CID = 2 scale
     distance = complexity_invariant_distance(base * scale, other * scale)
     assert torch.isclose(distance / scale, torch.tensor(2.0, dtype=dtype), rtol=1e-5)
-    # normalize is scale-invariant
     assert torch.isclose(
         complexity_estimate(base * scale, normalize=True), complexity_estimate(base, normalize=True), rtol=1e-5
     )

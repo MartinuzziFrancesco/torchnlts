@@ -66,26 +66,21 @@ def test_hard_fnn_matches_brute_force_reference():
 
 
 def test_hard_fnn_zero_low_distance_no_nan():
-    # Two exact duplicate windows force low_distance == 0 for some point;
-    # the division-free reformulation must not produce NaN there.
+    # Duplicate windows give low_distance == 0; the division-free form must not produce NaN.
     trajectory = torch.tensor([0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 5.0, -3.0, 8.0])
     result = hard_fnn(trajectory, embedding_dim=2, delay=1, theiler_window=0)
     assert torch.isfinite(result)
 
 
 def test_hard_fnn_theiler_exhausts_candidates_no_crash():
-    # Every point excluded -> the fraction is genuinely undefined (0/0),
-    # not silently 0; NaN is the honest answer, not a crash.
+    # Every point excluded: the 0/0 fraction is NaN, not 0.
     trajectory = torch.tensor([0.0, 1.0, 2.0, 3.0])
     result = hard_fnn(trajectory, embedding_dim=1, delay=1, theiler_window=5)
     assert torch.isnan(result)
 
 
 def test_hard_fnn_multichannel_attractor_size_not_mixed_across_channels():
-    # Regression: attractor_size used to flatten time and channel together
-    # before taking std, so a channel offset by a huge constant (no
-    # variance of its own) inflated attractor_size for every channel.
-    # Appending that channel must not change the result.
+    # Regression: attractor_size mixed time and channel in the std, so a huge-offset channel inflated it.
     torch.manual_seed(4)
     base = torch.randn(60, dtype=torch.float64)
     baseline = hard_fnn(base.unsqueeze(-1), embedding_dim=2, delay=1, theiler_window=1)
@@ -97,10 +92,7 @@ def test_hard_fnn_multichannel_attractor_size_not_mixed_across_channels():
 
 
 def test_hard_fnn_decreases_toward_true_dimension():
-    # Classic use: FNN should be high below the true embedding dimension
-    # and drop once it's reached, for a trajectory from a known
-    # low-dimensional system (here, a simple 2D limit cycle observed
-    # through one coordinate).
+    # FNN is high below the true embedding dimension and drops once reached (2D limit cycle seen through one coordinate).
     t = torch.linspace(0, 40 * math.pi, 400)
     trajectory = torch.sin(t)
     fnn_1 = hard_fnn(trajectory, embedding_dim=1, delay=5, theiler_window=5)

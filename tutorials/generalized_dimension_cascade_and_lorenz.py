@@ -55,10 +55,7 @@ for order in orders:
 assert all(dimensions[i] >= dimensions[i + 1] - 1e-6 for i in range(len(dimensions) - 1)), (
     "D_q must be non-increasing in order (Renyi's theorem, via Russell, Hanson & Ott 1980)"
 )
-# Non-increasing alone would trivially pass for a constant (order-independent)
-# estimator too; this cascade's own D_q genuinely varies with order (unlike
-# a uniform interval's, whose D_q is close to 1 for every order), so this
-# also rules that degenerate case out.
+# The cascade's D_q varies with order, so this also rules out an estimator that ignores order.
 assert dimensions[0] - dimensions[-1] > 0.1, (
     "D_q should vary substantially with order for this strongly multifractal cascade"
 )

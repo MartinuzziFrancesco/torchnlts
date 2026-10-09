@@ -22,8 +22,7 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_permutation_entropy_hand_derived():
-    # Classic textbook example (order 3, delay 1). Embedded vectors and
-    # their ordinal patterns (0-indexed, ties broken by earliest index):
+    # Order 3, delay 1; ordinal patterns (0-indexed, ties by earliest index):
     #   (4,7,9)   -> (0,1,2)
     #   (7,9,10)  -> (0,1,2)
     #   (9,10,6)  -> (2,0,1)
@@ -45,12 +44,7 @@ def test_permutation_entropy_normalized():
 
 
 def test_ordinal_pattern_probabilities_matches_hand_derived_counts():
-    # Same trajectory/pattern breakdown as test_permutation_entropy_hand_derived:
-    # (0,1,2)x2, (2,0,1)x2, (1,0,2)x1 out of 5 -> Lehmer codes 0, 4, 1 with
-    # counts 2, 2, 1 -- asserting the full vector, not just shape/sum/max
-    # (those three checks alone can't tell
-    # [0.4,0,0.2,0,0.4,0] apart from a differently-arranged permutation
-    # with the same sum and max).
+    # Same trajectory: Lehmer codes 0, 4, 1 with counts 2, 2, 1; assert the full vector.
     trajectory = torch.tensor([4.0, 7.0, 9.0, 10.0, 6.0, 11.0, 3.0], dtype=torch.float64)
     probability = ordinal_pattern_probabilities(trajectory, embedding_dim=3, delay=1)
     expected = torch.tensor([0.4, 0.0, 0.2, 0.0, 0.4, 0.0], dtype=torch.float64)
@@ -58,15 +52,8 @@ def test_ordinal_pattern_probabilities_matches_hand_derived_counts():
 
 
 def test_permutation_entropy_matches_shannon_of_ordinal_pattern_probabilities():
-    # Confirms permutation_entropy is exactly Shannon entropy applied to
-    # ordinal_pattern_probabilities's own output -- the composition this
-    # refactor introduced, checked directly rather than just trusting
-    # the pre-refactor tests still pass. Uses the hand-derived trajectory
-    # above (not a random one) specifically because it has genuine
-    # zero-probability outcomes, and torch.equal (not isclose) since
-    # both sides run the identical probability computation -- only the
-    # final entropy reduction should differ between them, and even that
-    # should match exactly here, not just approximately.
+    # Shannon entropy of ordinal_pattern_probabilities; torch.equal since both sides run the same computation.
+    # Hand-derived trajectory chosen for its zero-probability outcomes.
     trajectory = torch.tensor([4.0, 7.0, 9.0, 10.0, 6.0, 11.0, 3.0], dtype=torch.float64)
     probability = ordinal_pattern_probabilities(trajectory, embedding_dim=3, delay=1)
     nonzero = probability > 0
@@ -76,11 +63,8 @@ def test_permutation_entropy_matches_shannon_of_ordinal_pattern_probabilities():
 
 
 def test_ordinal_pattern_codes_ties_broken_by_index():
-    # Repeated value: (5, 5, 3) ascending is (idx2, idx0, idx1) since the
-    # tied 5s keep their original relative order. Pattern (2, 0, 1) is
-    # Lehmer code 4 (digits (2, 0, 0), weights (2!, 1!, 0!) = (2, 1, 1)).
-    # Matches ComplexityMeasures.jl's OrdinalPatterns tie convention
-    # (outcome [3, 1, 2] in its 1-indexed reporting == (2, 0, 1) here).
+    # (5, 5, 3): tied 5s keep their order, giving (2, 0, 1) = Lehmer code 4 (digits (2, 0, 0), weights (2, 1, 1)).
+    # Matches ComplexityMeasures.jl's tie convention (outcome [3, 1, 2] 1-indexed).
     codes = _ordinal_pattern_codes(torch.tensor([[5.0, 5.0, 3.0]], dtype=torch.float64))
     assert torch.equal(codes, torch.tensor([4]))
 
@@ -89,10 +73,7 @@ def test_permutation_entropy_ties_broken_by_index_multi_window():
     # Windows (order 3, delay 1) over [1,1,2,3,3,1]:
     #   (1,1,2) -> (0,1,2)   (1,2,3) -> (0,1,2)
     #   (2,3,3) -> (0,1,2)   (3,3,1) -> (2,0,1)
-    # (each tie broken by earliest index) -> 3/4, 1/4 -> Shannon entropy
-    # -(3/4 ln(3/4) + 1/4 ln(1/4)) nats. Independently cross-checked
-    # against ComplexityMeasures.jl in
-    # test_permutation_entropy_matches_complexitymeasures_jl_with_ties.
+    # -> 3/4, 1/4 -> Shannon entropy -(3/4 ln(3/4) + 1/4 ln(1/4)) nats.
     trajectory = torch.tensor([1.0, 1.0, 2.0, 3.0, 3.0, 1.0], dtype=torch.float64)
     result = permutation_entropy(trajectory, embedding_dim=3, delay=1)
     expected = -(0.75 * math.log(0.75) + 0.25 * math.log(0.25))
@@ -100,7 +81,6 @@ def test_permutation_entropy_ties_broken_by_index_multi_window():
 
 
 def test_ordinal_pattern_codes_bijection():
-    # Every permutation of range(m) must map to a distinct code in [0, m!).
     order = 4
     permutations = list(itertools.permutations(range(order)))
     codes = _ordinal_pattern_codes(torch.tensor(permutations, dtype=torch.float64))
@@ -136,12 +116,7 @@ def test_permutation_entropy_rejects_multivariate():
 
 
 def test_permutation_entropy_nan_input_gives_nan_output():
-    # An ordinal pattern is undefined when a coordinate can't be
-    # compared to the others -- argsort would otherwise silently place
-    # the NaN somewhere and report a spurious, too-low entropy. Not
-    # raised: a raise would need a data-dependent Python `if` on the
-    # tensor's contents, which rejects torch.vmap's BatchedTensor
-    # inputs outright (see test_permutation_entropy_vmap_compatible).
+    # NaN coordinate: argsort would rank it silently. Not raised: a data-dependent `if` breaks torch.vmap.
     trajectory = torch.tensor([1.0, float("nan"), 2.0, 3.0], dtype=torch.float64)
     assert torch.isnan(permutation_entropy(trajectory, embedding_dim=3))
 
@@ -164,10 +139,7 @@ def test_permutation_entropy_too_short_raises():
 
 
 def test_permutation_entropy_embedding_dim_one():
-    # order=1: every window is trivially its own single-element pattern
-    # -- exactly one possible pattern, so raw entropy is 0 and the
-    # normalized form is the documented 0/0 = NaN (no normalizing
-    # constant, since log(1!) = 0).
+    # order=1: one possible pattern, raw entropy 0, normalized 0/0 = NaN (log(1!) = 0).
     trajectory = torch.tensor([1.0, 5.0, -3.0, 2.0], dtype=torch.float64)
     raw = permutation_entropy(trajectory, embedding_dim=1)
     normalized = permutation_entropy(trajectory, embedding_dim=1, normalize=True)
@@ -230,7 +202,6 @@ def test_permutation_entropy_matches_complexitymeasures_jl_nonunit_delay_and_ord
 
 
 def test_permutation_entropy_matches_complexitymeasures_jl_with_ties():
-    # Same trajectory as test_permutation_entropy_ties_broken_by_index_multi_window.
     trajectory = torch.tensor([1.0, 1.0, 2.0, 3.0, 3.0, 1.0], dtype=torch.float64)
     embedding_dim, delay = 3, 1
     julia_entropy = _run_julia_ordinal_entropy(trajectory, embedding_dim, delay)

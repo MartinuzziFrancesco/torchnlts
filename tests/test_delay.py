@@ -42,7 +42,6 @@ def test_delay_embedding_multivariate_and_batched():
     x = torch.randn(2, 20, 3)
     y = delay_embedding(x, embedding_dim=4, delay=2)
     assert y.shape == (2, 20 - 3 * 2, 4 * 3)
-    # Spot-check one row against a manual concatenation.
     expected_row0 = torch.cat([x[0, 0], x[0, 2], x[0, 4], x[0, 6]])
     assert torch.equal(y[0, 0], expected_row0)
 

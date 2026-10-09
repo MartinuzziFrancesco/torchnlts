@@ -91,7 +91,6 @@ def test_gradient_values_and_gradcheck():
     # D = 2 + (l1 + l2) / (-l3)
     # dD/dl1 = dD/dl2 = 1/3, dD/dl3 = (l1 + l2) / l3^2 = 1/9
     torch.testing.assert_close(spectrum.grad, torch.tensor([1 / 3.0, 1 / 3.0, 1 / 9.0], dtype=torch.float64))
-    # Away from k switches, including unsorted input and a batch.
     for data in ([0.9, 0.1, -3.0], [-3.0, 0.1, 0.9], [0.419, -1.623, -5.0]):
         point = torch.tensor([data, data], dtype=torch.float64, requires_grad=True)
         assert torch.autograd.gradcheck(kaplan_yorke_dimension, (point,))

@@ -31,14 +31,8 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_rosenstein_divergence_hand_derived():
-    # 5 points, embedding_dim=1 (windows are the raw values), k=1,
-    # theiler_window=0. Nearest neighbor (excluding self) per point:
-    #   i=0 (0)  -> i=2 (1), dist 1     i=1 (5)  -> i=3 (6), dist 1
-    #   i=2 (1)  -> i=0 (0), dist 1     i=3 (6)  -> i=1 (5), dist 1
-    #   i=4 (12) -> i=3 (6), dist 6 (excluded below: i=4 has no k=1 step)
-    # Evolved (k=1) divergences: |traj[1]-traj[3]|=|5-6|=1 (i=0),
-    # |traj[2]-traj[4]|=|1-12|=11 (i=1), |traj[3]-traj[1]|=|6-5|=1 (i=2),
-    # |traj[4]-traj[2]|=|12-1|=11 (i=3). E(1) = mean(log(1,11,1,11)).
+    # Nearest neighbors (k=1): 0->2, 1->3, 2->0, 3->1; i=4 has no k=1 step.
+    # Divergences 1, 11, 1, 11, so E(1) = mean(log(1, 11, 1, 11)).
     trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0], dtype=torch.float64)
     result = rosenstein_divergence(trajectory, k_values=1, embedding_dim=1, delay=1, theiler_window=0)
     expected = (math.log(1) + math.log(11) + math.log(1) + math.log(11)) / 4
@@ -46,23 +40,8 @@ def test_rosenstein_divergence_hand_derived():
 
 
 def test_rosenstein_divergence_sweep_uses_max_k_reference_set_throughout():
-    # Same trajectory as the hand-derived test, k_values=[1, 2]: the
-    # reference-point set is fixed by max_k=2 for BOTH entries (see the
-    # function's Returns docstring, matching ChaosTools.jl), not
-    # independently maximized per k. At max_k=2, only i=0 and i=2 have
-    # both a valid reference index (i+2<5) and a neighbor whose own
-    # index+2<5 (neighbor_index=[2,3,0,1,3]; i=1's neighbor is 3, and
-    # 3+2=5 is not <5, so i=1 -- despite being valid at k=1 alone -- is
-    # excluded here too):
-    #   k=1: i=0 -> |traj[1]-traj[3]|=|5-6|=1;  i=2 -> |traj[3]-traj[1]|=|6-5|=1
-    #        -> E(1) = mean(log(1), log(1)) = 0.0
-    #   k=2: i=0 -> |traj[2]-traj[4]|=|1-12|=11; i=2 -> |traj[4]-traj[2]|=|12-1|=11
-    #        -> E(2) = mean(log(11), log(11)) = log(11)
-    # This deliberately differs from an independent per-k computation,
-    # which would use i=0,1,2 at k=1 (see test_rosenstein_divergence_hand_derived's
-    # 4-point average) -- a test asserting only the last (max-k) entry
-    # would pass even without this fixed-population behavior, so both
-    # entries are checked here.
+    # Reference set is fixed by max_k=2 for both entries (ChaosTools.jl convention): only i=0 and i=2 qualify.
+    # E(1) = mean(log(1), log(1)) = 0, E(2) = log(11); both entries are checked, not just the last.
     trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0], dtype=torch.float64)
     k_values = torch.tensor([1.0, 2.0], dtype=torch.float64)
     swept = rosenstein_divergence(trajectory, k_values, embedding_dim=1, delay=1, theiler_window=0)
@@ -74,11 +53,7 @@ def test_rosenstein_divergence_sweep_uses_max_k_reference_set_throughout():
 
 
 def test_rosenstein_divergence_batched_and_sweep_shapes():
-    # Batching must keep trajectories independent: each batch row's swept
-    # curve must match calling that trajectory alone with the same sweep
-    # (not compared against independent per-k scalar calls -- see
-    # test_rosenstein_divergence_sweep_last_entry_matches_scalar_call_at_max_k
-    # for why only the sweep's own largest k has that property).
+    # Each batch row's sweep must match calling that trajectory alone.
     torch.manual_seed(0)
     trajectory = torch.randn(4, 40, 2, dtype=torch.float64)
     k_values = torch.tensor([1.0, 3.0, 5.0], dtype=torch.float64)
@@ -114,11 +89,7 @@ def test_rosenstein_divergence_k_too_large_is_nan_not_crash():
 
 
 def test_rosenstein_divergence_zero_evolved_distance_is_neg_inf_not_clamped():
-    # Trajectory revisits the same value exactly (0.0 at indices 0, 2, 4),
-    # so a reference point's nearest neighbor can evolve to an identical
-    # point -- log(0) = -inf, matching log(0) in the cited paper's
-    # formula and ChaosTools.jl's own (unclamped) `log(delay_distance(...))`,
-    # rather than silently flooring to a large finite value.
+    # Revisited value gives a zero distance, so log(0) = -inf as in ChaosTools.jl (not clamped).
     trajectory = torch.tensor([0.0, 5.0, 0.0, 5.0, 0.0], dtype=torch.float64)
     result = rosenstein_divergence(trajectory, k_values=1, embedding_dim=1, theiler_window=0)
     assert torch.isneginf(result)
@@ -170,11 +141,7 @@ def test_rosenstein_divergence_rejects_infinite_k():
 
 
 def test_rosenstein_divergence_k_validation_survives_float32_rounding():
-    # A plain Python float argument must not be silently cast to
-    # torch's default (often float32) dtype before validation: -1e-50
-    # underflows to -0.0 in float32 (which would pass a `>= 0` check),
-    # and 1.00000001 rounds to exactly 1.0 in float32 (which would pass
-    # an "is this an integer" check).
+    # -1e-50 and 1.00000001 would pass the checks if cast to float32 before validation.
     trajectory = torch.arange(5.0, dtype=torch.float64)
     for bad_k in (-1e-50, 1.00000001):
         try:
@@ -185,19 +152,14 @@ def test_rosenstein_divergence_k_validation_survives_float32_rounding():
 
 
 def test_rosenstein_divergence_absurdly_large_k_is_nan_not_wrong_answer():
-    # A k many orders of magnitude past int64 range relative to the
-    # trajectory length must not silently wrap around in the bounds-check
-    # arithmetic (start_index + max_k) and produce a plausible-looking
-    # finite answer -- no point can possibly evolve this far forward.
+    # A huge k must not wrap around in the int64 bounds check.
     trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0], dtype=torch.float64)
     result = rosenstein_divergence(trajectory, k_values=9223372036854775807, embedding_dim=1)
     assert torch.isnan(result)
 
 
 def test_rosenstein_divergence_rejects_negative_theiler_window():
-    # A negative window would admit self via theiler_window_mask's "no
-    # exclusion" convention, making every point its own nearest
-    # neighbor at distance 0 and trivially "evolving with itself".
+    # A negative window would admit self as its own nearest neighbor.
     trajectory = torch.arange(5.0, dtype=torch.float64)
     try:
         rosenstein_divergence(trajectory, k_values=1, embedding_dim=1, theiler_window=-1)
@@ -207,12 +169,7 @@ def test_rosenstein_divergence_rejects_negative_theiler_window():
 
 
 def test_rosenstein_divergence_k_zero_is_original_neighbor_distance():
-    # k=0: no evolution, E(0) is just the log of each reference point's
-    # own nearest-neighbor distance (the paper's intercept term). At
-    # max_k=0 every point's own bounds check is trivially satisfied, so
-    # -- unlike k>=1 in test_rosenstein_divergence_hand_derived, where
-    # i=4 is excluded -- all 5 points are valid here, including i=4
-    # (whose nearest neighbor is i=3 at distance 6, not 1 like the rest).
+    # k=0: E(0) is the log of each nearest-neighbor distance; all 5 points are valid, including i=4 (distance 6).
     trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0], dtype=torch.float64)
     result = rosenstein_divergence(trajectory, k_values=0, embedding_dim=1, theiler_window=0)
     expected = (math.log(1) * 4 + math.log(6)) / 5
@@ -220,10 +177,7 @@ def test_rosenstein_divergence_k_zero_is_original_neighbor_distance():
 
 
 def test_rosenstein_divergence_gradcheck():
-    # Gradient class piecewise: away from a nearest-neighbor tie
-    # boundary (this seed/size combination verified not to hit one),
-    # the evolved-point distances differentiate normally w.r.t. the
-    # trajectory once each reference point's neighbor is fixed.
+    # Away from a nearest-neighbor tie (verified for this seed).
     torch.manual_seed(5)
     trajectory = torch.randn(20, dtype=torch.float64, requires_grad=True)
 
@@ -234,8 +188,7 @@ def test_rosenstein_divergence_gradcheck():
 
 
 def test_rosenstein_lyapunov_hand_derived_exact_linear():
-    # E(k) = 3*k + 1 exactly -> slope 3, exact regression fit (mirrors
-    # correlation_dimension's own exact-power-law slope-only test).
+    # E(k) = 3*k + 1 exactly, so slope 3.
     k_values = torch.tensor([1.0, 2.0, 4.0, 8.0], dtype=torch.float64)
     divergence = 3.0 * k_values + 1.0
     assert torch.isclose(rosenstein_lyapunov(k_values, divergence), torch.tensor(3.0, dtype=torch.float64))
@@ -279,29 +232,17 @@ def test_rosenstein_lyapunov_gradcheck_direct_k_and_divergence():
 
 
 def test_rosenstein_matches_analytic_logistic_map_lyapunov_exponent():
-    # Rosenstein, Collins & De Luca (1993)'s own natural benchmark: the
-    # logistic map x_{n+1} = 4 x_n (1 - x_n) has largest Lyapunov
-    # exponent exactly ln(2). A finite-sample kNN estimator won't hit
-    # this exactly, so this uses a tolerance appropriate for that,
-    # not an exact-value check.
+    # Logistic map x -> 4x(1-x) has largest Lyapunov exponent ln(2); finite-sample estimate, so a loose tolerance.
     trajectory = logistic_map_trajectory(2000)
     k_values = torch.arange(1, 12, dtype=torch.float64)
     divergence = rosenstein_divergence(trajectory, k_values, embedding_dim=2, delay=1, theiler_window=10)
-    # Fit range [1, 7]: visually confirmed to be the linear-growth
-    # region before E(k) saturates as k grows past it.
+    # Fit range [1, 7] is the linear-growth region before E(k) saturates.
     estimate = rosenstein_lyapunov(k_values[:7], divergence[:7])
     assert abs(estimate.item() - math.log(2)) < 0.05
 
 
 def test_rosenstein_matches_chaostools_jl():
-    # Both this module and ChaosTools.jl's lyapunov_from_data use an
-    # exact (not approximate) nearest-neighbor search and the same
-    # fixed-reference-set-sized-by-max(k) convention (see
-    # rosenstein_divergence's Returns docstring, confirmed by reading
-    # ChaosTools.jl's source directly and independently reproducing its
-    # internal per-point loop in Julia to isolate where a difference
-    # would come from before writing this test), so the two curves are
-    # expected to agree closely, not just in the same ballpark.
+    # Same exact neighbor search and max(k)-sized fixed reference set as ChaosTools.jl, so the curves agree closely.
     trajectory = logistic_map_trajectory(300)
     k_values = torch.arange(1, 9, dtype=torch.float64)
 
@@ -323,11 +264,7 @@ def test_rosenstein_matches_chaostools_jl():
     assert result.returncode == 0, result.stderr
     julia_divergence = torch.tensor([float(v) for v in result.stdout.strip().split(",")], dtype=torch.float64)
     torch_divergence = rosenstein_divergence(trajectory, k_values, embedding_dim=2, delay=1, theiler_window=10)
-    # atol=1e-9, rtol=0 (torch.allclose's default rtol=1e-5 would dwarf
-    # atol here and hide a real mismatch): both sides do the same
-    # brute-force/tree Euclidean nearest-neighbor search and log/mean
-    # reduction in float64 on identical data, so the residual is
-    # float64 parsed-string round-trip noise, not model mismatch.
+    # rtol=0: allclose's default rtol=1e-5 would dwarf atol=1e-9 and hide a real mismatch.
     assert torch.allclose(torch_divergence, julia_divergence, atol=1e-9, rtol=0)
 
     julia_slope = rosenstein_lyapunov(k_values, julia_divergence)
@@ -384,8 +321,6 @@ def test_rosenstein_divergence_embedding_and_validation_edges():
 
 
 def test_rosenstein_divergence_matches_independent_loop_for_delays_and_norms():
-    # Build embeddings and choose neighbors directly, without the production
-    # embedding, kNN, gathering, or reduction helpers.
     torch.manual_seed(31)
     trajectory = torch.randn(2, 18, 2, dtype=torch.float64)
     k_values = [2, 0, 1, 2]
@@ -456,9 +391,7 @@ def test_rosenstein_lyapunov_rejects_mismatched_sweep_shapes():
 
 
 def test_rosenstein_zero_distance_row_does_not_poison_shared_gradient():
-    # Row 0 is constant: every nearest-neighbor distance is exactly 0, so its
-    # curve is -inf (documented) and its slope NaN. log(0)'s infinite
-    # gradient must not reach a parameter shared with row 1.
+    # Row 0 is constant: curve -inf, slope NaN; log(0)'s infinite gradient must not reach row 1.
     parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
     trajectories = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 5.0, 1.0, 6.0, 12.0]], dtype=torch.float64).unsqueeze(
         -1
@@ -468,7 +401,6 @@ def test_rosenstein_zero_distance_row_does_not_poison_shared_gradient():
     result = rosenstein_lyapunov([0, 1], curve)
     assert torch.isnan(result[0]) and torch.isfinite(result[1])
     (gradient,) = torch.autograd.grad(result[1], parameter)
-    # The slope of log-distances is invariant to rescaling the trajectory.
     assert torch.isclose(gradient, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)
 
 

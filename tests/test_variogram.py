@@ -62,13 +62,8 @@ def _fgn_davies_harte(hurst: float, length: int, dtype=torch.float64) -> torch.T
 
 
 def test_power_variogram_hand_derived():
-    # x = [1, 2, 4, 3, 6], n=5.
-    # lag=1: diffs = 2-1,4-2,3-4,6-3 = 1,2,-1,3 -> |.|=1,2,1,3, 4 terms.
-    #   V_1(1) = (1+2+1+3)/(2*4) = 7/8 = 0.875
-    #   V_2(1) = (1+4+1+9)/(2*4) = 15/8 = 1.875
-    # lag=2: diffs = 4-1,3-2,6-4 = 3,1,2 -> |.|=3,1,2, 3 terms.
-    #   V_1(2) = (3+1+2)/(2*3) = 6/6 = 1.0
-    #   V_2(2) = (9+1+4)/(2*3) = 14/6 = 2.3333333333333335
+    # x = [1, 2, 4, 3, 6]: lag 1 |diffs| = 1,2,1,3 (4 terms); lag 2 |diffs| = 3,1,2 (3 terms).
+    # V_p(l) = sum|diff|^p / (2*terms): V_1(1) = 7/8, V_2(1) = 15/8, V_1(2) = 1, V_2(2) = 14/6.
     trajectory = torch.tensor([1.0, 2.0, 4.0, 3.0, 6.0], dtype=torch.float64)
     madogram = power_variogram(trajectory, [1, 2], power=1.0)
     assert torch.allclose(madogram, torch.tensor([0.875, 1.0], dtype=torch.float64))
@@ -77,8 +72,7 @@ def test_power_variogram_hand_derived():
 
 
 def test_variogram_dimension_hand_derived():
-    # Continuing the example above: D = 2 - slope/p, slope the OLS
-    # (two-point) slope of log(V) against log(lag).
+    # D = 2 - slope/p, slope the two-point OLS slope of log(V) against log(lag).
     lag = torch.tensor([1.0, 2.0], dtype=torch.float64)
     madogram = torch.tensor([0.875, 1.0], dtype=torch.float64)
     slope_p1 = (math.log(1.0) - math.log(0.875)) / (math.log(2.0) - math.log(1.0))
@@ -92,8 +86,7 @@ def test_variogram_dimension_hand_derived():
 
 
 def test_variogram_dimension_straight_line_is_one():
-    # V_p(l) is proportional to l**p on a straight line (every increment
-    # over lag l is exactly l * slope), so D = 2 - p/p = 1, for any p.
+    # V_p(l) is proportional to l**p on a straight line, so D = 2 - p/p = 1.
     line = torch.arange(0.0, 200.0, dtype=torch.float64) * 2.5 + 1.0
     lag = torch.tensor([1.0, 2.0, 4.0], dtype=torch.float64)
     for power in (0.5, 1.0, 2.0, 3.0):
@@ -103,8 +96,7 @@ def test_variogram_dimension_straight_line_is_one():
 
 
 def test_variogram_dimension_constant_trajectory_is_nan():
-    # A constant series has V_p(l) = 0 at every lag -> log(0) = -inf ->
-    # an indeterminate -inf - (-inf) in the OLS slope's centering step.
+    # Constant series: V = 0 -> log -inf -> -inf - (-inf) in the OLS centering.
     constant = torch.full((50,), 3.0, dtype=torch.float64)
     variogram = power_variogram(constant, [1, 2])
     assert torch.equal(variogram, torch.zeros(2, dtype=torch.float64))
@@ -222,8 +214,7 @@ def test_variogram_dimension_gradcheck_through_trajectory():
 
 
 def test_power_variogram_sub_one_power_zero_increment_gradient_is_finite():
-    # power<1: d|x|**p/dx is unbounded at a zero increment (x[0] == x[1] in
-    # row 0); that term is masked to a zero gradient, so no NaN anywhere.
+    # power<1: the zero increment (row 0) has an unbounded derivative; it is masked, so no NaN.
     torch.manual_seed(6)
     row_with_tie = torch.tensor([1.0, 1.0, 2.0, 5.0, 3.0], dtype=torch.float64)
     row_without_tie = torch.randn(5, dtype=torch.float64)
@@ -234,24 +225,19 @@ def test_power_variogram_sub_one_power_zero_increment_gradient_is_finite():
     result.sum().backward()
 
     assert torch.isfinite(batch.grad).all()
-    # Masking must not change the forward value: the zero increment adds 0.
     expected = (torch.tensor([1.0, 3.0, 2.0], dtype=torch.float64).sqrt().sum() / (2 * 4)).item()
     assert abs(result[0, 0].item() - expected) < 1e-12
 
 
 def test_power_variogram_madogram_kink_gradient_is_finite():
-    # power=1: abs() has a defined (zero) subgradient at a tie, not an
-    # infinite derivative -- unlike power<1 above.
+    # power=1: abs() has a defined subgradient at a tie.
     trajectory = torch.tensor([1.0, 1.0, 3.0, 2.0, 5.0], dtype=torch.float64, requires_grad=True)
     power_variogram(trajectory, [1, 2], power=1.0).sum().backward()
     assert torch.isfinite(trajectory.grad).all()
 
 
 def test_power_variogram_matches_fractaldim_r_convention_normalization():
-    # Direct check of the normalization documented from fractaldim's
-    # fd.Variation (R/variation.R): g[j] = sum(|diff|**p) / (2*(n-lag)).
-    # No R runtime available; this reproduces that exact formula
-    # independently in plain Python and compares against this module.
+    # Reproduces fractaldim's fd.Variation normalization, sum(|diff|**p) / (2*(n-lag)), in plain Python (no R).
     torch.manual_seed(7)
     trajectory = torch.randn(15, dtype=torch.float64)
     lag = 3
@@ -269,8 +255,7 @@ def test_power_variogram_integer_and_half_input():
     assert torch.isclose(power_variogram(unsigned, [1]).double(), power_variogram(unsigned.double(), [1]), atol=1e-6)
     half = power_variogram(torch.zeros(50, dtype=torch.float16), [1, 2])
     assert half.dtype == torch.float16 and torch.equal(half, torch.zeros(2, dtype=torch.float16))
-    # power=2 pushes values into the thousands, where float16's absolute
-    # step size is itself large; compare in relative terms.
+    # power=2 values reach the thousands where float16 steps are large; compare relatively.
     wide = torch.tensor([0.0, 300.0, 0.0, 100.0])
     assert torch.allclose(
         power_variogram(wide.half(), [1, 2]).double(), power_variogram(wide.double(), [1, 2]), rtol=1e-2
@@ -278,8 +263,7 @@ def test_power_variogram_integer_and_half_input():
 
 
 def test_variogram_dimension_brownian_motion_is_one_half():
-    # A cumulative sum of white noise is Brownian motion, whose known
-    # graph dimension is D=1.5 for both the variogram and the madogram.
+    # Brownian motion has graph dimension 1.5 for variogram and madogram.
     torch.manual_seed(8)
     brownian = torch.randn(5000, dtype=torch.float64).cumsum(0)
     lag = torch.tensor([1.0, 2.0], dtype=torch.float64)
@@ -291,15 +275,8 @@ def test_variogram_dimension_brownian_motion_is_one_half():
 
 @pytest.mark.parametrize("hurst", [0.2, 0.35, 0.5, 0.65, 0.8])
 def test_variogram_dimension_fractional_gaussian_noise_known_hurst(hurst):
-    # fBm (cumulative fGn) of Hurst exponent H has known graph dimension
-    # D = 2 - H, for the variogram or the madogram estimator alike.
-    # fGn generated by exact Davies-Harte circulant embedding (see
-    # _fgn_davies_harte above). The two-lag-only fit the paper
-    # recommends is noisy on a single realization (empirically, std
-    # ~0.007 across seeds at this length); a length of 20000 and
-    # atol=0.03 keep this test from flaking while still checking the
-    # right value to within the estimator's own known variance, not
-    # exact equality.
+    # fBm of Hurst exponent H has D = 2 - H; fGn from Davies-Harte.
+    # The two-lag fit is noisy (std ~0.007), hence length 20000 and atol=0.03.
     torch.manual_seed(int(hurst * 100))
     fractional_gaussian_noise = _fgn_davies_harte(hurst, 20000)
     fractional_brownian_motion = fractional_gaussian_noise.cumsum(0)
@@ -344,9 +321,7 @@ def test_variogram_non_finite_power_raises():
 
 
 def test_power_variogram_sub_one_power_gradient_matches_analytic():
-    # V_p(l) = sum |dx|**p / (2 (n - l)); dV/dx_j from each increment
-    # dx = x_{i+l} - x_i is p |dx|**(p-1) sign(dx) at x_{i+l}, minus that at x_i.
-    # A zero increment contributes 0 (masked).
+    # dV/dx_j sums p |dx|**(p-1) sign(dx) at x_{i+l} minus that at x_i, over 2 (n - l); zero increments masked.
     power = 0.5
     trajectory = torch.tensor([1.0, 1.0, 2.0, 5.0, 3.0], dtype=torch.float64, requires_grad=True)
     for lag in (1, 2):
@@ -390,8 +365,7 @@ def test_fgn_generator_rejects_invalid_embedding():
 
     with pytest.raises(AssertionError):
         _fgn_davies_harte(0.9, 4)
-    # The tutorial's generator: run the script's definitions only (it starts
-    # its simulation at torch.manual_seed).
+    # Runs only the tutorial generator's definitions (the script starts its simulation at torch.manual_seed).
     source = (pathlib.Path(__file__).parent.parent / "tutorials" / "variogram_dimension_fbm.py").read_text()
     namespace = {}
     exec(source[: source.index("torch.manual_seed(0)")], namespace)

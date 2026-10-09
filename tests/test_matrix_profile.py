@@ -152,7 +152,6 @@ def test_gradient_isolated_across_batch_rows_and_nonfinite():
     profile[0].sum().backward()
     assert torch.isfinite(batch.grad).all()
     assert batch.grad[1].abs().sum() == 0 and batch.grad[2].abs().sum() == 0
-    # constant window: finite gradient, no NaN
     flat = torch.zeros(30, dtype=torch.float64, requires_grad=True)
     matrix_profile(flat, 5)[0].sum().backward()
     assert torch.isfinite(flat.grad).all()
@@ -196,7 +195,7 @@ def test_motifs_exclusion_removes_both_starts_hand_derived():
     profile = torch.tensor([5.0, 1.0, 1.1, 4.0, 2.0, 2.5, 1.2, 3.0])
     index = torch.tensor([7, 6, 6, 5, 6, 3, 1, 0])
     distances, pairs = motifs(profile, index, window=4, num_picks=3, exclusion_zone=1)
-    # pick 1: i=1 (1.0) with 6 -> removes 0-2 and 5-7; pick 2: only i=3 or 4 left -> 4 (2.0, nbr 6); then 3 is removed by 4.
+    # pick 1: i=1 (1.0) with 6 removes 0-2 and 5-7; pick 2: only i=3 or 4 left -> 4 (2.0, nbr 6), which removes 3.
     assert pairs.tolist() == [[1, 6], [4, 6], [-1, -1]]
     assert distances[:2].tolist() == [1.0, 2.0] and torch.isnan(distances[2])
 
@@ -213,7 +212,7 @@ def test_discords_planted_anomaly():
     generator = torch.Generator().manual_seed(3)
     time = torch.arange(400, dtype=torch.float64)
     series = torch.sin(time * 2 * math.pi / 20) + 0.05 * torch.randn(400, generator=generator, dtype=torch.float64)
-    series[200:220] = torch.sign(torch.sin(time[200:220] * 2 * math.pi / 7))  # square wave replaces the sine
+    series[200:220] = torch.sign(torch.sin(time[200:220] * 2 * math.pi / 7))
     profile, _ = matrix_profile(series, 20)
     values, indices = discords(profile, 20)
     assert 180 <= indices[0].item() <= 220
@@ -372,9 +371,9 @@ def test_index_validation():
     with pytest.raises(ValueError):
         corrected_arc_curve(torch.tensor([0.0, 1.0]), 1)
     with pytest.raises(ValueError):
-        corrected_arc_curve(torch.tensor([0, 4, 1, 2]), 1)  # == n
+        corrected_arc_curve(torch.tensor([0, 4, 1, 2]), 1)
     with pytest.raises(ValueError):
-        corrected_arc_curve(torch.tensor([0, 5, 1, 2]), 1)  # > n
+        corrected_arc_curve(torch.tensor([0, 5, 1, 2]), 1)
     with pytest.raises(ValueError):
         corrected_arc_curve(torch.tensor([0, -2, 1, 2]), 1)
     with pytest.raises(ValueError):

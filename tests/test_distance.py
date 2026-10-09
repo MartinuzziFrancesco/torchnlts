@@ -56,9 +56,7 @@ def test_pairwise_distance_cross():
 
 
 def test_pairwise_distance_rejects_batched_ndim_mismatch():
-    # Regression: one trajectory batched, the other not, used to silently
-    # broadcast to the wrong shape instead of raising -- _restore_batch
-    # decided whether to squeeze using only trajectory's original ndim.
+    # Regression: batching only one trajectory silently broadcast to the wrong shape instead of raising.
     unbatched = torch.randn(3)
     batched = torch.randn(2, 5, 1)
     for x, y in ((unbatched, batched), (batched, unbatched)):
@@ -96,19 +94,14 @@ def test_pairwise_distance_chebyshev():
 
 
 def test_pairwise_distance_gradcheck():
-    # Avoid the r=0 singularity (non-differentiable coincident points,
-    # documented in distance.py) by checking cross-distance between two
-    # independently-parametrized point sets, which never coincide.
+    # Cross-distance between independent point sets avoids the r=0 singularity.
     x = torch.randn(4, 3, dtype=torch.float64, requires_grad=True)
     y = torch.randn(5, 3, dtype=torch.float64, requires_grad=True)
     assert torch.autograd.gradcheck(pairwise_distance, (x, y))
 
 
 def test_pairwise_distance_float32_large_offset_stable():
-    # torch.cdist's default compute_mode switches p=2 to a matmul-based
-    # formula once T > 25, which catastrophically cancels in float32 for
-    # points sharing a large offset. Regression guard for the fix in
-    # distance.py (compute_mode="donot_use_mm_for_euclid_dist").
+    # Regression: cdist's matmul mode (T > 25) cancels catastrophically in float32 for large offsets.
     x = (10_000 + torch.arange(30, dtype=torch.float32)).reshape(-1, 1)
     d = pairwise_distance(x)
     expected = torch.abs(

@@ -103,10 +103,7 @@ def test_soft_multiscale_entropy_gradcheck():
 
 
 def test_soft_multiscale_entropy_gradcheck_trajectory():
-    # The temperature-only gradcheck above
-    # never differentiates through coarse_grain's reshape/mean (the one
-    # genuinely new piece of logic this module adds), since it holds
-    # the trajectory fixed. This exercises that path directly.
+    # Gradient through coarse_grain's reshape/mean, which the temperature-only gradcheck above does not cover.
     torch.manual_seed(6)
     trajectory = torch.randn(20, dtype=torch.float64, requires_grad=True)
 
@@ -117,17 +114,12 @@ def test_soft_multiscale_entropy_gradcheck_trajectory():
 
 
 def test_multiscale_entropy_too_coarse_scale_raises():
-    # A scale coarse enough to leave the
-    # coarse-grained series shorter than embedding_dim+1 samples raises
-    # (propagated from delay_embedding via sample_entropy) rather than
-    # degrading that entry to NaN like a merely-degenerate-but-still-
-    # embeddable scale does -- confirmed boundary.
+    # Coarse series shorter than embedding_dim+1 raises (from delay_embedding); a degenerate but embeddable scale gives NaN.
     torch.manual_seed(7)
     trajectory = torch.randn(20, dtype=torch.float64)
     embedding_dim = 2
 
-    # scale=6 -> coarse length 3 == embedding_dim+1: still embeddable (a
-    # purely length-based guarantee, regardless of the random values).
+    # scale=6: coarse length 3 == embedding_dim+1, still embeddable.
     result = multiscale_entropy(trajectory, scales=[6], radius=1.0, embedding_dim=embedding_dim)
     assert result.shape == (1,)
 
@@ -140,14 +132,8 @@ def test_multiscale_entropy_too_coarse_scale_raises():
 
 
 def test_multiscale_entropy_matches_complexitymeasures_jl():
-    # Same ComplexityMeasures.jl SampleEntropy boundary-handling
-    # deviation as test_sample_entropy.py's own dual-validation test
-    # (its B(r) leaks one out-of-range neighbor candidate for delay=1,
-    # confirmed there by reading the package's source directly).
-    # multiscale_entropy calls sample_entropy at each coarse-grained
-    # scale, so it needs the same neutralization -- far-outlier padding
-    # that stays far even after being averaged into a coarse window at
-    # every scale swept here.
+    # Same ComplexityMeasures.jl SampleEntropy boundary deviation as test_sample_entropy.py: pad with far outliers
+    # that stay far after coarse-graining at every scale swept.
     torch.manual_seed(5)
     trajectory = torch.cat([torch.randn(40, dtype=torch.float64), torch.tensor([1e6, 2e6], dtype=torch.float64)])
     radius = 1.0
@@ -174,10 +160,6 @@ def test_multiscale_entropy_matches_complexitymeasures_jl():
     assert torch.allclose(torch_curve, julia_curve, atol=1e-9)
 
 
-# Composite multiscale entropy: Wu, Wu, Lin, Wang & Lee (2013), Entropy 15(3),
-# 1069-1084. Julia: ComplexityMeasures.jl `multiscale(CompositeDownsampling, SampleEntropy)`.
-
-
 def test_coarse_grain_offset_hand_derived():
     trajectory = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], dtype=torch.float64)
     assert torch.allclose(coarse_grain(trajectory, 3, offset=0), torch.tensor([2.0, 5.0], dtype=torch.float64))
@@ -197,17 +179,13 @@ def test_coarse_grain_rejects_bad_offset():
 
 
 def test_composite_multiscale_entropy_hand_derived():
-    # Period-3 signal at scale 2: both offset series are period-3 too
-    # ([1,2,3,...] and [3,1,2,...]), every matching 2-template extends to a
-    # matching 3-template, so A = B and each SampEn = -log(1) = 0.
+    # Period-3 signal at scale 2: both offset series are period-3, so A = B and each SampEn = 0.
     trajectory = torch.tensor([0.0, 2.0, 4.0] * 8, dtype=torch.float64)[:23]
     assert torch.equal(coarse_grain(trajectory, 2, 0)[:3], torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64))
     assert torch.equal(coarse_grain(trajectory, 2, 1)[:3], torch.tensor([3.0, 1.0, 2.0], dtype=torch.float64))
     assert torch.allclose(
         composite_multiscale_entropy(trajectory, scales=[2], radius=0.5), torch.zeros(1, dtype=torch.float64)
     )
-    # Perturbing one sample moves the two offsets by different amounts; the
-    # composite value is exactly their mean.
     perturbed = trajectory.clone()
     perturbed[10] += 1.7
     perturbed[3] -= 1.2
@@ -286,10 +264,8 @@ def test_soft_composite_multiscale_entropy_gradcheck():
 
 
 def test_composite_multiscale_entropy_matches_complexitymeasures_jl():
-    # Same SampleEntropy boundary deviation as above. Three far outliers at
-    # the end sit in the last window of every offset series at scales 1-3,
-    # and N = 41 = 5 mod 6 makes Julia's common truncation (N-s+1)//s equal
-    # to every offset's natural length (N-k+1)//s, so the series are identical.
+    # Same boundary deviation as above. Far outliers sit in the last window of every offset series at scales 1-3;
+    # N = 41 = 5 mod 6 makes Julia's common truncation equal every offset's natural length.
     torch.manual_seed(11)
     trajectory = torch.cat([torch.randn(38, dtype=torch.float64), torch.tensor([1e6, 2e6, 3e6], dtype=torch.float64)])
     radius = 1.0

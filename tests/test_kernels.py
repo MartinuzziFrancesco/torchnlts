@@ -25,9 +25,8 @@ def test_trajectory_kernel_gaussian_hand_derived():
 
 
 def test_trajectory_kernel_exponential_hand_derived():
-    # Sugihara et al. (2012): u_i = exp(-d_i / d_1); with d_1 (the
-    # nearest-neighbor distance) as a per-row temperature.
-    d = torch.tensor([[1.0, 2.0, 4.0]])  # d_1 = 1.0 is the first entry
+    # Sugihara et al. (2012): u_i = exp(-d_i / d_1), with d_1 the nearest-neighbor distance as a per-row temperature.
+    d = torch.tensor([[1.0, 2.0, 4.0]])
     d1 = d[:, :1]
     w = trajectory_kernel(d, d1, kind="exponential")
     expected = torch.tensor([[math.exp(-1.0), math.exp(-2.0), math.exp(-4.0)]])
@@ -39,8 +38,8 @@ def test_trajectory_kernel_range_and_monotonicity():
     for kind in ("gaussian", "exponential"):
         w = trajectory_kernel(d, temperature=1.5, kind=kind)
         assert torch.all((w > 0) & (w <= 1.0))
-        assert torch.all(w[:-1] >= w[1:])  # monotonically non-increasing in distance
-        assert torch.isclose(w[0], torch.tensor(1.0))  # d=0 -> full weight
+        assert torch.all(w[:-1] >= w[1:])
+        assert torch.isclose(w[0], torch.tensor(1.0))
 
 
 def test_trajectory_kernel_invalid_kind():
@@ -52,9 +51,7 @@ def test_trajectory_kernel_invalid_kind():
 
 
 def test_trajectory_kernel_inf_distance_no_nan_gradient():
-    # Regression: distances from apply_theiler_window/knn_search padding
-    # are often inf; the forward weight must be exactly 0 and the
-    # temperature gradient must be finite, not NaN.
+    # Regression: inf distances (Theiler/knn padding) must give weight exactly 0 and a finite temperature gradient.
     d = torch.tensor([1.0, float("inf")])
     for kind in ("gaussian", "exponential"):
         t = torch.tensor(2.0, requires_grad=True)
@@ -65,9 +62,7 @@ def test_trajectory_kernel_inf_distance_no_nan_gradient():
 
 
 def test_trajectory_kernel_gaussian_large_scale_no_overflow():
-    # Regression: squaring distance and temperature independently
-    # overflows float32 well before their ratio would; d == t must
-    # always give weight 1 regardless of their shared magnitude.
+    # Regression: squaring distance and temperature separately overflows float32; d == t must always give weight 1.
     d = torch.tensor(1e20, dtype=torch.float32)
     t = torch.tensor(1e20, dtype=torch.float32)
     w = trajectory_kernel(d, t, kind="gaussian")
@@ -75,10 +70,8 @@ def test_trajectory_kernel_gaussian_large_scale_no_overflow():
 
 
 def test_trajectory_kernel_tiny_temperature_no_nan_gradient():
-    # Regression: distance / temperature's own backward formula
-    # (-distance / temperature**2) overflows to inf for a near-zero
-    # temperature; multiplying by even a zero upstream gradient then
-    # gives NaN. Both distance and temperature are finite, valid inputs.
+    # Regression: -distance / temperature**2 overflows for a near-zero temperature, and a zero upstream gradient then
+    # gives NaN.
     d = torch.tensor(1.0)
     for kind in ("gaussian", "exponential"):
         t = torch.tensor(1e-20, requires_grad=True)
@@ -89,9 +82,7 @@ def test_trajectory_kernel_tiny_temperature_no_nan_gradient():
 
 
 def test_trajectory_kernel_small_scale_ratio_preserved():
-    # Regression: an earlier fix used an *absolute* epsilon floor on
-    # temperature, which corrupted small-scale inputs where distance and
-    # temperature are both tiny but their ratio is normal.
+    # Regression: an absolute epsilon floor on temperature corrupted small-scale inputs whose ratio is normal.
     d = torch.tensor(1e-8, dtype=torch.float32)
     t = torch.tensor(1e-8, dtype=torch.float32, requires_grad=True)
     gaussian = trajectory_kernel(d, t, kind="gaussian")
@@ -103,10 +94,8 @@ def test_trajectory_kernel_small_scale_ratio_preserved():
 
 
 def test_trajectory_kernel_huge_distance_no_nan_gradient():
-    # Regression: distance=1e38, temperature=0.1 are both finite and
-    # individually unremarkable, but their ratio's backward overflows
-    # (-distance / temperature**2 ~ -1e40) unless temperature is floored
-    # relative to distance rather than by an absolute epsilon.
+    # Regression: distance=1e38, temperature=0.1: the backward overflows unless temperature is floored relative to
+    # distance.
     for kind in ("gaussian", "exponential"):
         d = torch.tensor(1e38, dtype=torch.float32, requires_grad=True)
         t = torch.tensor(0.1, dtype=torch.float32, requires_grad=True)
@@ -118,22 +107,18 @@ def test_trajectory_kernel_huge_distance_no_nan_gradient():
 
 
 def test_trajectory_kernel_float32_subnormal_scale_known_ceiling():
-    # Documented limitation (see kernels.py's module docstring): distance and
-    # temperature both within ~1 order of magnitude of float32's
-    # representable floor (~1.2e-38) can still blow up the temperature
-    # gradient in float32, because temperature**2 underflows to exactly 0
-    # independent of how the forward pass is arranged. This is not
-    # something torchnlts can fix in float32; the upgrade path is float64.
+    # Documented limitation (kernels.py): near float32's floor (~1.2e-38) temperature**2 underflows to 0 and the
+    # gradient blows up; float64 is the upgrade path.
     d_val, t_val = 2e-37, 2e-38
     d32 = torch.tensor(d_val, dtype=torch.float32)
     t32 = torch.tensor(t_val, dtype=torch.float32, requires_grad=True)
     trajectory_kernel(d32, t32, kind="gaussian").backward()
-    assert not torch.isfinite(t32.grad)  # the documented ceiling itself
+    assert not torch.isfinite(t32.grad)
 
     d64 = torch.tensor(d_val, dtype=torch.float64)
     t64 = torch.tensor(t_val, dtype=torch.float64, requires_grad=True)
     trajectory_kernel(d64, t64, kind="gaussian").backward()
-    assert torch.isfinite(t64.grad) and t64.grad > 0  # the upgrade path
+    assert torch.isfinite(t64.grad) and t64.grad > 0
 
 
 def test_trajectory_kernel_gradcheck():

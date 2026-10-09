@@ -88,8 +88,7 @@ def test_restore_shape_preserving_rejects_bad_ndim():
 
 
 def test_ols_slope_repeated_sweep_is_nan():
-    # log(0.1) repeated: centering leaves a rounding-sized nonzero
-    # denominator, which used to give a finite slope instead of NaN.
+    # log(0.1) repeated: centering leaves a rounding-sized denominator that gave a finite slope instead of NaN.
     sweep = torch.log(torch.full((11,), 0.1, dtype=torch.float64))
     values = torch.arange(1.0, 12.0, dtype=torch.float64)
     assert torch.isnan(_ols_slope(sweep, values))
@@ -128,8 +127,7 @@ def test_ols_slope_heterogeneous_batch_and_gradient():
 
 
 def test_ols_slope_degenerate_sweep_does_not_poison_shared_gradient():
-    # Row 0 of the vmapped batch has a repeated sweep; its NaN output must
-    # not put NaN into the gradient of a parameter shared with row 1.
+    # A NaN row in the vmapped batch must not put NaN into the gradient of a parameter shared with row 1.
     parameter = torch.tensor(2.0, requires_grad=True)
     sweep = torch.tensor([[1.0, 1.0, 1.0], [1.0, 2.0, 3.0]])
     result = torch.vmap(_ols_slope)(sweep, parameter * sweep)
@@ -182,8 +180,7 @@ def test_safe_log_invalid_column_has_zero_gradient():
 
 
 def test_ols_slope_degenerate_sweep_gives_zero_gradient():
-    # A repeated, NaN-containing, or single-point sweep: the NaN slope must
-    # leave zero, not NaN, gradients on both sweep and values.
+    # Repeated, NaN-containing or single-point sweep: NaN slope, zero (not NaN) gradients.
     for raw in ([1.0, 1.0, 1.0], [1.0, float("nan"), 3.0], [1.0]):
         sweep = torch.tensor(raw, requires_grad=True)
         values = torch.arange(1.0, len(raw) + 1, requires_grad=True)
@@ -228,7 +225,7 @@ def test_slope_callers_keep_sweep_precision_and_accept_integer_values():
     from torchnlts.dimension.generalized import generalized_dimension
     from torchnlts.lyapunov.rosenstein import rosenstein_lyapunov
 
-    # Integer values with a fractional sweep: the sweep used to be cast to int.
+    # Regression: an integer-valued sweep was cast to int.
     assert torch.isclose(correlation_dimension([0.25, 0.5, 1.0], torch.tensor([1, 2, 4])), torch.tensor(1.0))
     assert torch.isfinite(generalized_dimension([0.25, 0.5, 1.0], torch.tensor([1, 2, 4])))
     # float64 sweep points that float32 cannot separate (2**24 + 1).
@@ -259,7 +256,7 @@ def test_distance_based_functions_accept_integer_and_half_input():
             result = function(trajectory)
             assert result.dtype == expected_dtype
             assert torch.allclose(result.double(), function(reference), atol=1e-2, equal_nan=True)
-    # Integer input to box counting used to return a truncated int64 entropy.
+    # Regression: integer input to box counting returned a truncated int64 entropy.
     entropy = box_counting_entropy(torch.tensor([0, 1]), 1)
     assert entropy.is_floating_point() and torch.isclose(
         entropy.double(), torch.tensor(math.log(2), dtype=torch.float64)
@@ -446,7 +443,6 @@ def test_ols_slope_mask_equals_slicing_and_ignores_unselected():
     first = _ols_slope(sweep[1:4], values[1:4, 0])
     second = _ols_slope(sweep[[0, 3, 4, 5]], values[[0, 3, 4, 5], 1])
     assert torch.allclose(slope, torch.stack([first, second]))
-    # A shared [R] mask and the unmasked call agree when everything is selected.
     full = torch.ones(6, dtype=torch.bool)
     clean = values.clone()
     clean[torch.isinf(clean) | torch.isnan(clean)] = 1.0

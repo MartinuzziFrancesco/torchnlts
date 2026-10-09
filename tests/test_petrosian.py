@@ -124,16 +124,12 @@ def test_petrosian_batch_size_one_matches_unbatched():
 
 
 def test_petrosian_does_not_require_grad():
-    # Gradient class is none: output should not have requires_grad=True
-    # even if input does (count-based metric, not differentiable)
     trajectory = torch.randn(30, dtype=torch.float64, requires_grad=True)
     result = petrosian_dimension(trajectory)
     assert not result.requires_grad, "Petrosian output should not require grad (count-based statistic)"
 
 
 def test_petrosian_with_grad_input_does_not_crash():
-    # Input with requires_grad=True should not crash; the output is just
-    # not backpropagable (count-based).
     trajectory = torch.randn(50, dtype=torch.float64, requires_grad=True)
     result = petrosian_dimension(trajectory)
     assert result.dtype == trajectory.dtype

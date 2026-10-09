@@ -25,8 +25,6 @@ from torchnlts.surrogate.iaaft import iaaft_surrogate
 
 JULIA_PROJECT = "juliaenv"
 
-# Same literal input used by both this module's Julia cross-check and
-# several Python-only tests below, for consistency.
 _TEST_TRAJECTORY = [0.01, 0.02, 0.03, 0.04, 20.0, 0.05, 0.06, 0.07, 0.15, 0.9]
 
 
@@ -38,7 +36,7 @@ def _relative_spectral_error(original: torch.Tensor, surrogate: torch.Tensor) ->
 
 def test_iaaft_surrogate_preserves_amplitude_distribution_exactly():
     torch.manual_seed(0)
-    x = torch.randn(30, dtype=torch.float64) ** 2  # skewed, non-Gaussian
+    x = torch.randn(30, dtype=torch.float64) ** 2
     surrogate = iaaft_surrogate(x, max_iterations=20)
     assert torch.equal(torch.sort(x).values, torch.sort(surrogate).values)
 
@@ -52,14 +50,7 @@ def test_iaaft_surrogate_amplitude_preserved_regardless_of_iteration_count():
 
 
 def test_iaaft_surrogate_matches_independent_reimplementation():
-    # A genuine positive oracle, not just the amplitude/shape invariants
-    # checked elsewhere (a wrong FFT axis, wrong target magnitude, or an
-    # omitted spectral-adjustment step could still pass those): mocks
-    # the initial-permutation draw to a fixed, known set of keys, then
-    # independently reimplements one and three rounds of the exact
-    # alternating-projection recipe using plain torch ops (not by
-    # calling iaaft_surrogate internally), for both a single iteration
-    # and several chained ones.
+    # Positive oracle: mocked initial permutation; 1 and 3 alternating-projection rounds reimplemented in torch.
     x = torch.tensor([5.0, 1.0, 20.0, 0.5, 3.0], dtype=torch.float64)  # odd length: no Nyquist bin
     fixed_keys = torch.tensor([0.3, 0.9, 0.1, 0.7, 0.5], dtype=torch.float64)
 
@@ -93,14 +84,9 @@ def test_iaaft_surrogate_matches_independent_reimplementation():
 
 
 def test_iaaft_surrogate_relative_spectral_error_decreases_with_more_iterations():
-    # The tiny 10-point _TEST_TRAJECTORY converges in a single iteration
-    # for most seeds (too fast to show a decreasing trend), so this uses
-    # a longer, more slowly-converging series instead -- confirmed by
-    # hand to still be improving well past iteration 1 (see module
-    # docstring's ~4e-6-to-~3e-3 seed-spread note, which is about the
-    # short series; this one is only about the decreasing-trend shape).
+    # Longer, slower-converging series: the 10-point _TEST_TRAJECTORY converges in one iteration for most seeds.
     torch.manual_seed(0)
-    x = torch.randn(200, dtype=torch.float64) ** 2  # skewed, slow to converge
+    x = torch.randn(200, dtype=torch.float64) ** 2
     error_after_1 = _relative_spectral_error(
         x, iaaft_surrogate(x, max_iterations=1, generator=torch.Generator().manual_seed(0))
     )
@@ -111,12 +97,8 @@ def test_iaaft_surrogate_relative_spectral_error_decreases_with_more_iterations(
 
 
 def test_iaaft_surrogate_matches_chaostools_jl_seed_spread():
-    # julia --project=juliaenv -e '...' (see module docstring). Confirms
-    # live that TimeseriesSurrogates.jl's own IAAFT shows the same
-    # seed-dependent convergence-quality spread as this module's, on the
-    # literal same input, rather than a fixed always-tiny error -- i.e.
-    # the spread itself is the shared, expected property being checked,
-    # not a specific error value.
+    # TimeseriesSurrogates.jl (see module docstring) shows the same seed-dependent convergence spread on this input;
+    # the spread is what is checked.
     julia_code = f"""
     using TimeseriesSurrogates, Random, FFTW
     x = {_TEST_TRAJECTORY}
@@ -138,10 +120,7 @@ def test_iaaft_surrogate_matches_chaostools_jl_seed_spread():
     assert result.returncode == 0, result.stderr
     julia_errors = torch.tensor([float(v) for v in result.stdout.strip().splitlines()], dtype=torch.float64)
     assert julia_errors.shape == (10,)
-    # Both implementations: every seed converges reasonably well (a
-    # generous bound, well above the observed worst case of ~3e-3), and
-    # there's real variability across seeds (not all landing on the same
-    # fixed point) -- that spread is the point of this test.
+    # Every seed converges (generous bound, observed worst ~3e-3) and the errors differ across seeds.
     assert julia_errors.max() < 1e-2
     assert julia_errors.max() > 10 * julia_errors.min()
 
@@ -185,7 +164,7 @@ def test_iaaft_surrogate_batched_shape_and_per_row_amplitude_preservation():
 
 def test_iaaft_surrogate_unbatched_multivariate_shape():
     torch.manual_seed(4)
-    trajectory = torch.randn(25, 2, dtype=torch.float64) ** 2  # [T, D], no batch dim
+    trajectory = torch.randn(25, 2, dtype=torch.float64) ** 2
     surrogate = iaaft_surrogate(trajectory, max_iterations=20)
     assert surrogate.shape == trajectory.shape
     assert torch.equal(

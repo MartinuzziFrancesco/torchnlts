@@ -84,9 +84,7 @@ def test_soft_recurrence_matrix_diagonal_is_one():
 
 
 def test_soft_recurrence_matrix_monotone_in_distance():
-    # Points 0, 1, 4: distances from 0 are 1 and 4; the closer point must
-    # get the larger recurrence weight, straight from the paper's notion
-    # that recurrence weakens with distance.
+    # Points 0, 1, 4: the point closer to 0 must get the larger recurrence weight.
     trajectory = torch.tensor([0.0, 1.0, 4.0])
     actual = soft_recurrence_matrix(trajectory, temperature=1.0)
     assert actual[0, 1] > actual[0, 2]

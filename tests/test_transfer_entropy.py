@@ -49,9 +49,7 @@ JULIA_PROJECT = "juliaenv_causality"
 
 
 def test_conditional_mutual_information_constant_z_matches_mutual_information():
-    # See module docstring: conditioning on a constant collapses CMI to
-    # plain MI exactly. Reuses mutual_information's own hand-derived
-    # 4-point example (KSG1 = 0 exactly for this input).
+    # Conditioning on a constant reduces CMI to MI; reuses mutual_information's 4-point example (KSG1 = 0).
     x = torch.tensor([0.0, 1.0, 3.0, 10.0], dtype=torch.float64)
     y = torch.tensor([0.0, 2.0, 1.0, 20.0], dtype=torch.float64)
     z_constant = torch.full((4,), 5.0, dtype=torch.float64)
@@ -62,11 +60,7 @@ def test_conditional_mutual_information_constant_z_matches_mutual_information():
 
 
 def test_conditional_mutual_information_matches_causalitytools_jl_fpvp_disagreement():
-    # julia --project=juliaenv_causality -e '...FPVP(CMIShannon(base=ℯ); k=3, w=0)...'
-    # (see module docstring: this is a locked *disagreement* test --
-    # CausalityTools.jl's inclusive marginal counting, same as KSG1's
-    # own confirmed deviation, since both use Neighborhood.jl's
-    # inrangecount).
+    # Locked disagreement with CausalityTools.jl FPVP (inclusive marginal counting, as for KSG1); see module docstring.
     torch.manual_seed(1)
     x = torch.randn(50, dtype=torch.float64)
     y = torch.randn(50, dtype=torch.float64)
@@ -95,13 +89,7 @@ def test_conditional_mutual_information_matches_causalitytools_jl_fpvp_disagreem
 
 
 def _inclusive_conditional_mutual_information(x, y, z, num_neighbors, theiler_window):
-    # Independent reimplementation matching CausalityTools.jl's FPVP
-    # convention (inclusive "<=" marginal counting, no explicit
-    # self-mask needed since a point's distance to itself, 0, always
-    # satisfies "<= radius" for radius >= 0) -- built from plain torch
-    # ops, not by calling conditional_mutual_information, so this is a
-    # genuine independent check of the joint-radius/digamma formula and
-    # marginal alignment, not just a "differs from Julia" assertion.
+    # Plain-torch reimplementation of CausalityTools.jl's inclusive (<=) marginal counting, independent of the module.
     from torchnlts._shape import _ensure_batched
     from torchnlts.neighbors.distance import pairwise_distance
     from torchnlts.neighbors.theiler import apply_theiler_window
@@ -124,11 +112,7 @@ def _inclusive_conditional_mutual_information(x, y, z, num_neighbors, theiler_wi
 
 
 def test_conditional_mutual_information_inclusive_variant_matches_causalitytools_jl():
-    # Same input as the disagreement test above, but this time comparing
-    # an independently-reimplemented inclusive-counting variant against
-    # Julia -- confirms the joint-radius/digamma formula and alignment
-    # are actually correct, which the disagreement test alone can't do
-    # (it would also pass for an unrelated wrong answer).
+    # Same input, inclusive-counting variant vs Julia: checks the joint-radius/digamma formula and marginal alignment.
     torch.manual_seed(1)
     x = torch.randn(50, dtype=torch.float64)
     y = torch.randn(50, dtype=torch.float64)
@@ -203,9 +187,6 @@ def _coupled_logistic_maps(num_points: int, seed_x: float = 0.4, seed_y: float =
 
 
 def test_transfer_entropy_recovers_correct_causal_direction():
-    # X drives Y unidirectionally (same system used for CCM's own
-    # causality-direction sanity check). TE(X->Y) should be
-    # substantially larger than TE(Y->X).
     x, y = _coupled_logistic_maps(2000)
     te_x_to_y = transfer_entropy(x, y, embedding_dim=2, delay=1, theiler_window=5)
     te_y_to_x = transfer_entropy(y, x, embedding_dim=2, delay=1, theiler_window=5)
@@ -222,13 +203,7 @@ def test_transfer_entropy_near_zero_for_independent_series():
 
 
 def test_transfer_entropy_matches_causalitytools_jl_disagreement():
-    # julia --project=juliaenv_causality -e '...
-    #   CMIDecomposition(TEShannon(base=ℯ), FPVP(CMIShannon(base=ℯ); k=3, w=0))...'
-    # Matches to float64 precision once the same (inclusive) counting
-    # convention is used on both sides -- confirming the marginal
-    # construction (source past / target past / target future
-    # alignment) is correct, isolating the one already-known,
-    # deliberate difference (strict vs inclusive counting).
+    # Julia CMIDecomposition(TEShannon, FPVP(k=3, w=0)); matches to float64 once both use inclusive counting.
     torch.manual_seed(4)
     x = torch.randn(50, dtype=torch.float64)
     y = torch.randn(50, dtype=torch.float64)
@@ -254,13 +229,7 @@ def test_transfer_entropy_matches_causalitytools_jl_disagreement():
 
 
 def test_transfer_entropy_inclusive_variant_matches_causalitytools_jl():
-    # Same input/embedding_dim=1 case as the disagreement test above,
-    # but comparing the marginals (target_future=y[1:], source_past=
-    # x[:-1], target_past=y[:-1]) under the independently-reimplemented
-    # inclusive convention -- confirms transfer_entropy's own alignment
-    # logic is correct, not just that conditional_mutual_information's
-    # formula is (already covered by that function's own inclusive-match
-    # test above).
+    # Same case; marginals (y[1:], x[:-1], y[:-1]) under inclusive counting.
     torch.manual_seed(4)
     x = torch.randn(50, dtype=torch.float64)
     y = torch.randn(50, dtype=torch.float64)
@@ -308,7 +277,7 @@ def test_transfer_entropy_truncates_to_shorter_series():
     source = torch.randn(40, dtype=torch.float64)
     target = torch.randn(25, dtype=torch.float64)
     result = transfer_entropy(source, target, embedding_dim=2, delay=1, prediction_lag=1)
-    assert torch.isfinite(result) or torch.isnan(result)  # doesn't crash
+    assert torch.isfinite(result) or torch.isnan(result)
 
 
 def test_transfer_entropy_rejects_bad_params():

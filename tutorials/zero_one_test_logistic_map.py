@@ -59,9 +59,7 @@ for parameter, regime in cases:
     else:
         assert statistic > 0.9, "K should be near 1 for chaos"
 
-# K over a grid of r against the sign of the Lyapunov exponent: the two
-# classifications (K > 0.5, lambda > 0) agree except very close to
-# bifurcation points and the edge of chaos, where finite N blurs K.
+# K > 0.5 and lambda > 0 agree except near bifurcations and the edge of chaos, where finite N blurs K.
 grid = torch.arange(3.5, 4.0 + 1e-9, 0.01, dtype=torch.float64).tolist()
 agree = 0
 for parameter in grid:

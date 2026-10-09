@@ -76,10 +76,8 @@ def test_ami_independent_pattern_is_zero():
 
 
 def test_ami_sine_minimum_plateau_contains_quarter_period():
-    # Given x_t, a sine's x_{t+k} takes two values (about one bit of
-    # information lost) once k passes the first ramp, so the minimum is a
-    # plateau: the quarter period (10) sits on it and the first local
-    # minimum is detected inside it.
+    # A sine's x_{t+k} takes two values given x_t (about one bit lost) once k passes the first ramp:
+    # the minimum is a plateau containing the quarter period (10).
     ami = auto_mutual_information(_sine(), 30)
     assert ami[10] <= ami[1:].min() + 0.035
     assert ami[10] < ami[1] - 0.35
@@ -95,11 +93,10 @@ def test_estimate_delay_autocorrelation_methods_on_sine():
 
 
 def test_estimate_delay_hand_derived_search_rules():
-    # Autocorrelation of this series is not needed: use the rules via a crafted series.
     # Strictly decaying exponential: no zero crossing -> max_delay; 1/e found.
     decay = torch.exp(-torch.arange(100, dtype=torch.float64) / 10)
     assert estimate_delay(decay, 5, "ac_zero").item() == 5
-    assert estimate_delay(decay, 5, "ac_min").item() == 5  # no minimum found: max_delay
+    assert estimate_delay(decay, 5, "ac_min").item() == 5
 
 
 def test_ami_matches_julia_at_delay_zero_and_periodic_window():
@@ -113,8 +110,7 @@ def test_ami_matches_julia_at_delay_zero_and_periodic_window():
 
 
 def test_ami_julia_deviation_is_locked_in_off_periodic_windows():
-    # Delayed marginal counted from the delayed samples (see module docstring):
-    # delay 0 is exact, other delays differ by a small amount.
+    # Delayed marginal counted from delayed samples (see module docstring): exact at delay 0, close otherwise.
     trajectory = _mixed()
     expected = torch.tensor(
         _parse(_julia_vector(trajectory, "println(selfmutualinfo(x, 0:15; nbins=8))")), dtype=torch.float64

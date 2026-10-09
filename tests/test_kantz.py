@@ -28,19 +28,8 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_kantz_divergence_hand_derived():
-    # 6 points, embedding_dim=1 (windows are the raw values), radius=1.5,
-    # theiler_window=0, k=1. Epsilon-neighborhoods (excluding self):
-    #   i=0: {1} (d=1)          i=1: {0, 2} (d=1, 1)
-    #   i=2: {1} (d=1)          i=3: {4} (d=1)
-    #   i=4: {3, 5} (d=1, 1)    i=5: {4} (d=1) -- excluded, no k=1 step
-    # At max_k=1, num_usable=5 (indices 0-4); i=4's neighbor 5 is dropped
-    # (5 has no k=1 step), leaving i=4 with just {3}.
-    # Evolved (k=1) mean distances: i=0: |traj[1]-traj[2]|=1 -> mean=1
-    #   i=1: (|traj[2]-traj[1]| + |traj[2]-traj[3]|)/2 = (1+8)/2=4.5
-    #   i=2: |traj[3]-traj[2]|=8 -> mean=8
-    #   i=3: |traj[4]-traj[5]|=1 -> mean=1
-    #   i=4: |traj[5]-traj[4]|=1 -> mean=1
-    # S(1) = mean(log(1), log(4.5), log(8), log(1), log(1)).
+    # embedding_dim=1, radius=1.5, k=1: neighbors i0:{1} i1:{0,2} i2:{1} i3:{4} i4:{3} (5 has no k=1 step, dropped).
+    # Evolved mean distances 1, 4.5, 8, 1, 1, so S(1) = mean(log(1), log(4.5), log(8), log(1), log(1)).
     trajectory = torch.tensor([0.0, 1.0, 2.0, 10.0, 11.0, 12.0], dtype=torch.float64)
     result = kantz_divergence(trajectory, k_values=1, radius=1.5, embedding_dim=1, delay=1, theiler_window=0)
     expected = (math.log(1) + math.log(4.5) + math.log(8) + math.log(1) + math.log(1)) / 5
@@ -93,9 +82,7 @@ def test_kantz_divergence_absurdly_large_k_is_nan_not_wrong_answer():
 
 
 def test_kantz_divergence_zero_mean_distance_is_neg_inf_not_clamped():
-    # Neighborhood consisting entirely of exact duplicates at k=1: the
-    # mean neighborhood distance is exactly 0 -> log(0) = -inf, matching
-    # the paper's formula rather than silently flooring it.
+    # All-duplicate neighborhood: mean distance 0 gives -inf, as in the paper's formula.
     trajectory = torch.tensor([0.0, 5.0, 0.0, 5.0, 0.0], dtype=torch.float64)
     result = kantz_divergence(trajectory, k_values=1, radius=0.5, embedding_dim=1, theiler_window=0)
     assert torch.isneginf(result)
@@ -166,9 +153,7 @@ def test_kantz_divergence_rejects_negative_theiler_window():
 
 
 def test_kantz_divergence_delay_0_still_validated_at_embedding_dim_1():
-    # Same guard as rosenstein_divergence: the embedding_dim=1/large-delay
-    # OverflowError workaround must not silently swallow an otherwise-
-    # invalid delay (delay_embedding's own delay >= 1 check must still fire).
+    # The large-delay OverflowError workaround must not swallow an invalid delay.
     trajectory = torch.arange(5.0, dtype=torch.float64)
     try:
         kantz_divergence(trajectory, k_values=0, radius=1.0, embedding_dim=1, delay=0)
@@ -218,10 +203,7 @@ def test_kantz_divergence_single_element_sweep_matches_scalar():
 
 
 def test_kantz_divergence_inclusive_radius_boundary():
-    # Same trajectory as the hand-derived test: i=2's only candidate
-    # neighbor (index 1) sits at exactly distance 1 -- radius=1.0
-    # (exactly that distance) must still include it, matching this
-    # module's inclusive "<=" (not strict "<") neighborhood convention.
+    # radius equals the neighbor distance: neighborhoods are inclusive (<=).
     trajectory = torch.tensor([0.0, 1.0, 2.0, 10.0, 11.0, 12.0], dtype=torch.float64)
     at_boundary = kantz_divergence(trajectory, k_values=1, radius=1.0, embedding_dim=1, delay=1, theiler_window=0)
     above_boundary = kantz_divergence(trajectory, k_values=1, radius=1.5, embedding_dim=1, delay=1, theiler_window=0)
@@ -229,22 +211,13 @@ def test_kantz_divergence_inclusive_radius_boundary():
 
 
 def test_kantz_divergence_mixed_zero_and_positive_neighborhood_rows():
-    # radius=0.5: i=0 and i=1 are an exact duplicate pair and each
-    # other's *only* neighbor within radius (their mean distance is
-    # exactly 0 -> -inf contribution); i=2, i=3, i=4 (clustered near 4.0)
-    # each have a genuinely positive mean neighborhood distance instead.
-    # The -inf from rows 0 and 1 must still dominate the overall average
-    # (matching plain floating-point sum semantics), not be silently
-    # dropped or averaged away by the other three rows' finite values.
+    # Rows 0 and 1 are duplicates giving -inf; it must dominate the average, not be dropped.
     trajectory = torch.tensor([0.0, 0.0, 4.0, 4.1, 4.2], dtype=torch.float64)
     result = kantz_divergence(trajectory, k_values=0, radius=0.5, embedding_dim=1, theiler_window=0)
     assert torch.isneginf(result)
 
 
 def test_kantz_divergence_matches_independent_loop_for_delays_and_norms():
-    # Build embeddings and choose neighborhoods directly, without the
-    # production embedding, distance, or reduction helpers (mirrors
-    # test_rosenstein_divergence_matches_independent_loop_for_delays_and_norms).
     torch.manual_seed(31)
     trajectory = torch.randn(2, 18, 2, dtype=torch.float64)
     k_values = [2, 0, 1, 2]
@@ -294,11 +267,7 @@ def test_kantz_divergence_gradcheck():
 
 
 def test_kantz_divergence_batched_sweep_gradcheck():
-    # radius=3.0 gives a finite curve under all three norms for this
-    # seed/shape. Rows without neighbors are excluded using a safe dummy
-    # mean distance of 1 before taking the log, not NaN masking. A mix of
-    # valid and excluded rows exercises that masked-gradient path;
-    # an entirely empty reference set would give NaN and fail gradcheck.
+    # radius=3.0 keeps the curve finite under all norms; mixed valid and excluded rows exercise the masked gradient.
     torch.manual_seed(6)
     trajectory = torch.randn(1, 12, 2, dtype=torch.float64, requires_grad=True)
     for norm_order in (1.0, 2.0, float("inf")):
@@ -310,11 +279,7 @@ def test_kantz_divergence_batched_sweep_gradcheck():
 
 
 def test_kantz_matches_analytic_logistic_map_lyapunov_exponent():
-    # Kantz's own method's natural benchmark, same as Rosenstein's: the
-    # logistic map's largest Lyapunov exponent is exactly ln(2). A small
-    # radius (0.01) was chosen empirically to keep neighborhoods tight;
-    # the fit range
-    # [1, 6] is the visually-confirmed linear region before S(k) saturates.
+    # Logistic map: the largest Lyapunov exponent is ln(2).
     trajectory = logistic_map_trajectory(2000)
     k_values = torch.arange(1, 12, dtype=torch.float64)
     divergence = kantz_divergence(trajectory, k_values, radius=0.01, embedding_dim=2, delay=1, theiler_window=10)
@@ -323,16 +288,8 @@ def test_kantz_matches_analytic_logistic_map_lyapunov_exponent():
 
 
 def test_kantz_divergence_disagrees_with_chaostools_jl():
-    # Same input as test_kantz_divergence_hand_derived. Locks in the
-    # module docstring's claimed discrepancy: ChaosTools.jl's
-    # lyapunov_from_data(...; ntype=WithinRange(radius)) averages the log
-    # of each neighbor's distance individually (mean of logs) rather than
-    # the log of the mean distance the cited paper defines, confirmed by
-    # hand-computing both quantities for this exact input and finding
-    # they disagree well beyond floating-point noise. If a future
-    # ChaosTools.jl version switches to log-of-mean, this test will start
-    # failing, which is the point -- it means the documented discrepancy
-    # has gone stale and should be revisited.
+    # ChaosTools.jl averages the log of each neighbor distance, not the log of the mean distance as in the paper.
+    # If ChaosTools switches convention this fails and the documented discrepancy needs revisiting.
     trajectory = [0.0, 1.0, 2.0, 10.0, 11.0, 12.0]
     julia_code = f"""
     using ChaosTools
@@ -358,30 +315,19 @@ def test_kantz_divergence_disagrees_with_chaostools_jl():
         delay=1,
         theiler_window=0,
     )
-    # Exact expected values (not just "these differ"): mean-of-logs
-    # (Julia) is (log(1) + (log(1)+log(8))/2 + log(8) + log(1) + log(1))/5;
-    # log-of-mean (this module, matching the paper) is
-    # (log(1) + log(4.5) + log(8) + log(1) + log(1))/5.
+    # Mean-of-logs (Julia): (log 1 + (log 1 + log 8)/2 + log 8 + log 1 + log 1)/5;
+    # log-of-mean (this module): (log 1 + log 4.5 + log 8 + log 1 + log 1)/5.
     julia_expected = (math.log(1) + (math.log(1) + math.log(8)) / 2 + math.log(8) + math.log(1) + math.log(1)) / 5
     torch_expected = (math.log(1) + math.log(4.5) + math.log(8) + math.log(1) + math.log(1)) / 5
-    # Default torch.isclose tolerance (rtol=1e-5, atol=1e-8) is
-    # appropriate here: both sides are compared against a hand-computed
-    # analytic constant (via math.log), not against each other or
-    # another floating-point pipeline, so the only expected residual is
-    # float64 round-trip noise (Julia's stdout parsed back as a string).
+    # Default isclose tolerance: expected values are analytic constants, so only float64 round-trip noise remains.
     assert torch.isclose(julia_divergence, torch.tensor(julia_expected, dtype=torch.float64))
     assert torch.isclose(torch_divergence, torch.tensor(torch_expected, dtype=torch.float64))
-    # atol=0.05: these are two different statistics (Jensen's inequality
-    # gives log-of-mean >= mean-of-logs), not a numerical-precision
-    # question, so any tolerance well above float64 noise and below
-    # their ~0.09 gap demonstrates the disagreement is real and stable,
-    # not incidental.
+    # atol=0.05: the statistics differ by ~0.09 (Jensen's inequality), so the gap is real and stable.
     assert not torch.isclose(torch_divergence, julia_divergence, atol=0.05)
 
 
 def test_kantz_zero_distance_row_keeps_shared_gradient():
-    # Regression: a row whose neighborhoods are all at distance 0 is -inf, and
-    # log(0)'s infinite gradient reached a parameter shared with other rows.
+    # Regression: a -inf row's infinite log gradient reached a parameter shared with other rows.
     values = torch.tensor([[1.0, 2.0, 3.0, 4.0], [0.0, 0.0, 0.0, 0.0]], dtype=torch.float64)
     for norm_order in (1.0, 2.0, float("inf")):
         parameter = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)

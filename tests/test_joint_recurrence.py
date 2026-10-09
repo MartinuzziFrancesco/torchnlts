@@ -25,9 +25,8 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_hard_joint_recurrence_matrix_hand_derived():
-    # x = [0, 1, 2], epsilon_x=1.5: R(x) = [[T,T,F],[T,T,T],[F,T,T]].
-    # y = [0, 3, 1], epsilon_y=1.5: R(y) = [[T,F,T],[F,T,F],[T,F,T]].
-    # Element-wise AND leaves only the diagonal.
+    # x=[0,1,2], y=[0,3,1], eps=1.5: R(x)=[[T,T,F],[T,T,T],[F,T,T]], R(y)=[[T,F,T],[F,T,F],[T,F,T]]; AND leaves the
+    # diagonal.
     x = torch.tensor([0.0, 1.0, 2.0])
     y = torch.tensor([0.0, 3.0, 1.0])
     actual = hard_joint_recurrence_matrix(x, y, epsilon=1.5)
@@ -37,7 +36,7 @@ def test_hard_joint_recurrence_matrix_hand_derived():
 def test_hard_joint_recurrence_matrix_different_epsilon_per_trajectory():
     x = torch.tensor([0.0, 1.0, 2.0])
     y = torch.tensor([0.0, 3.0, 1.0])
-    # epsilon_y=3.5 makes every pair of y recurrent, so JR should equal R(x) alone.
+    # epsilon_y=3.5 makes every pair of y recurrent, so JR equals R(x) alone.
     actual = hard_joint_recurrence_matrix(x, y, epsilon=1.5, other_epsilon=3.5)
     from torchnlts.recurrence.matrix import hard_recurrence_matrix
 
@@ -49,8 +48,6 @@ def test_hard_joint_recurrence_matrix_truncates_to_shorter_length():
     y = torch.tensor([0.0, 3.0, 1.0])
     actual = hard_joint_recurrence_matrix(x, y, epsilon=1.5)
     assert actual.shape == (3, 3)
-    # Value, not just shape: must equal truncate-then-compute, i.e. the
-    # matrix is identical to running on the already-shortened trajectories.
     from torchnlts.recurrence.matrix import hard_recurrence_matrix
 
     truncated_first = hard_recurrence_matrix(x[:3], epsilon=1.5) & hard_recurrence_matrix(y[:3], epsilon=1.5)
@@ -60,7 +57,7 @@ def test_hard_joint_recurrence_matrix_truncates_to_shorter_length():
 def test_hard_joint_recurrence_matrix_batched():
     torch.manual_seed(0)
     x = torch.randn(4, 8, 3, dtype=torch.float64)
-    y = torch.randn(4, 8, 2, dtype=torch.float64)  # different feature dim, same batch/length
+    y = torch.randn(4, 8, 2, dtype=torch.float64)
     actual = hard_joint_recurrence_matrix(x, y, epsilon=1.0)
     assert actual.shape == (4, 8, 8)
 
@@ -150,8 +147,7 @@ def test_soft_joint_recurrence_matrix_different_temperature_per_trajectory():
     actual = soft_joint_recurrence_matrix(x, y, temperature=0.5, other_temperature=2.0)
     expected = soft_recurrence_matrix(x, temperature=0.5) * soft_recurrence_matrix(y, temperature=2.0)
     assert torch.allclose(actual, expected)
-    # A bug that silently ignored other_temperature would use temperature=0.5
-    # for y too, giving a different (and detectably wrong) result.
+    # Ignoring other_temperature would use temperature=0.5 for y too, giving a detectably different result.
     wrong = soft_recurrence_matrix(x, temperature=0.5) * soft_recurrence_matrix(y, temperature=0.5)
     assert not torch.allclose(actual, wrong)
 
@@ -162,8 +158,6 @@ def test_soft_joint_recurrence_matrix_batched():
     y = torch.randn(4, 6, 3, dtype=torch.float64)
     actual = soft_joint_recurrence_matrix(x, y, temperature=0.5)
     assert actual.shape == (4, 6, 6)
-    # Brute-force per-batch check catches an axis-transposition bug that a
-    # shape-only assertion would miss.
     from torchnlts.neighbors.kernels import trajectory_kernel
 
     brute = torch.zeros(4, 6, 6, dtype=torch.float64)

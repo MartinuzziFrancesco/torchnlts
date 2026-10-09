@@ -22,27 +22,15 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_sample_entropy_hand_derived_delay_1():
-    # embedding_dim=1, delay=1: templates are [0, 1, 0] (m) and
-    # [[0,1],[1,0],[0,2]] (m+1) at radius 1.5.
-    # B: all 6 ordered pairs among [0, 1, 0] are within 1.5 -> B=1.
-    # A: (w1,w2) has Chebyshev distance 2 > 1.5, the other 4 ordered
-    # pairs are within 1.5 -> A=4/6=2/3.
+    # Templates [0,1,0] (m) and [[0,1],[1,0],[0,2]] (m+1), radius 1.5: B=6/6=1; A=4/6 (only (w1,w2) is out of range).
     trajectory = torch.tensor([0.0, 1.0, 0.0, 2.0], dtype=torch.float64)
     result = sample_entropy(trajectory, radius=1.5, embedding_dim=1, delay=1)
     assert torch.isclose(result, torch.tensor(-math.log(2 / 3), dtype=torch.float64))
 
 
 def test_sample_entropy_hand_derived_delay_2():
-    # embedding_dim=2, delay=2, radius=2.5: an anomalous sample at
-    # index 6 only pollutes the m+1=3 embedding, breaking symmetry
-    # between B and A and exercising the index-alignment/truncation
-    # logic (dropping the last `delay` rows of the shorter embedding).
-    # B (over v_i=(x_i, x_i+2), i=0..3): distances 1,2,3,1,2,1 (in
-    # index-pair order (0,1),(0,2),(0,3),(1,2),(1,3),(2,3)) -> 5/6
-    # unordered pairs within 2.5 -> B=10/12.
-    # A (over w_i=(x_i, x_i+2, x_i+4), i=0..3): the anomaly makes
-    # w2=(2,4,100) far from everything -> only (0,1) and (1,3) match
-    # -> A=4/12.
+    # Anomaly at index 6 pollutes only the m+1 embedding: B=10/12 (5/6 unordered pairs match);
+    # A=4/12 since w2=(2,4,100) matches nothing and only (0,1), (1,3) match.
     trajectory = torch.tensor([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 100.0, 7.0], dtype=torch.float64)
     result = sample_entropy(trajectory, radius=2.5, embedding_dim=2, delay=2)
     expected = -math.log((4 / 12) / (10 / 12))
@@ -50,15 +38,11 @@ def test_sample_entropy_hand_derived_delay_2():
 
 
 def test_matched_length_templates_delay_3_coordinates():
-    # embedding_dim=2, delay=3: exercises delay > 1 and truncation
-    # dropping `delay` (not 1) trailing rows, on a fully general index.
-    trajectory = torch.arange(10, dtype=torch.float64)  # [0, 1, ..., 9]
+    trajectory = torch.arange(10, dtype=torch.float64)
     short_embed, long_embed = _matched_length_templates(trajectory, embedding_dim=2, delay=3)
-    # k=2, delay=3 (i=0..6, i.e. 7 rows): (x_i, x_i+3)
-    # k=3, delay=3 (i=0..3, i.e. 4 rows): (x_i, x_i+3, x_i+6)
     assert long_embed.shape == (4, 3)
     assert torch.equal(long_embed, torch.tensor([[0.0, 3.0, 6.0], [1.0, 4.0, 7.0], [2.0, 5.0, 8.0], [3.0, 6.0, 9.0]]))
-    # short_embed truncated to the same 4 template start indices, dropping delay=3 trailing rows (7 - 3 = 4)
+    # short_embed is truncated to the first 4 rows (7 - delay).
     assert short_embed.shape == (4, 2)
     assert torch.equal(short_embed, torch.tensor([[0.0, 3.0], [1.0, 4.0], [2.0, 5.0], [3.0, 6.0]]))
 
@@ -88,10 +72,7 @@ def test_sample_entropy_zero_a_positive_b_is_inf_not_crash():
 
 
 def test_sample_entropy_negative_theiler_window_raises():
-    # SampEn's B(r)/A(r) require excluding self-matches unconditionally
-    # (Richman & Moorman eq. 1-2); a negative window would otherwise
-    # admit them via theiler_window_mask's documented "no exclusion"
-    # convention, breaking the statistic's definition.
+    # Self-matches must always be excluded (Richman & Moorman), even with the no-exclusion convention.
     trajectory = torch.tensor([0.0, 1.0, 0.0, 2.0], dtype=torch.float64)
     try:
         sample_entropy(trajectory, radius=1.5, embedding_dim=1, theiler_window=-1)
@@ -119,23 +100,15 @@ def test_sample_entropy_batch_size_one_matches_unbatched():
 
 
 def test_soft_sample_entropy_underflow_is_nan_not_crash():
-    # Documented Returns-section edge case: temperature small enough
-    # relative to the template distances that both A and B's kernel
-    # weights underflow to exactly 0, giving 0/0.
+    # Tiny temperature: A and B kernel weights underflow to 0, giving 0/0.
     trajectory = torch.tensor([0.0, 1.0, 5.0], dtype=torch.float64)
     result = soft_sample_entropy(trajectory, temperature=0.01, embedding_dim=1)
     assert torch.isnan(result)
 
 
 def test_sample_entropy_unpadded_disagrees_with_complexitymeasures_jl():
-    # Locks in the boundary-handling deviation this module's docstring
-    # and the dual-validation test both describe: without the
-    # far-outlier padding, ComplexityMeasures.jl's B(r) leaks one
-    # out-of-range neighbor candidate and disagrees with this
-    # (paper-faithful) implementation. If a future ComplexityMeasures.jl
-    # version fixes this, this test will start failing, which is the
-    # point -- it means the comments describing the discrepancy have
-    # gone stale and should be revisited.
+    # Locks in the boundary deviation from ComplexityMeasures.jl, whose B(r) leaks one out-of-range neighbor.
+    # If a future ComplexityMeasures.jl fixes this, the test fails and the docs need revisiting.
     trajectory = [0.0, 1.0, 0.0, 2.0]
     julia_code = """
     using ComplexityMeasures
@@ -152,22 +125,13 @@ def test_sample_entropy_unpadded_disagrees_with_complexitymeasures_jl():
     assert result.returncode == 0, result.stderr
     julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
     torch_entropy = sample_entropy(torch.tensor(trajectory, dtype=torch.float64), radius=1.5, embedding_dim=1, delay=1)
-    # Exact expected values (not just "these differ"), so a fluke NaN or
-    # unrelated numerical mismatch can't slip past as a false positive:
-    # Julia's leaked extra neighbor candidate gives raw counts A=4, B=7
-    # (independently confirmed against ComplexityMeasures.sample_entropy_probs)
-    # -> ln(7/4); this implementation's strict truncation gives A=4, B=6 -> ln(3/2).
+    # Julia's leaked neighbor gives A=4, B=7 -> ln(7/4); strict truncation here gives A=4, B=6 -> ln(3/2).
     assert torch.isclose(julia_entropy, torch.tensor(math.log(7 / 4), dtype=torch.float64))
     assert torch.isclose(torch_entropy, torch.tensor(math.log(3 / 2), dtype=torch.float64))
 
 
 def test_soft_sample_entropy_hand_derived():
-    # embedding_dim=1, delay=1, temperature=1.0, gaussian kernel.
-    # short_embed truncated to [0, 1] (2 points): distance 1, gaussian
-    # weight exp(-(1/1)^2/2) = exp(-0.5) for both ordered pairs -> B = exp(-0.5).
-    # long_embed = [(0,1), (1,3)]: Chebyshev distance max(1,2) = 2, weight
-    # exp(-(2/1)^2/2) = exp(-2) for both ordered pairs -> A = exp(-2).
-    # SampEn = -ln(A/B) = -ln(exp(-1.5)) = 1.5.
+    # Truncated short_embed [0, 1]: B = exp(-0.5); long_embed [(0,1),(1,3)]: A = exp(-2); SampEn = -ln(A/B) = 1.5.
     trajectory = torch.tensor([0.0, 1.0, 3.0], dtype=torch.float64)
     result = soft_sample_entropy(trajectory, temperature=1.0, embedding_dim=1, delay=1)
     assert torch.isclose(result, torch.tensor(1.5, dtype=torch.float64))
@@ -205,21 +169,8 @@ def test_soft_sample_entropy_gradcheck_temperature():
 
 
 def test_sample_entropy_matches_complexitymeasures_jl():
-    # ComplexityMeasures.jl's SampleEntropy computes B(r) by querying a
-    # KD-tree built from the *untruncated* m-dim embedding (size
-    # N-(m-1)*delay) against only the first N-m*delay query points,
-    # rather than restricting neighbors to that same truncated set --
-    # a real deviation from Richman & Moorman's definition (confirmed
-    # by inspecting ComplexityMeasures.jl's sample_entropy.jl source:
-    # `sample_entropy_probs` builds the KDTree from the full `pts` and
-    # only slices the *queries*), not a float-precision difference.
-    # For delay=1 this leaks exactly one extra out-of-range neighbor
-    # candidate into B. Neutralize it here by appending far-outlier
-    # values (well beyond any radius used) so that leaked candidate
-    # never falls within range, making Julia's B match the paper's
-    # truncated definition -- confirmed by hand-checking raw A/B
-    # counts (`ComplexityMeasures.sample_entropy_probs`) before writing
-    # this test.
+    # ComplexityMeasures.jl builds B(r)'s KD-tree from the untruncated embedding but queries only the truncated points,
+    # leaking one extra neighbor for delay=1. Far-outlier padding keeps it out of range so B matches the paper.
     torch.manual_seed(4)
     trajectory = torch.cat([torch.randn(28, dtype=torch.float64), torch.tensor([1e6, 2e6], dtype=torch.float64)])
     radius = 1.0

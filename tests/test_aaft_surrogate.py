@@ -32,19 +32,13 @@ JULIA_PROJECT = "juliaenv"
 
 def test_aaft_surrogate_preserves_amplitude_distribution_exactly():
     torch.manual_seed(0)
-    x = torch.randn(30, dtype=torch.float64) ** 2  # skewed, non-Gaussian
+    x = torch.randn(30, dtype=torch.float64) ** 2
     surrogate = aaft_surrogate(x)
     assert torch.equal(torch.sort(x).values, torch.sort(surrogate).values)
 
 
 def test_aaft_surrogate_uses_gaussianized_series_not_raw_data():
-    # Mocked, deterministic randomness (zero phase, fixed "Gaussian"
-    # noise) isolates the wiring from actual randomness. For a strongly
-    # skewed x, going through the Gaussian-rank-matched intermediate
-    # (this module) gives a different rank order than phase-randomizing
-    # x directly and rank-restoring (the confirmed Julia shortcut, see
-    # test_aaft_surrogate_matches_chaostools_jl_shortcut_confirmation)
-    # -- proving the extra step actually changes the result here.
+    # Mocked randomness; for skewed x the Gaussian-rank intermediate gives a different rank order than the Julia shortcut.
     x = torch.tensor([0.01, 0.02, 0.03, 0.04, 20.0, 0.05, 0.06, 0.07], dtype=torch.float64)
     fixed_noise = torch.tensor([-1.5, 0.3, -0.2, 1.1, 0.0, -0.8, 0.9, 2.0], dtype=torch.float64)
 
@@ -64,19 +58,11 @@ def test_aaft_surrogate_uses_gaussianized_series_not_raw_data():
     julia_style_shortcut = torch.gather(sorted_x, 0, rank_direct)
 
     assert not torch.equal(result, julia_style_shortcut)
-    # Both still preserve the amplitude distribution exactly, by
-    # construction of either recipe -- the difference is rank order.
     assert torch.equal(torch.sort(result).values, sorted_x)
 
 
 def test_aaft_surrogate_matches_independent_reimplementation_with_zero_phase():
-    # A genuine positive oracle (not merely "differs from the Julia
-    # shortcut" above, nor just the amplitude-preservation invariant,
-    # either of which an incorrect rank-order pipeline could still
-    # satisfy by accident): independently reimplements the exact
-    # three-step recipe using plain torch ops, not by calling
-    # aaft_surrogate or phase_randomized_surrogate, and checks the
-    # production function's output against it exactly.
+    # Positive oracle: independent plain-torch reimplementation of the three-step recipe, compared exactly.
     x = torch.tensor([5.0, 1.0, 20.0, 0.5, 3.0], dtype=torch.float64)  # odd length: no Nyquist bin
     fixed_noise = torch.tensor([0.2, -1.0, 0.5, 2.0, -0.3], dtype=torch.float64)
 
@@ -94,7 +80,7 @@ def test_aaft_surrogate_matches_independent_reimplementation_with_zero_phase():
     gaussianized = sorted_noise[rank_x]
     mean = gaussianized.mean()
     magnitude = torch.fft.rfft(gaussianized - mean).abs()
-    ft_surrogate = torch.fft.irfft(magnitude.to(torch.complex128), n=x.shape[0]) + mean  # zero phase
+    ft_surrogate = torch.fft.irfft(magnitude.to(torch.complex128), n=x.shape[0]) + mean
     rank_ft = torch.argsort(torch.argsort(ft_surrogate, stable=True), stable=True)
     sorted_x = torch.sort(x, stable=True).values
     expected = sorted_x[rank_ft]
@@ -103,8 +89,7 @@ def test_aaft_surrogate_matches_independent_reimplementation_with_zero_phase():
 
 
 def test_aaft_surrogate_handles_ties_and_constant_input():
-    # Ties in the data (and the degenerate all-tied constant case) must
-    # not crash the double-argsort rank trick or the final gather.
+    # Ties (including the all-tied constant case) must not crash the double-argsort rank trick or the final gather.
     x = torch.tensor([1.0, 2.0, 2.0, 3.0, 2.0, 1.0], dtype=torch.float64)
     surrogate = aaft_surrogate(x)
     assert torch.equal(torch.sort(x).values, torch.sort(surrogate).values)
@@ -115,9 +100,7 @@ def test_aaft_surrogate_handles_ties_and_constant_input():
 
 
 def test_aaft_surrogate_matches_chaostools_jl_shortcut_confirmation():
-    # julia --project=juliaenv -e '...' (see module docstring). Confirms
-    # live that AAFT(x) == rank-restore(x, RandomFourier(x)) in Julia's
-    # own reference implementation, i.e. no Gaussian-rank step there.
+    # Julia: AAFT(x) == rank-restore(x, RandomFourier(x)), i.e. no Gaussian-rank step (see module docstring).
     trajectory = [0.01, 0.02, 0.03, 0.04, 20.0, 0.05, 0.06, 0.07]
     julia_code = f"""
     using TimeseriesSurrogates, Random, FFTW

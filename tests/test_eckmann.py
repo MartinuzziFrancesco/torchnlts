@@ -47,9 +47,8 @@ def _paper_oracle(series, embedding_dim, matrix_dim, num_neighbors, delay=1, the
     shift = matrix_step * delay
     num_points = len(series) - (embedding_dim - 1) * delay - shift
     orbit = numpy.array([series[i : i + embedding_dim * delay : delay] for i in range(num_points)])
-    # Neighbor indices come from knn_search (tested separately): under the
-    # max-norm, overlapping windows give exact distance ties at the
-    # neighborhood boundary, whose order is implementation-defined.
+    # Neighbor indices come from knn_search: under the max-norm, overlapping windows give exact distance ties of
+    # undefined order.
     neighbor_index = knn_search(
         torch.from_numpy(orbit), num_neighbors, theiler_window=theiler_window, norm_order=float(norm_order)
     )[1].numpy()
@@ -139,7 +138,6 @@ def test_henon_known_exponents():
 
 
 def test_logistic_contains_ln2():
-    # A 1D map embedded with matrix_dim=2 also yields a spurious exponent.
     result = eckmann_spectrum(logistic_map_trajectory(3000), 2, 2)
     assert (result - math.log(2)).abs().min() < 0.03
 
@@ -225,10 +223,8 @@ def test_invalid_arguments(kwargs):
 
 def test_degenerate_inputs_give_nan():
     assert eckmann_spectrum(torch.randn(5), 4, 4).isnan().all()
-    # Window larger than the orbit: no admissible neighbors.
     assert eckmann_spectrum(torch.randn(60), 4, 4, theiler_window=1000).isnan().all()
     assert eckmann_spectrum(torch.randn(12), 4, 4, num_neighbors=20).isnan().all()
-    # Too few points for a full-rank neighborhood (placeholder systems).
     assert eckmann_spectrum(_henon_series(20), 2, 2, theiler_window=8).isnan().all()
 
 
@@ -272,7 +268,6 @@ def test_degenerate_rows_have_zero_gradient_and_do_not_leak(bad_row):
     clean = _henon_series(80)
     steps = torch.arange(80, dtype=torch.float64)
     bad = {"constant": torch.ones_like(clean), "period2": steps % 2, "ramp": steps}[bad_row]
-    # A shared scale parameter multiplies both rows, as a trainable model would.
     scale = torch.tensor(1.5, dtype=torch.float64, requires_grad=True)
     rows = torch.stack([clean, bad])[..., None].clone().requires_grad_(True)
     result = eckmann_spectrum(scale * rows, 2, 2)
@@ -280,15 +275,12 @@ def test_degenerate_rows_have_zero_gradient_and_do_not_leak(bad_row):
     result.nan_to_num().sum().backward()
     assert torch.isfinite(scale.grad) and torch.isfinite(rows.grad).all()
     assert rows.grad[1].abs().sum() == 0
-    # The shared parameter's gradient equals that of the clean row alone.
     scale_alone = torch.tensor(1.5, dtype=torch.float64, requires_grad=True)
     eckmann_spectrum(scale_alone * clean[None, :, None], 2, 2).sum().backward()
     torch.testing.assert_close(scale.grad, scale_alone.grad)
 
 
 def test_singular_neighborhood_gradient_is_zero_and_finite():
-    # Window larger than the orbit gives no admissible neighbors; the
-    # placeholder tangent maps must not make backward NaN.
     scale = torch.tensor(1.5, dtype=torch.float64, requires_grad=True)
     result = eckmann_spectrum(scale * _henon_series(20), 2, 2, theiler_window=8)
     assert result.isnan().all()
@@ -303,8 +295,7 @@ def test_short_series_gradient_is_finite_zero():
 
 
 def test_zero_leading_coefficient_row_is_nan_without_leaking(monkeypatch):
-    # The companion matrix has determinant +-coefficients[..., 0]; an exactly
-    # zero entry makes it singular. Force that in row 1 only.
+    # The companion matrix has determinant +-coefficients[..., 0]; an exactly zero entry makes it singular.
     original = eckmann_module._least_squares
 
     def zero_leading(design, response):
@@ -326,7 +317,7 @@ def test_zero_growth_factor_row_is_nan(monkeypatch):
 
     def zero_growth(matrix):
         orthonormal, upper = original(matrix)
-        if matrix.shape[-2] != matrix.shape[-1]:  # the tangent fit, not the chain
+        if matrix.shape[-2] != matrix.shape[-1]:
             return orthonormal, upper
         mask = torch.ones_like(upper)
         mask[1, ..., 0, 0] = 0.0
@@ -341,8 +332,8 @@ def test_zero_growth_factor_row_is_nan(monkeypatch):
 
 
 def test_mixed_valid_and_rejected_points_keep_shared_gradient():
-    # Regression: a row with some rejected fits used a singular fallback tangent
-    # ([[0, 1], [0, 1]]) whose QR backward put NaN into a shared parameter.
+    # Regression: rejected fits used a singular fallback tangent ([[0, 1], [0, 1]]) whose QR backward put NaN into a
+    # shared parameter.
     clean = _henon_series(30)
     damaged = clean.clone()
     damaged[:10] = 1.0
@@ -356,8 +347,8 @@ def test_mixed_valid_and_rejected_points_keep_shared_gradient():
 
 
 def test_ill_conditioned_fit_gradient_matches_finite_difference():
-    # Regression: lstsq's backward was ~1000x off for a design with condition
-    # number ~4e9 (ramp plus 1e-9 noise); the QR solve matches a central difference.
+    # Regression: lstsq's backward was ~1000x off for condition number ~4e9 (ramp plus 1e-9 noise); the QR solve matches
+    # a central difference.
     noise = torch.randn(40, generator=torch.Generator().manual_seed(731), dtype=torch.float64)
     series = (torch.arange(40, dtype=torch.float64) + 1e-9 * noise).requires_grad_()
     gradient = torch.autograd.grad(eckmann_spectrum(series, 2, 2).sum(), series)[0]
@@ -375,9 +366,8 @@ def test_gradcheck_well_conditioned():
 
 
 def test_tangent_singular_to_rounding_keeps_shared_gradient():
-    # Regression: this row fits a leading coefficient of ~1.7e-16, not exactly
-    # 0; the chain QR then had an exactly zero diagonal and its backward put NaN
-    # into the shared parameter even though only the clean row was used.
+    # Regression: a leading coefficient of ~1.7e-16 (not exactly 0) gave the chain QR a zero diagonal and NaN in the
+    # shared parameter.
     damaged = torch.tensor(
         [1, -1, 0, 0, -1, 1, 0, 0, 0, 2, 0, 0, 0, -1, -1, 2, 1, -1, -2, 2, -1, 1, 1, 2, 1, 0, 1, -1, 1, 0],
         dtype=torch.float64,
@@ -398,10 +388,8 @@ def test_half_precision_is_computed_in_float32():
 
 
 def test_chain_product_singular_to_rounding_keeps_shared_gradient():
-    # Regression: in float32 every tangent map of row 1 passes its own checks
-    # (fit condition ~1.6e4), but a chain product is singular to rounding (R
-    # diagonal [19720, 0]); QR's backward then put NaN into the shared
-    # parameter although only row 0 was used.
+    # Regression: in float32 each tangent map passes its checks but the chain product is singular to rounding (R
+    # diagonal [19720, 0]); QR's backward put NaN into the shared parameter although only row 0 was used.
     generator = torch.Generator().manual_seed(981)
     for trial in range(4):
         length = (2 + trial % 3) * (1 + trial // 3 % 2) * (1 + trial // 6 % 2) + 20

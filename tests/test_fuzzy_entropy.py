@@ -15,12 +15,7 @@ from torchnlts.entropy.fuzzy import fuzzy_entropy
 
 
 def test_fuzzy_entropy_hand_derived_embedding_dim_1():
-    # embedding_dim=1: every mean-removed 1-length template is exactly
-    # [0.0] (a window's own mean equals itself), so phi^1 = 1
-    # regardless of radius/fuzzy_power -- isolates the m+1=2 term.
-    # long templates (delay=1): w0=(0,1) mean 0.5 -> (-0.5, 0.5);
-    # w1=(1,3) mean 2.0 -> (-1.0, 1.0). Chebyshev distance
-    # max(|-0.5+1.0|, |0.5-1.0|) = 0.5. D_01 = exp(-0.5^2/1.0) = exp(-0.25).
+    # Hand-derived: w0 -> (-0.5, 0.5), w1 -> (-1, 1), Chebyshev d = 0.5, D = exp(-0.25); phi^1 = 1 for embedding_dim=1.
     # FuzzyEn = ln(phi^1) - ln(phi^2) = 0 - (-0.25) = 0.25.
     trajectory = torch.tensor([0.0, 1.0, 3.0], dtype=torch.float64)
     result = fuzzy_entropy(trajectory, radius=1.0, fuzzy_power=2.0, embedding_dim=1, delay=1)
@@ -28,9 +23,7 @@ def test_fuzzy_entropy_hand_derived_embedding_dim_1():
 
 
 def test_fuzzy_entropy_hand_derived_embedding_dim_2():
-    # Independently re-derived from the paper's own eq. 2-10 (not
-    # copied from EntropyHub's source) in plain Python, then confirmed
-    # to match EntropyHub.FuzzEn(..., r=(1.0, 2.0), Logx=math.e) exactly.
+    # Re-derived from the paper's eq. 2-10 and matched to EntropyHub.FuzzEn(..., r=(1.0, 2.0), Logx=math.e).
     trajectory = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.5, 2.5, 3.5], dtype=torch.float64)
     result = fuzzy_entropy(trajectory, radius=1.0, fuzzy_power=2.0, embedding_dim=2, delay=1)
     assert torch.isclose(result, torch.tensor(0.6567823559794231, dtype=torch.float64))
@@ -83,10 +76,7 @@ def test_fuzzy_entropy_negative_theiler_window_raises():
 
 
 def test_fuzzy_entropy_gradcheck_embedding_dim_3():
-    # embedding_dim=2's default Chebyshev distance has a systematic tie
-    # after mean-removal (see the module docstring); embedding_dim=3
-    # has no such tie, so it's the cleanest gradcheck of the default
-    # norm_order.
+    # embedding_dim=3 avoids the systematic Chebyshev tie of embedding_dim=2.
     torch.manual_seed(3)
     trajectory = torch.randn(15, dtype=torch.float64, requires_grad=True)
 
@@ -97,8 +87,7 @@ def test_fuzzy_entropy_gradcheck_embedding_dim_3():
 
 
 def test_fuzzy_entropy_gradcheck_embedding_dim_2_euclidean():
-    # embedding_dim=2 with norm_order=2 avoids the documented systematic
-    # Chebyshev tie, so this exercises the default embedding_dim cleanly.
+    # norm_order=2 avoids the Chebyshev tie at embedding_dim=2.
     torch.manual_seed(4)
     trajectory = torch.randn(15, dtype=torch.float64, requires_grad=True)
 
@@ -120,17 +109,8 @@ def test_fuzzy_entropy_gradcheck_radius():
 
 
 def test_fuzzy_entropy_embedding_dim_2_chebyshev_gradient_mismatches_central_difference():
-    # Locks in the module docstring's claim: at the default
-    # embedding_dim/norm_order, autograd's gradient is finite but
-    # confirmed *wrong* (torch.cdist's backward sums the gradient
-    # contribution across every tied argmax component of the
-    # systematic (v, -v) tie), not merely a non-canonical subgradient
-    # choice -- so it disagrees with a central-difference estimate by
-    # more than any reasonable numerical tolerance. If a future
-    # PyTorch version changes cdist's tie-breaking convention, this
-    # test starts failing, which means this caveat (and
-    # test_fuzzy_entropy_gradcheck_embedding_dim_2_euclidean's
-    # implicit contrast) should be revisited.
+    # Locks in the documented wrong autograd gradient at the Chebyshev tie (cdist backward sums tied components).
+    # If torch changes cdist's tie-breaking, this fails and the module docstring caveat needs revisiting.
     trajectory = torch.tensor([0.0, 1.0, 3.0, 7.0], dtype=torch.float64, requires_grad=True)
     result = fuzzy_entropy(trajectory, radius=1.0, embedding_dim=2)
     result.backward()
@@ -151,20 +131,7 @@ def test_fuzzy_entropy_embedding_dim_2_chebyshev_gradient_mismatches_central_dif
 
 
 def test_fuzzy_entropy_fractional_power_gradient_is_not_poisoned():
-    # Regression test for a torch.where gradient-poisoning bug (same
-    # class as torchnlts/entropy/generalized.py's history): the
-    # diagonal's distance is always exactly 0, and
-    # distance**fuzzy_power has an infinite local gradient there for
-    # fuzzy_power < 1, which used to poison every trajectory gradient
-    # via 0 * inf = NaN even though the diagonal is masked out of the
-    # forward sum. Fixed via a safe placeholder distance before the
-    # power (mirroring trajectory_kernel's finite-distance substitution).
-    #
-    # Uses a longer, non-degenerate trajectory rather than the earlier
-    # [0, 1, 3, 7] (too short at embedding_dim=3 for any long-template
-    # pair to exist, giving a trivially all-zero gradient through a
-    # NaN forward value -- passing `isfinite` without exercising real
-    # gradient flow through a defined entropy).
+    # Regression: fuzzy_power < 1 gave NaN gradients through the masked diagonal (0 * inf).
     torch.manual_seed(42)
     trajectory = torch.randn(12, dtype=torch.float64, requires_grad=True)
     result = fuzzy_entropy(trajectory, radius=1.0, fuzzy_power=0.5, embedding_dim=3)
@@ -180,11 +147,7 @@ def test_fuzzy_entropy_fractional_power_gradient_is_not_poisoned():
 
 
 def test_fuzzy_entropy_embedding_dim_1_long_branch_also_ties():
-    # embedding_dim=1's *long* (m+1=2) branch has the same systematic
-    # (v, -v) tie as embedding_dim=2's short branch, so it's affected
-    # by the same confirmed-wrong-not-just-noncanonical gradient (see
-    # module docstring); embedding_dim >= 3 is required to avoid a
-    # length-2 template on either branch, not just embedding_dim != 2.
+    # embedding_dim=1's long branch has the same Chebyshev tie; embedding_dim >= 3 avoids it.
     trajectory = torch.tensor([0.0, 1.0, 3.0], dtype=torch.float64, requires_grad=True)
     result = fuzzy_entropy(trajectory, radius=1.0, embedding_dim=1)
     result.backward()
@@ -205,26 +168,8 @@ def test_fuzzy_entropy_embedding_dim_1_long_branch_also_ties():
 
 
 def test_fuzzy_entropy_univariate_embedding_dim_1_fractional_power_gradient_is_not_poisoned():
-    # Regression test for a second, distinct torch.where-style
-    # poisoning case (not the masked-diagonal one the first fractional-
-    # power test covers): a univariate embedding_dim=1 short template
-    # is the zero vector *unconditionally* (its own mean always equals
-    # itself), so every pairwise distance in that branch -- not just
-    # the masked diagonal -- sits at the fuzzy_power<1 singularity.
-    #
-    # Must use the default Chebyshev distance to actually exercise the
-    # fix: confirmed directly that torch.cdist's Euclidean
-    # (norm_order=2.0) backward already returns a finite gradient at a
-    # zero distance on its own, so a norm_order=2.0 version of this
-    # test would pass whether or not the fix (or even the original
-    # bug) were present.
-    #
-    # Chebyshev also carries the module docstring's *separate*,
-    # already-covered long-branch tie caveat, so this only asserts
-    # finiteness (what the fix actually guarantees), not full
-    # gradcheck agreement -- test_fuzzy_entropy_gradcheck_embedding_dim_1_euclidean
-    # below covers general correctness under a norm where the
-    # singularity doesn't arise.
+    # Regression: embedding_dim=1 short templates are zero, so every distance sits at the fuzzy_power < 1 singularity.
+    # Needs the Chebyshev default to exercise the fix; asserts finiteness only (long-branch tie, see above).
     trajectory = torch.tensor([0.0, 1.0, 3.0], dtype=torch.float64, requires_grad=True)
     result = fuzzy_entropy(trajectory, radius=1.0, fuzzy_power=0.5, embedding_dim=1)
     assert torch.isclose(result, torch.tensor(2**0.5 / 2, dtype=torch.float64))
@@ -233,11 +178,6 @@ def test_fuzzy_entropy_univariate_embedding_dim_1_fractional_power_gradient_is_n
 
 
 def test_fuzzy_entropy_gradcheck_embedding_dim_1_euclidean():
-    # General correctness check for the embedding_dim=1 special case
-    # under a norm where neither documented caveat (the Chebyshev tie,
-    # the Chebyshev-backward fractional-power poisoning) arises, so
-    # this can assert full gradcheck agreement -- unlike the Chebyshev
-    # regression test above, which can only assert finiteness.
     torch.manual_seed(9)
     trajectory = torch.randn(12, dtype=torch.float64, requires_grad=True)
 
@@ -248,15 +188,7 @@ def test_fuzzy_entropy_gradcheck_embedding_dim_1_euclidean():
 
 
 def test_fuzzy_entropy_multivariate_embedding_dim_1_not_short_circuited():
-    # The embedding_dim=1 zero-template special case only holds for a
-    # *univariate* trajectory (flattened template length 1); a
-    # multivariate one's embedding_dim=1 template flattens to D
-    # values whose mean-removal generally isn't zero, so it must still
-    # go through the general pipeline. Asserts the forward value
-    # itself matches an independent reconstruction of the general
-    # pipeline (not just finiteness/nonzero-gradient, which a wrong
-    # embedding_dim==1-only condition would also satisfy; such a
-    # condition gives a materially different forward value).
+    # A multivariate embedding_dim=1 template is not zero after mean-removal; compare against the general pipeline.
     from torchnlts.entropy.fuzzy import _fuzzy_correlation
     from torchnlts.entropy.sample import _matched_length_templates
 

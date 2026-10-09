@@ -42,8 +42,7 @@ def fractional_gaussian_noise(hurst: float, length: int, dtype=torch.float64) ->
         + [autocovariance(index) for index in range(length - 1, 0, -1)]
     )
     eigenvalues = torch.fft.fft(torch.tensor(row, dtype=dtype).to(torch.complex128)).real
-    # Clamping only removes rounding-level negatives; a genuinely negative
-    # eigenvalue means the embedding is invalid for this (hurst, length).
+    # Clamp rounding-level negative eigenvalues.
     assert (eigenvalues >= -1e-6).all(), "Davies-Harte embedding is not positive semi-definite for this (hurst, length)"
     eigenvalues = eigenvalues.clamp(min=0.0)
 

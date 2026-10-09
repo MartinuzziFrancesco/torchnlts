@@ -35,13 +35,8 @@ JULIA_PROJECT = "juliaenv_causality"
 
 
 def test_cross_map_estimate_hand_derived():
-    # Independently computed (see this test's own comments) via
-    # math.exp in a standalone script, not by calling cross_map_estimate:
-    #   manifold = [0, 1, 5, 6, 20], estimated = [10, 20, 50, 60, 200]
-    #   embedding_dim=1 (each embedded point is just the raw scalar),
-    #   theiler_window=0. For row i, nearest 2 neighbors (excluding
-    #   self) by |manifold[i]-manifold[j]|, weighted by
-    #   exp(-d_k/d_1)/sum(exp(-d_j/d_1)).
+    # Hand-computed with math.exp: manifold [0,1,5,6,20], estimated [10,20,50,60,200], embedding_dim=1,
+    # 2 neighbors weighted by exp(-d_k/d_1)/sum(exp(-d_j/d_1)).
     manifold = torch.tensor([0.0, 1.0, 5.0, 6.0, 20.0], dtype=torch.float64)
     estimated = torch.tensor([10.0, 20.0, 50.0, 60.0, 200.0], dtype=torch.float64)
     result = cross_map_estimate(manifold, estimated, embedding_dim=1, delay=1, theiler_window=0)
@@ -53,11 +48,7 @@ def test_cross_map_estimate_hand_derived():
 
 
 def test_cross_map_estimate_zero_distance_duplicate_no_crash():
-    # manifold[0] == manifold[2] exactly: row 0's nearest neighbor is at
-    # distance 0, exercising the epsilon disambiguation of the
-    # exp(-d_1/d_1) = 0/0 term (see module docstring) -- must not NaN
-    # or crash, and should end up dominated by the duplicate (weight on
-    # the far-away second neighbor is comparatively negligible).
+    # manifold[0] == manifold[2]: a zero nearest distance makes exp(-d_1/d_1) 0/0; must not NaN, duplicate dominates.
     manifold = torch.tensor([0.0, 5.0, 0.0, 8.0, 9.0], dtype=torch.float64)
     estimated = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0], dtype=torch.float64)
     result = cross_map_estimate(manifold, estimated, embedding_dim=1, delay=1, theiler_window=0)
@@ -66,10 +57,7 @@ def test_cross_map_estimate_zero_distance_duplicate_no_crash():
 
 
 def test_cross_map_estimate_nan_on_insufficient_neighbors_library_too_small():
-    # library_size=1 with embedding_dim=1 (needs 2 neighbors): every row
-    # has at most 1 candidate (the single library point, further
-    # excluded by the Theiler window for the row *at* that point), so
-    # every row is NaN, not a silently-plausible single-neighbor answer.
+    # library_size=1 gives at most 1 candidate per row, fewer than the 2 neighbors needed: all NaN.
     torch.manual_seed(4)
     manifold = torch.randn(6, dtype=torch.float64)
     estimated = torch.randn(6, dtype=torch.float64)
@@ -78,9 +66,7 @@ def test_cross_map_estimate_nan_on_insufficient_neighbors_library_too_small():
 
 
 def test_cross_map_estimate_nan_on_insufficient_neighbors_short_trajectory():
-    # embedding_dim=3 needs 4 neighbors, but a length-4 trajectory only
-    # has 2 embedded points total -- structurally impossible to find 4
-    # distinct neighbors, every row NaN.
+    # 4 neighbors are needed but only 2 embedded points exist: all NaN.
     manifold = torch.arange(4.0, dtype=torch.float64)
     estimated = 10 * manifold
     result = cross_map_estimate(manifold, estimated, embedding_dim=3, delay=1, theiler_window=0)
@@ -88,10 +74,7 @@ def test_cross_map_estimate_nan_on_insufficient_neighbors_short_trajectory():
 
 
 def test_cross_map_estimate_nan_only_on_theiler_starved_rows():
-    # A large Theiler window starves only the middle rows (too little
-    # room on either side to find 2 candidates > 15 apart in a 20-point
-    # series) while the two ends still have enough -- confirms the NaN
-    # mask is per-row, not an all-or-nothing fallback.
+    # A large Theiler window starves only the middle rows: the NaN mask is per row.
     torch.manual_seed(5)
     manifold = torch.randn(20, dtype=torch.float64)
     estimated = torch.randn(20, dtype=torch.float64)
@@ -103,8 +86,8 @@ def test_cross_map_estimate_nan_only_on_theiler_starved_rows():
 
 def test_ccm_skill_hand_derived():
     estimate = torch.tensor([1.0, 2.0, 3.0, 4.0], dtype=torch.float64)
-    perfect = torch.tensor([2.0, 4.0, 6.0, 8.0], dtype=torch.float64)  # exact positive linear match
-    inverted = torch.tensor([8.0, 6.0, 4.0, 2.0], dtype=torch.float64)  # exact negative linear match
+    perfect = torch.tensor([2.0, 4.0, 6.0, 8.0], dtype=torch.float64)
+    inverted = torch.tensor([8.0, 6.0, 4.0, 2.0], dtype=torch.float64)
     assert torch.isclose(ccm_skill(estimate, perfect), torch.tensor(1.0, dtype=torch.float64), atol=1e-10)
     assert torch.isclose(ccm_skill(estimate, inverted), torch.tensor(-1.0, dtype=torch.float64), atol=1e-10)
 
@@ -118,7 +101,7 @@ def test_ccm_skill_rejects_shape_mismatch():
 
 
 def test_ccm_skill_nan_on_constant_estimate():
-    estimate = torch.full((10,), 3.0, dtype=torch.float64)  # zero variance
+    estimate = torch.full((10,), 3.0, dtype=torch.float64)
     actual = torch.randn(10, dtype=torch.float64)
     assert torch.isnan(ccm_skill(estimate, actual))
 
@@ -135,10 +118,7 @@ def _coupled_logistic_maps(num_points: int, seed_x: float = 0.4, seed_y: float =
 
 
 def test_cross_map_estimate_recovers_correct_causal_direction():
-    # X drives Y unidirectionally (Y's update depends on X; X's own
-    # update never depends on Y). Per the paper's own logic: embedding
-    # the *driven* series (Y) and cross-map-estimating the *driver* (X)
-    # should show much higher skill than the reverse.
+    # X drives Y: cross-mapping the driver X from the driven Y's manifold should show higher skill than the reverse.
     x, y = _coupled_logistic_maps(1000)
     embedding_dim, delay, theiler_window = 3, 1, 5
 
@@ -155,11 +135,7 @@ def test_cross_map_estimate_recovers_correct_causal_direction():
 
 
 def test_cross_map_estimate_matches_causalitytools_jl():
-    # julia --project=juliaenv_causality -e '...' (see module docstring
-    # for the confirmed w -> theiler_window+1 translation, and this
-    # test's own JULIA_CODE below). CCM(d=3, tau=-1, w=5) means an
-    # *effective* Theiler exclusion of |i-j|<=6, matched here by passing
-    # theiler_window=6 (not 5) to cross_map_estimate.
+    # CCM(d=3, tau=-1, w=5) in Julia excludes |i-j|<=6, so theiler_window=6 here (w -> theiler_window+1).
     x, y = _coupled_logistic_maps(60)
     embedding_dim, delay, w = 3, 1, 5
 
@@ -211,9 +187,6 @@ def test_cross_map_estimate_library_size_restricts_neighbors():
     full = cross_map_estimate(manifold, estimated, embedding_dim=2, delay=1, library_size=None, theiler_window=0)
     partial = cross_map_estimate(manifold, estimated, embedding_dim=2, delay=1, library_size=10, theiler_window=0)
     assert full.shape == partial.shape
-    # A smaller library generally changes at least some estimates (the
-    # neighbor pool is different), not a strict correctness requirement
-    # by itself but confirms library_size actually has an effect.
     assert not torch.allclose(full, partial)
 
 
@@ -229,7 +202,6 @@ def test_cross_map_estimate_truncates_to_shorter_series():
     manifold = torch.randn(30, dtype=torch.float64)
     estimated = torch.randn(20, dtype=torch.float64)
     result = cross_map_estimate(manifold, estimated, embedding_dim=2, delay=1)
-    # num_embedded = 20 - (2-1)*1 = 19
     assert result.shape[0] == 19
 
 
@@ -265,9 +237,7 @@ def test_cross_map_estimate_rejects_mismatched_batchedness():
 
 
 def test_cross_map_estimate_gradcheck():
-    # embedding_dim=1 with well-separated manifold values: perturbations
-    # small enough for gradcheck's finite differences don't flip which
-    # neighbors are picked, so the piecewise map is locally smooth here.
+    # Well-separated manifold values: finite-difference steps do not flip neighbor picks.
     torch.manual_seed(3)
     manifold = torch.tensor([0.0, 10.0, 25.0, 42.0, 60.0], dtype=torch.float64)
     estimated = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0], dtype=torch.float64, requires_grad=True)
@@ -279,10 +249,7 @@ def test_cross_map_estimate_gradcheck():
 
 
 def test_cross_map_estimate_gradcheck_w_r_t_manifold_series():
-    # Weights (exp(-d_i/d_1)) depend continuously on manifold_series for
-    # a fixed neighbor pick, distinct from estimated_series's own
-    # gradcheck above (which only exercises the weighted-sum step, not
-    # the distances feeding the weights themselves).
+    # Gradient through the distances that feed the weights, not just the weighted sum.
     torch.manual_seed(6)
     manifold = torch.tensor([0.0, 10.0, 25.0, 42.0, 60.0], dtype=torch.float64, requires_grad=True)
     estimated = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0], dtype=torch.float64)

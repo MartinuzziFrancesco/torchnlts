@@ -40,7 +40,6 @@ JULIA_PROJECT = "juliaenv"
 
 
 def test_recurrence_rate_hand_derived():
-    # 3x3 recurrence matrix, 5 of 9 entries True (diagonal always True).
     recurrence = torch.tensor(
         [
             [True, False, True],
@@ -48,7 +47,6 @@ def test_recurrence_rate_hand_derived():
             [True, False, True],
         ]
     )
-    # No Theiler exclusion: RR = 5/9.
     assert torch.isclose(recurrence_rate(recurrence, theiler_window=-1), torch.tensor(5 / 9))
     # Default (exclude diagonal): 2 recurrent pairs out of 6 off-diagonal entries.
     assert torch.isclose(recurrence_rate(recurrence), torch.tensor(2 / 6))
@@ -130,22 +128,13 @@ def test_recurrence_rate_rejects_non_square_matrix():
 
 
 def test_determinism_no_recurrence_is_zero_not_nan():
-    # Matches RecurrenceAnalysis.jl exactly (verified directly): DET is
-    # 0.0, not NaN, whenever no line reaches lmin -- true even when that
-    # also means zero recurrent points at all (numerator and denominator
-    # both 0), since Julia short-circuits on the histogram rather than
-    # dividing. Covers both an empty *data-dependent* denominator (no
-    # off-diagonal recurrent points) and a fully theiler_window-excluded
-    # matrix (T <= theiler_window).
+    # Matches RecurrenceAnalysis.jl: DET is 0.0, not NaN, when no line reaches lmin (even with zero recurrent points).
     assert torch.isclose(determinism(torch.eye(4, dtype=torch.bool)), torch.tensor(0.0))
     assert torch.isclose(determinism(torch.eye(2, dtype=torch.bool), theiler_window=1), torch.tensor(0.0))
 
 
 def test_determinism_hand_derived():
-    # 4x4: offsets +2 and -2 each have length 4 - 2 = 2, both >= lmin=2.
-    # R has no other recurrent points beyond the diagonal (excluded by the
-    # default theiler_window=0) and these two lines, so every off-diagonal
-    # recurrent point belongs to a qualifying line -> DET = 1.0.
+    # Offsets +2 and -2 each have length 4 - 2 = 2 >= lmin; every off-diagonal recurrent point is in a line -> DET = 1.
     recurrence = torch.zeros(4, 4, dtype=torch.bool)
     recurrence.fill_diagonal_(True)
     for offset in (2, -2):
@@ -155,8 +144,6 @@ def test_determinism_hand_derived():
 
 
 def test_determinism_short_lines_excluded_by_lmin():
-    # A single recurrent off-diagonal point (length-1 line) and nothing
-    # else: with lmin=2 it never counts, giving DET = 0.
     recurrence = torch.zeros(4, 4, dtype=torch.bool)
     recurrence.fill_diagonal_(True)
     recurrence[0, 2] = True
@@ -182,10 +169,7 @@ def test_determinism_rejects_non_bool_input():
 
 
 def test_diagonal_line_measures_reject_negative_theiler_window():
-    # Regression: a negative theiler_window (recurrence_rate's documented
-    # "exclude nothing") would otherwise count the always-recurrent main
-    # diagonal itself as one giant diagonal line -- rejected explicitly
-    # rather than silently producing a dubious, unvalidated result.
+    # Regression: a negative theiler_window counted the main diagonal as one giant line; now rejected.
     recurrence = torch.eye(4, dtype=torch.bool)
     for fn in (determinism, dl_average, dl_max, dl_entropy):
         try:
@@ -228,8 +212,6 @@ def test_determinism_matches_recurrenceanalysis_jl():
 
 
 def _no_qualifying_lines_recurrence():
-    # Only the diagonal (excluded by default theiler_window=0) and two
-    # isolated length-1 off-diagonal points -- no line reaches lmin=2.
     recurrence = torch.zeros(4, 4, dtype=torch.bool)
     recurrence.fill_diagonal_(True)
     recurrence[0, 2] = True
@@ -243,16 +225,12 @@ def test_dl_average_and_max_hand_derived():
     recurrence.fill_diagonal_(True)
     for offset in (2, -2):
         torch.diagonal(recurrence, offset=offset).fill_(True)
-    # Two length-3 lines (offsets +-2), nothing else -> average == max == 3.
     assert torch.isclose(dl_average(recurrence), torch.tensor(3.0))
     assert dl_max(recurrence) == 3
 
 
 def test_dl_entropy_hand_derived():
-    # 6x6: one length-2 line (offset +2, rows 0-1) and one length-3 line
-    # (offset -3, rows 3-5), nothing else recurrent besides the diagonal
-    # (excluded by default theiler_window=0). Two lines, one of each
-    # length -> length-length distribution is a fair coin: entropy = log(2).
+    # Lines of length 2 and 3, one each (diagonal excluded): a fair coin, entropy = log(2).
     recurrence = torch.zeros(6, 6, dtype=torch.bool)
     recurrence.fill_diagonal_(True)
     recurrence[0, 2] = True
@@ -264,8 +242,7 @@ def test_dl_entropy_hand_derived():
 
 
 def test_dl_average_max_entropy_empty_histogram_convention():
-    # Matches RecurrenceAnalysis.jl: average/max default to 0 when no line
-    # reaches lmin, but entropy of an empty distribution is NaN, not 0.
+    # Matches RecurrenceAnalysis.jl: entropy of an empty distribution is NaN, not 0.
     recurrence = _no_qualifying_lines_recurrence()
     assert torch.isclose(dl_average(recurrence), torch.tensor(0.0))
     assert dl_max(recurrence) == 0
@@ -273,10 +250,7 @@ def test_dl_average_max_entropy_empty_histogram_convention():
 
 
 def test_dl_max_lmin_exceeds_trajectory_length_no_crash():
-    # Regression: histogram[..., lmin:] is empty whenever lmin exceeds the
-    # longest possible diagonal line length, and amax has no identity for
-    # an empty reduction -- dl_average/dl_entropy handle this fine via
-    # .sum(), but dl_max's .amax() crashed.
+    # Regression: dl_max's .amax() crashed on an empty histogram when lmin exceeds the longest possible line.
     assert dl_max(torch.ones(1, 1, dtype=torch.bool)) == 0
     batched = torch.ones(3, 4, 4, dtype=torch.bool)
     assert torch.equal(dl_max(batched, lmin=10), torch.zeros(3, dtype=torch.long))
@@ -326,8 +300,7 @@ def test_dl_average_max_entropy_match_recurrenceanalysis_jl():
 
 
 def _vertical_example():
-    # Column j lists the recurrent rows; with theiler_window=0 row j is
-    # removed. Vertical lines per column (after removal):
+    # Vertical lines per column after removing row j (theiler_window=0):
     #   0: [1-3], [5]   1: [0], [2-3]   2: [1], [3-4]   3: [0-2]   4: [0], [2]   5: [1-4]
     columns = [[1, 2, 3, 5], [0, 2, 3], [1, 2, 3, 4], [0, 1, 2, 3], [0, 2], [1, 2, 3, 4, 5]]
     recurrence = torch.zeros(6, 6, dtype=torch.bool)
@@ -363,7 +336,6 @@ def test_recurrence_time_entropy_hand_derived():
 
 
 def test_vertical_measures_cut_lines_at_theiler_window():
-    # One full column of a 4x4 matrix: the window splits it into two lines.
     recurrence = torch.zeros(4, 4, dtype=torch.bool)
     recurrence[:, 1] = True
     assert vl_max(recurrence, lmin=1, theiler_window=0).item() == 2  # rows 2-3, row 0 alone
@@ -372,7 +344,7 @@ def test_vertical_measures_cut_lines_at_theiler_window():
 
 
 def test_vertical_measures_empty_conventions():
-    recurrence = torch.eye(5, dtype=torch.bool)  # everything inside the window
+    recurrence = torch.eye(5, dtype=torch.bool)
     assert laminarity(recurrence).item() == 0.0
     assert trapping_time(recurrence).item() == 0.0
     assert vl_max(recurrence).item() == 0
@@ -480,7 +452,6 @@ def test_vertical_measures_longest_possible_line():
 
 
 def _banded_recurrence(num_points=5):
-    # Identity plus the first off-diagonals: one diagonal line of length T - 1 on each side.
     return (
         torch.eye(num_points, dtype=torch.bool)
         | torch.diag(torch.ones(num_points - 1, dtype=torch.bool), 1)
@@ -514,17 +485,16 @@ def test_ratio_divergence_hand_derived():
     # 8 off-diagonal points of 20 pairs; all in lines (length 4): DET = 1, RR = 0.4, Lmax = 4.
     assert ratio(recurrence).item() == pytest.approx(2.5)
     assert divergence(recurrence).item() == pytest.approx(0.25)
-    # Theiler window 1 excludes the band: nothing recurrent is left.
     assert torch.isnan(ratio(recurrence, theiler_window=1))
     assert divergence(recurrence, theiler_window=1).item() == math.inf
 
 
 def test_ratio_divergence_degenerate_and_batched():
     empty = torch.eye(4, dtype=torch.bool)
-    assert torch.isnan(ratio(empty))  # DET = 0 and RR = 0
+    assert torch.isnan(ratio(empty))
     assert divergence(empty).item() == math.inf  # Lmax = 0 (Julia: 1.0 / 0 = Inf)
     isolated = _no_qualifying_lines_recurrence()
-    assert ratio(isolated).item() == 0.0  # RR > 0 but no line reaches lmin
+    assert ratio(isolated).item() == 0.0
     batch = torch.stack([_banded_recurrence(), empty.new_zeros(5, 5) | torch.eye(5, dtype=torch.bool)])
     assert ratio(batch).shape == (2,) and divergence(batch).shape == (2,)
     assert divergence(batch)[0].item() == pytest.approx(0.25) and divergence(batch)[1].item() == math.inf
@@ -553,14 +523,13 @@ def test_windowed_rqa_hand_derived():
     # step 1 gives 3 windows; width 4 step 2 drops the trailing partial window (1 window).
     assert windowed_rqa(recurrence, determinism, 3).shape == (3,)
     assert windowed_rqa(recurrence, determinism, 4, 2).shape == (1,)
-    # A window equal to the full matrix reproduces the plain measure.
     assert windowed_rqa(recurrence, dl_max, 5).item() == dl_max(recurrence).item()
 
 
 def test_windowed_rqa_places_windows_on_diagonal_blocks():
     # Regression: windows must be diagonal sub-blocks, not rows/columns of different offsets.
     recurrence = torch.zeros(6, 6, dtype=torch.bool)
-    recurrence[3:, 3:] = True  # a full block in the lower-right corner only
+    recurrence[3:, 3:] = True
     values = windowed_rqa(recurrence, recurrence_rate, 3, 3, theiler_window=-1)
     assert torch.equal(values, torch.tensor([0.0, 1.0]))
 
