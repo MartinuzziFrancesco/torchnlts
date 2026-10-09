@@ -29,7 +29,7 @@ Functions and classes are importable from their subpackage, for example
   and amplitude-aware variants), dispersion, fuzzy, Renyi and Tsallis
   entropies, multiscale and composite multiscale entropy, Lempel-Ziv
   complexity, mutual information (KSG1 and KSG2 estimators). Sample,
-  approximate and multiscale entropy have soft variants.
+  approximate and multiscale entropy also have soft variants.
 - `torchnlts.fluctuations`: detrended fluctuation analysis.
 - `torchnlts.chaos`: the 0-1 test for chaos.
 - `torchnlts.lyapunov`: Rosenstein and Kantz divergence curves, Eckmann
@@ -109,6 +109,14 @@ pip install -e ".[test]"
 pytest
 ```
 
+Formatting and linting use [ruff](https://github.com/astral-sh/ruff), with the
+settings in `pyproject.toml`:
+
+```shell
+ruff format .
+ruff check .
+```
+
 Tests that compare against Julia call `julia` with the environments in
 `juliaenv/` and `juliaenv_causality/`, so they need a Julia installation.
 
@@ -118,7 +126,8 @@ MIT. See `LICENSE`.
 
 ## Acknowledgments
 
-The test suite checks results against these packages:
+This work builds on a great deal of previous projects, software, and publications.
+We have used some of the to  check the correctness of our implementations, by checking results against these packages:
 
 - Julia, from [DynamicalSystems.jl](https://github.com/JuliaDynamics/DynamicalSystems.jl):
   [DelayEmbeddings.jl](https://github.com/JuliaDynamics/DelayEmbeddings.jl),
@@ -134,5 +143,9 @@ The test suite checks results against these packages:
   [stumpy](https://github.com/stumpy-dev/stumpy) and
   [tsfresh](https://github.com/blue-yonder/tsfresh).
 
-The tutorials and tests generate reference system trajectories with
+Additionally, the tutorials and tests generate reference system trajectories with
 [dysts](https://github.com/williamgilpin/dysts).
+
+Additional software have provided inspiration, such as:
+
+ - TISEAN
