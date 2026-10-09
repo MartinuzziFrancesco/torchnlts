@@ -60,8 +60,7 @@ def _cao_step(
     embedded_low = embedded_low[..., :num_common, :]
 
     distances, indices = knn_search(embedded_low, num_neighbors=2, theiler_window=theiler_window, norm_order=norm_order)
-    # A coincident nearest neighbor (distance 0) falls back to the
-    # second-nearest, per delay_afnn, rather than being excluded.
+    # A coincident nearest neighbor (distance 0) falls back to the second-nearest, as in delay_afnn.
     use_second = distances[..., 0] == 0
     neighbor_index = torch.where(use_second, indices[..., 1], indices[..., 0])
     low_distance = torch.where(use_second, distances[..., 1], distances[..., 0])
@@ -73,9 +72,7 @@ def _cao_step(
 
     safe_low = torch.where(valid, low_distance, torch.ones_like(low_distance))
     ratio = torch.where(valid, high_distance / safe_low, torch.zeros_like(high_distance))
-    # E1's denominator matches delay_afnn's num_common - 1 exactly; E2
-    # has no Julia convention to match (see module docstring), so it
-    # uses the mathematically direct choice: the number of valid terms.
+    # E1's denominator matches delay_afnn's num_common - 1; E2 uses the number of valid terms.
     denominator = num_common - 1 if not new_coordinate_only else valid.sum(dim=-1).to(ratio.dtype)
     return ratio.sum(dim=-1) / denominator
 

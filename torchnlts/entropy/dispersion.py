@@ -147,36 +147,18 @@ def dispersion_entropy(
     tensor, ndim = _ensure_batched(trajectory)
     _require_univariate(tensor)
     classes = _gaussian_cdf_classes(tensor, num_classes)
-    # classes has _ensure_batched's always-3-D shape; restore the caller's
-    # own [T]/[T,1]/[B,T,1] convention before handing it to delay_embedding,
-    # which does its own batch-shape handling and would otherwise treat an
-    # originally-unbatched [1,T,1] as a genuinely batched input, leaving a
-    # spurious size-1 batch dim on the final result.
+    # Restore the caller's [T]/[T,1]/[B,T,1] shape so delay_embedding doesn't treat an unbatched input as batched.
     classes = _restore_shape_preserving(classes, ndim)
     embedded = delay_embedding(classes, embedding_dim, delay)
 
-    # A zero-variance trajectory divides by std=0 in _gaussian_cdf_classes,
-    # giving NaN classes here. Detect that on the still-floating-point
-    # classes (NaN propagates through the arithmetic below either way),
-    # then substitute a safe dummy class so the rest of this function can
-    # move to integer arithmetic -- required for correctness, not just
-    # style: computing pattern codes in a floating dtype loses precision
-    # once num_classes**embedding_dim exceeds float32's 2**24 exactly-
-    # representable-integer ceiling, silently colliding two different
-    # patterns onto the same code (confirmed directly: embedding_dim=25,
-    # num_classes=2 collides two provably-different digit sequences).
-    # Converting a NaN float straight to int64 is itself undefined
-    # behavior (crashes one_hot with an out-of-range/negative class), so
-    # the substitution has to happen here, before that conversion.
+    # Zero variance gives NaN classes; substitute a dummy class before the int64 cast, which is undefined for NaN.
+    # Integer pattern codes are required: float codes collide once num_classes**embedding_dim exceeds 2**24.
     has_nan = torch.isnan(embedded).any(dim=(-2, -1))
     embedded = torch.where(torch.isnan(embedded), torch.ones_like(embedded), embedded).to(torch.int64)
 
     weights = num_classes ** torch.arange(embedding_dim - 1, -1, -1, dtype=torch.int64, device=embedded.device)
     codes = ((embedded - 1) * weights).sum(dim=-1)
-    # Re-apply NaN to the whole entropy at the end, not per-code -- same
-    # pattern as permutation_entropy/approximate_entropy's own NaN
-    # handling: a plain tensor op, not a data-dependent `if`, so this
-    # stays torch.vmap-compatible.
+    # Apply NaN to the whole entropy, not per code, as a tensor op so this stays torch.vmap-compatible.
 
     num_patterns = num_classes**embedding_dim
     dtype = tensor.dtype if tensor.is_floating_point() else torch.get_default_dtype()

@@ -211,7 +211,7 @@ def eckmann_spectrum(
     safe_index = torch.where(neighbor_index >= 0, neighbor_index, torch.zeros_like(neighbor_index))
 
     coordinates = embedded[..., ::matrix_step]  # [B, N, d_M]
-    target = series[:, matrix_dim * shift : matrix_dim * shift + num_points]  # x[i + d_M * shift]
+    target = series[:, matrix_dim * shift : matrix_dim * shift + num_points]
     flat_index = safe_index.reshape(batch_size, -1)
     neighbor_coordinates = torch.take_along_dim(coordinates, flat_index.unsqueeze(-1), dim=1).reshape(
         batch_size, num_points, num_neighbors, matrix_dim
@@ -220,8 +220,7 @@ def eckmann_spectrum(
     design = neighbor_coordinates - coordinates.unsqueeze(2)
     response = neighbor_target - target.unsqueeze(2)
 
-    # Degeneracy is decided here, without autograd, and degenerate points
-    # get placeholder operands, so no singular system reaches either QR.
+    # Degenerate points get placeholder operands so no singular system reaches QR.
     with torch.no_grad():
         full_rank = (
             torch.linalg.matrix_rank(
@@ -235,7 +234,6 @@ def eckmann_spectrum(
     response = torch.where(fit_ok.unsqueeze(-1), response, torch.zeros_like(response))
     coefficients = _least_squares(design, response)  # [B, N, d_M]
 
-    # Singular tangent maps are caught by the chain check below.
     with torch.no_grad():
         tangent_ok = fit_ok & torch.isfinite(coefficients).all(dim=-1)
     identity = torch.eye(matrix_dim, dtype=series.dtype, device=device)
@@ -243,10 +241,8 @@ def eckmann_spectrum(
         [identity[1:].expand(batch_size, num_points, -1, -1), coefficients.unsqueeze(-2)], dim=-2
     )  # [B, N, d_M, d_M]
 
-    # The chain product can be singular to rounding even when every tangent
-    # map is not (an exactly zero R diagonal), and QR's backward is NaN there. A first pass without
-    # autograd finds such rows; they, and rows with a rejected tangent map,
-    # run the differentiable pass on identity maps and are NaN.
+    # An exactly singular chain product makes QR's backward NaN; a first pass without autograd finds such rows,
+    # and they and rows with a rejected tangent map run on identity maps and are NaN.
     with torch.no_grad():
         _, chain_degenerate = _qr_chain(tangent.detach(), shift)
     bad = nonfinite | ~tangent_ok.all(dim=-1) | chain_degenerate

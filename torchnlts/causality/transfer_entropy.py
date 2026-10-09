@@ -148,8 +148,6 @@ def conditional_mutual_information(
         joint_distance = torch.nn.functional.pad(joint_distance, (0, num_neighbors - length), value=float("inf"))
     radius = joint_distance.topk(num_neighbors, dim=-1, largest=False).values[..., -1]
 
-    # Include self unconditionally to implement n_{xz} + 1 etc., same
-    # reasoning as mutual_information's own count_x/count_y.
     self_mask = torch.eye(length, dtype=torch.bool, device=dist_x.device)
     radius_expanded = radius.unsqueeze(-1)
     count_xz = ((torch.maximum(dist_x, dist_z) < radius_expanded) | self_mask).sum(dim=-1).to(dist_x.dtype)
@@ -234,12 +232,7 @@ def transfer_entropy(
     target_past = target_past[:, :num_points, :]
     target_future = target_batched[:, offset + prediction_lag : offset + prediction_lag + num_points, :]
 
-    # conditional_mutual_information can't tell these were originally
-    # unbatched -- by the time it sees target_future/source_past/
-    # target_past they're already forced into [B, T, D] form (sliced
-    # from this function's own _ensure_batched calls above), so its own
-    # internal restoration always treats them as genuinely batched.
-    # Restore again here, against this function's own source/target ndim.
+    # conditional_mutual_information sees already-batched inputs; restore the original batch rank here.
     cmi = conditional_mutual_information(
         target_future, source_past, target_past, num_neighbors, theiler_window, norm_order
     )

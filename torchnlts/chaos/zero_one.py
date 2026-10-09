@@ -109,17 +109,12 @@ def _growth_rate(tensor: torch.Tensor, frequencies, max_lag) -> tuple[torch.Tens
         )
         result = result + values.sum(dim=-1) * 0 + frequency.sum() * 0
     else:
-        # phi = mean + psi. A window sum of phi e^{ijc} is A + B with
-        # A = mean * (closed-form geometric sum), |A|^2 = V_osc exactly, and
-        # B the window sum of psi e^{ijc}, so D = mean(|B|^2 + 2 Re(A conj B))
-        # has V_osc cancelled analytically instead of by subtracting two
-        # large numbers. The first sample is removed before the mean so a
-        # large common offset cancels exactly.
+        # Window sum A + B with |A|^2 = V_osc, so D = mean(|B|^2 + 2 Re(A conj B)) cancels V_osc analytically.
         constant = (values == values[:, :1]).all(dim=-1)  # [B]
         offset = values[:, :1]
         shifted = values - offset
         shifted_mean = shifted.mean(dim=-1, keepdim=True)
-        deviation = shifted - shifted_mean  # psi
+        deviation = shifted - shifted_mean
         mean = (offset + shifted_mean).squeeze(-1)[None, :, None]  # [1, B, 1]
         index = torch.arange(1, num_points + 1, dtype=torch.float64, device=values.device)
         phase = frequency[:, None] * index  # [C, N]
@@ -142,10 +137,7 @@ def _growth_rate(tensor: torch.Tensor, frequencies, max_lag) -> tuple[torch.Tens
         lags = torch.arange(1, lag + 1, dtype=torch.float64, device=values.device)
         centered = modified - modified.mean(dim=-1, keepdim=True)
         lags_centered = lags - lags.mean()
-        # Rows whose D(n) is constant to within rounding of its own terms
-        # have no defined correlation; constant and non-finite rows never
-        # have one. They get the lag profile as safe operands so no 0/0
-        # reaches backward.
+        # Constant-D rows and non-finite rows have no correlation; they get the lag profile so no 0/0 reaches backward.
         with torch.no_grad():
             degenerate = (
                 constant[None, :]

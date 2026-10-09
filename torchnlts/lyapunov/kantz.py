@@ -101,9 +101,6 @@ def kantz_divergence(
             ``radius`` is not a real number ``>= 0``, ``embedding_dim``/``delay``
             are not integers, or ``theiler_window < 0``.
     """
-    # See rosenstein_divergence for why float64 validation matters (a
-    # plain Python float/list argument would otherwise silently lose
-    # precision to torch.as_tensor's default dtype before validation).
     if _is_complex(k_values):
         raise ValueError(f"k_values must be real, got {k_values!r}")
     k_values_tensor = torch.as_tensor(k_values, dtype=torch.float64)
@@ -128,12 +125,9 @@ def kantz_divergence(
 
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     delay = _as_int(delay, "delay")
-    # Limitation: see rosenstein.py's identical workaround/comment -- both
-    # delay_embedding and theiler_window_mask can raise OverflowError
-    # converting an astronomically large Python int to a tensor scalar.
+    # Limitation: an astronomically large delay raises OverflowError in delay_embedding and theiler_window_mask.
     embedding_delay = 1 if embedding_dim == 1 and delay >= 1 else delay
-    # Rows containing NaN/inf are zeroed before embedding, so their evolved
-    # distances cannot put NaN into backward, and are NaN in the result.
+    # Zero non-finite rows so backward can't put NaN into other rows; their results are NaN.
     raw, ndim = _ensure_batched(trajectory)
     raw, nonfinite = _mask_nonfinite_rows(raw)
     batched = delay_embedding(raw, embedding_dim, embedding_delay)
@@ -143,14 +137,7 @@ def kantz_divergence(
     k_list = k_values_tensor.reshape(-1).tolist()
     max_k = int(max(k_list))
 
-    # The evolved-point distance ||embedded[i+k] - embedded[j+k]|| is
-    # just entry [i+k, j+k] of the SAME full pairwise distance matrix
-    # computed below (which already holds every pair's distance, not
-    # only the ones within radius) -- so a shifted slice of it, not a
-    # fresh distance computation, gives the distance at any k. No
-    # separate gather per k needed, unlike rosenstein_divergence's
-    # single-neighbor-per-row indexing (there, a different neighbor is
-    # selected per row, so a plain shifted slice can't express it).
+    # The distance at lag k is the shifted slice [i+k, j+k] of the full pairwise matrix computed below.
     distance = pairwise_distance(batched, norm_order=norm_order)
     neighbor_mask = (distance <= radius_value) & theiler_window_mask(num_points, theiler_window, device=batched.device)
 
@@ -170,15 +157,7 @@ def kantz_divergence(
         distance_at_k = distance[..., k : k + num_usable, k : k + num_usable]
         masked_distance = torch.where(active_neighbor_mask, distance_at_k, torch.zeros_like(distance_at_k))
         mean_distance = masked_distance.sum(dim=-1) / safe_neighbor_count
-        # Same masked-branch gradient-poisoning fix as
-        # rosenstein_divergence: substitute a safe dummy (1, whose
-        # log-gradient 1/1 is finite) at rows with no neighbors, so
-        # torch.where's *unselected* branch below never needs a
-        # gradient through log(0)'s 1/0, even though its forward value
-        # is discarded either way.
-        # A valid row with zero mean distance keeps its -inf forward value
-        # (see Returns) but also gets a safe operand, so log(0)'s infinite
-        # gradient cannot reach a parameter shared with other rows.
+        # Use a dummy operand of 1 at rows with no neighbors or zero mean distance so log's gradient stays finite.
         usable = row_valid & (mean_distance > 0)
         safe_mean_distance = torch.where(usable, mean_distance, torch.ones_like(mean_distance))
         log_mean_distance = torch.where(row_valid & ~usable, float("-inf"), torch.log(safe_mean_distance))
@@ -187,7 +166,5 @@ def kantz_divergence(
 
     result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
     result = torch.where(nonfinite, float("nan"), result)
-    # See rosenstein_divergence: a swept result is `[K, B]`, batch
-    # trailing, so the axis to drop for an unbatched trajectory is the
-    # last one, not dim 0 (`_restore_batch` assumes the latter).
+    # A swept result is [K, B] (batch trailing), so the axis to drop for an unbatched input is the last.
     return result.squeeze(-1) if ndim != 3 else result

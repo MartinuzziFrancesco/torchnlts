@@ -164,8 +164,7 @@ def mutual_information(
     digamma_n = torch.digamma(torch.tensor(float(length), dtype=dist_x.dtype, device=dist_x.device))
 
     if estimator == "ksg2":
-        # Padded (missing) neighbors have radius inf and are masked below;
-        # clamp their indices so the gather stays in range.
+        # Padded neighbors have radius inf and are masked below; clamp their indices so the gather stays in range.
         index = nearest.indices.clamp(max=length - 1)
         per_point = torch.zeros_like(radius)
         for dist in (dist_x, dist_y):
@@ -177,17 +176,12 @@ def mutual_information(
         mi = digamma_k - 1.0 / num_neighbors + digamma_n - per_point.mean(dim=-1)
         return _restore_batch(mi, x_ndim)
 
-    # Include self unconditionally to implement n_x + 1 and n_y + 1,
-    # including when duplicate joint points make the radius zero.
+    # Include self unconditionally for n_x + 1 and n_y + 1, also when duplicates make the radius zero.
     self_mask = torch.eye(length, dtype=torch.bool, device=dist_x.device)
     count_x = ((dist_x < radius.unsqueeze(-1)) | self_mask).sum(dim=-1).to(dist_x.dtype)
     count_y = ((dist_y < radius.unsqueeze(-1)) | self_mask).sum(dim=-1).to(dist_y.dtype)
     per_point = torch.digamma(count_x) + torch.digamma(count_y)
-    # A tensor-valued `if torch.isnan(...).any(): raise` would reject
-    # vmap's BatchedTensor inputs outright (data-dependent Python control
-    # flow); masking into NaN here instead is a plain tensor op, so NaN
-    # input degrades to the same documented NaN output as an insufficient
-    # neighbor count, under vmap or not.
+    # Mask into NaN instead of raising, so vmap's BatchedTensor inputs work.
     valid = torch.isfinite(radius) & ~invalid_point
     per_point = torch.where(valid, per_point, torch.full_like(per_point, float("nan")))
     mi = digamma_k + digamma_n - per_point.mean(dim=-1)

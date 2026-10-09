@@ -198,7 +198,7 @@ def _isclose_to_order(value: float, target: float) -> bool:
     ``atol=0`` default makes the comparison degenerate to exact equality
     (see module docstring) -- callers check ``value == 0`` directly there.
     """
-    tolerance = math.sqrt(2.220446049250313e-16)  # sqrt(eps(Float64)), Julia's own default
+    tolerance = math.sqrt(2.220446049250313e-16)
     return math.isclose(value, target, rel_tol=tolerance, abs_tol=0.0)
 
 
@@ -207,7 +207,7 @@ def _safe_log(probability: torch.Tensor, nonzero: torch.Tensor) -> torch.Tensor:
     return torch.log(safe_base)
 
 
-_MAX_SAFE_EXPONENT = 50.0  # exp(50) ~ 5e21, comfortably below any dtype's overflow point
+_MAX_SAFE_EXPONENT = 50.0
 
 
 def _deviation_from_one(
@@ -371,18 +371,7 @@ def renyi_entropy(probability: torch.Tensor, alpha: float) -> torch.Tensor:
         log_p = _safe_log(probability, nonzero)
         u, exponent_out_of_range = _deviation_from_one(probability, nonzero, log_p, alpha)
         saturated = _deviation_saturated(u, exponent_out_of_range, dtype)
-        # torch.where backprops through BOTH branches regardless of
-        # which is selected -- log1p(u)'s own local gradient, 1/(1+u),
-        # blows up exactly where u -> -1, i.e. exactly where `saturated`
-        # is True and this branch's *value* is about to be discarded
-        # anyway. Substituting a safe dummy u there keeps that local
-        # gradient finite, so the discarded branch can't poison the
-        # selected one's gradient via 0*inf=NaN (same class of bug as
-        # this codebase's own rosenstein.py lesson: both branches of a
-        # torch.where need a finite local gradient everywhere the mask
-        # is defined, not just a correct forward value where selected --
-        # confirmed directly: this was a real, reproduced gradcheck
-        # failure at large alpha before this substitution was added).
+        # torch.where backprops through both branches; a safe dummy u keeps log1p's gradient finite where saturated.
         safe_u = torch.where(saturated, torch.zeros_like(u), u)
         near_one = torch.log1p(safe_u) / (1.0 - alpha)
         extreme = _log_power_sum(nonzero, log_p, alpha) / (1.0 - alpha)
@@ -437,21 +426,10 @@ def tsallis_entropy(probability: torch.Tensor, q: float, k: float = 1.0) -> torc
         log_p = _safe_log(probability, nonzero)
         u, exponent_out_of_range = _deviation_from_one(probability, nonzero, log_p, q)
         saturated = _deviation_saturated(u, exponent_out_of_range, dtype)
-        # Tsallis's own near-1 branch (k*u/(1-q)) has a *constant*
-        # local gradient w.r.t. u (k/(1-q)), so it never needs the
-        # safe-substitution renyi_entropy's near-1 branch does. But the
-        # extreme branch's exp(...) below can itself overflow when
-        # `saturated` is False (i.e. exactly where its own result is
-        # about to be discarded) -- same torch.where-backprops-through-
-        # both-branches hazard, mirrored here on the other branch.
+        # The extreme branch's exp can overflow where it is discarded; torch.where backprops through both branches.
         log_sum = _log_power_sum(nonzero, log_p, q)
         safe_log_sum = torch.where(saturated, log_sum, torch.zeros_like(log_sum))
-        # k folded into the same log-space shift as the 1/(order-1)
-        # scaling, not multiplied in afterward -- confirmed directly:
-        # multiplying by k only after exponentiating still overflowed
-        # for an extreme k (e.g. k=1e-300 combined with q=-1024, or
-        # k=5e305 combined with q=-10), even though the final,
-        # k-scaled entropy value itself would fit the dtype.
+        # Fold k into the log-space shift; multiplying by k after exponentiating overflows for extreme k.
         sign = (1.0 if q > 1.0 else -1.0) * (1.0 if k >= 0.0 else -1.0)
         shifted = (
             torch.exp(safe_log_sum - math.log(abs(q - 1.0)) + math.log(abs(k))) * sign

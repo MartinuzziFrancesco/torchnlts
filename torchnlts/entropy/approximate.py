@@ -33,12 +33,8 @@ from torchnlts.neighbors.theiler import theiler_window_mask
 
 
 def _mask_invalid_windows(conditional_probability: torch.Tensor, embedded: torch.Tensor) -> torch.Tensor:
-    # A NaN anywhere in window i's own coordinates makes every distance
-    # from i (including to itself) NaN, so a naive `<= radius`/kernel
-    # weight comparison silently evaluates to "no match" (False / 0)
-    # rather than propagating NaN -- giving a plausible-looking but wrong
-    # finite C_i(r) instead. Forced here via torch.where (a plain tensor
-    # op, not a data-dependent Python `if`) so it stays torch.vmap-safe.
+    # A NaN in window i makes all its distances NaN, which a plain comparison turns into "no match";
+    # force NaN with torch.where (vmap-safe).
     invalid = torch.isnan(embedded).any(dim=-1)
     return torch.where(invalid, torch.full_like(conditional_probability, float("nan")), conditional_probability)
 

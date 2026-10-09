@@ -79,11 +79,8 @@ def hard_fnn(
     high_distance = torch.linalg.vector_norm(embedded_high - neighbor_points, ord=norm_order, dim=-1)
 
     batched_trajectory, ndim = _ensure_batched(trajectory)
-    # Per-channel std, then combined via an L2 norm across channels --
-    # not ``norm_order``, since Kennel's R_A is a
-    # sum-of-squares attractor size regardless of the neighbor-search
-    # norm. Computing std on data flattened across time *and* channel
-    # would mix each channel's mean into every other channel's spread.
+    # Per-channel std combined by an L2 norm, not norm_order: Kennel's R_A is a sum-of-squares size,
+    # and flattening across channels would mix each channel's mean into the spread.
     per_channel_std = batched_trajectory.std(dim=1, correction=0)
     attractor_size = torch.linalg.vector_norm(per_channel_std, dim=-1)
     attractor_size = attractor_size.unsqueeze(-1) if ndim == 3 else attractor_size.squeeze(0)

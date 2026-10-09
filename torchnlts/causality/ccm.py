@@ -199,18 +199,10 @@ def cross_map_estimate(
     if num_neighbors > library_size:
         distance = torch.nn.functional.pad(distance, (0, num_neighbors - library_size), value=float("inf"))
     neighbor_distance, neighbor_index = torch.topk(distance, num_neighbors, dim=-1, largest=False, sorted=True)
-    # The farthest of the requested num_neighbors slots is still `inf`
-    # exactly when fewer than num_neighbors valid (Theiler/library-
-    # surviving) candidates existed for that row -- catch it before the
-    # eps nudge below turns a *different* degenerate case's inf into
-    # something finite-looking downstream.
+    # A still-infinite farthest slot means fewer than num_neighbors valid candidates; check before the eps nudge.
     row_valid = torch.isfinite(neighbor_distance[..., -1])
 
-    # Match CausalityTools.jl: a literal 0/0 in the weight formula below
-    # (when the nearest neighbor is at distance exactly 0) is resolved by
-    # nudging every distance in that row away from 0, not left as NaN --
-    # see the module docstring for why this one case departs from this
-    # package's usual "let a genuine degeneracy propagate" convention.
+    # Match CausalityTools.jl: nudge rows with a zero nearest distance off 0 to avoid 0/0 (see module docstring).
     nearest_is_zero = neighbor_distance[..., :1] <= 0
     epsilon = torch.finfo(neighbor_distance.dtype).eps * 10
     neighbor_distance = torch.where(nearest_is_zero, neighbor_distance + epsilon, neighbor_distance)

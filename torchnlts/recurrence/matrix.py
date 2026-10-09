@@ -38,8 +38,7 @@ def _nan_quantile(values: torch.Tensor, probability: float, dim: int, diagonal: 
     probability = torch.full_like(count_work, probability)
     if diagonal:
         probability = (probability + 1.0 / count_work.clamp(min=1.0)).clamp(max=1.0)
-    # Julia's formula, so a quantile landing exactly on an order statistic
-    # reproduces it bit for bit: aleph = (n - 1) p + 1, 1-based.
+    # Julia's formula, so a quantile on an order statistic matches bit for bit: aleph = (n - 1) p + 1.
     aleph = count_work * probability + (1.0 - probability)
     last = (count - 1).clamp(min=0)
     lower = (aleph.trunc().long() - 1).clamp(min=0).minimum(last)

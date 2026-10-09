@@ -35,17 +35,12 @@ def trajectory_kernel(
     if kind not in ("gaussian", "exponential"):
         raise ValueError(f"kind must be 'gaussian' or 'exponential', got {kind!r}")
 
-    # Substitute a finite placeholder for inf distances (Theiler/knn
-    # padding) before arithmetic, then select the correct 0 weight after,
-    # since exp(-inf)'s backward w.r.t. temperature is 0 * inf = NaN.
+    # Finite placeholder for inf distances, 0 weight selected after: exp(-inf)'s backward w.r.t. temperature is NaN.
     finite = torch.isfinite(distance)
     safe_distance = torch.where(finite, distance, torch.zeros_like(distance))
 
-    # Floor temperature relative to distance so their ratio never exceeds
-    # ratio_max: past that the kernel already underflows to 0 in float32
-    # and float64, so nothing observable changes, but every gradient
-    # stays finite (an unbounded ratio overflows the division's own
-    # backward regardless of the upstream gradient).
+    # Floor temperature relative to distance so their ratio stays below ratio_max; the kernel already underflows to 0
+    # there, and the division's backward stays finite.
     ratio_max = 1000.0
     floor = safe_distance.abs() / ratio_max
     safe_temperature = torch.clamp(floor, min=temperature)

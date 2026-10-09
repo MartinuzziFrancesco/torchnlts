@@ -51,17 +51,14 @@ def _variogram_single_lag(values: torch.Tensor, lag: int, power: float) -> torch
     if num_terms < 1:
         return torch.full(values.shape[:-1], float("nan"), dtype=values.dtype, device=values.device)
     magnitude = (values[..., lag:] - values[..., :-lag]).abs()
-    # For power < 1, d|x|**p/dx is unbounded at x = 0 and autograd returns
-    # NaN there; mask zero increments so they contribute a zero gradient.
+    # For power < 1, d|x|**p/dx is unbounded at 0; mask zero increments so autograd gives a zero gradient, not NaN.
     zero = magnitude == 0
-    # |dx|**p is summed as (|dx| / s)**p with s the (detached) largest
-    # increment, so the powers cannot overflow before the average is taken.
+    # Sum (|dx| / s)**p with s the detached largest increment, so the powers cannot overflow.
     scale = _safe_scale(magnitude.detach().amax(dim=-1, keepdim=True))
     term = (torch.where(zero, torch.ones_like(magnitude), magnitude) / scale).pow(power)
     term_sum = torch.where(zero, torch.zeros_like(term), term).sum(dim=-1)
-    # V = term_sum * s**p / (2 (n - l)), assembled in the log domain so that
-    # neither s**p nor any power of the normalization can overflow when V
-    # itself is representable. term_sum is 0 only when every increment is 0.
+    # V = term_sum * s**p / (2 (n - l)) in the log domain, so neither s**p nor the normalization overflows.
+    # term_sum is 0 only when every increment is 0.
     empty = term_sum == 0
     safe_sum = torch.where(empty, torch.ones_like(term_sum), term_sum)
     log_variogram = torch.log(safe_sum) + power * torch.log(scale.squeeze(-1)) - math.log(2 * num_terms)
@@ -74,7 +71,7 @@ def _validate_power(power):
         raise ValueError(f"power must be a finite real number > 0, got {power!r}")
     try:
         scalar = power.reshape(()) if torch.is_tensor(power) else float(power)
-    except OverflowError:  # a huge Python int
+    except OverflowError:
         scalar = float("inf")
     except (TypeError, ValueError) as error:
         raise ValueError(f"power must be a finite real number > 0, got {power!r}") from error
@@ -120,9 +117,7 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
         raise ValueError("power_variogram does not support complex input")
     power = _validate_power(power)
     dtype = _output_dtype(tensor)
-    # Always float64: increments are raised to power after scaling by the
-    # largest one, and in float32 the small ones (and their gradients)
-    # underflow long before the result does.
+    # float64: after scaling by the largest increment, the small ones underflow in float32.
     work_dtype = torch.float64
     values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
 

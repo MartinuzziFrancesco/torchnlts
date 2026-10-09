@@ -194,7 +194,6 @@ def estimate_delay(trajectory, max_delay: int, method: str = "mi_min", num_bins:
         curve = _ami_rows(values, max_delay, num_bins)
     else:
         curve = _autocorrelation_rows(values, max_delay)
-    # Search delays 1..max_delay; the delay-0 entry is dropped.
     series = curve[:, 1:]
     constant = values.amax(dim=1) == values.amin(dim=1)
     invalid = ~torch.isfinite(curve).all(dim=1) | constant

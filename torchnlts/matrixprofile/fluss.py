@@ -59,7 +59,7 @@ def corrected_arc_curve(index, window: int, exclusion_factor: int = 5) -> torch.
     position = torch.arange(num_points, device=flat.device).expand_as(flat)
     neighbor = torch.where(flat < 0, position, flat)
     low, high = torch.minimum(position, neighbor), torch.maximum(position, neighbor)
-    # Out of place (vmap-compatible): +1 at each arc's low end, -1 at its high end.
+    # Out of place for vmap: +1 at each arc's low end, -1 at its high end.
     counts = torch.zeros(flat.shape[0], num_points + 1, dtype=torch.int64, device=flat.device)
     counts = counts.scatter_add(1, low, torch.ones_like(low)).scatter_add(1, high, -torch.ones_like(high))
     arcs = counts.cumsum(dim=-1)[:, :num_points].to(torch.get_default_dtype())

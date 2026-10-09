@@ -23,8 +23,7 @@ from torchnlts._shape import (
 
 def _residual_projector(window_size: int, order: int, like: torch.Tensor) -> torch.Tensor:
     """``I - Q Q^T`` for the degree-``order`` polynomial basis on one window."""
-    # Legendre basis on [-1, 1], orthogonalized in float64: spans the same
-    # polynomials as a monomial basis but stays well conditioned at high order.
+    # Legendre basis on [-1, 1] orthogonalized in float64; well conditioned at high order.
     abscissa = torch.linspace(-1.0, 1.0, window_size, dtype=torch.float64, device=like.device)
     legendre = torch.special.legendre_polynomial_p(abscissa.unsqueeze(-1), torch.arange(order + 1, device=like.device))
     basis, _ = torch.linalg.qr(legendre)
@@ -76,13 +75,11 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
     if tensor.is_complex():
         raise ValueError("dfa_fluctuation does not support complex input")
     dtype = _output_dtype(tensor)
-    # Always float64: detrending cancels the profile's polynomial part, and
-    # its rounding error scales with the largest sample, not the residual.
+    # float64: detrending cancels the profile's polynomial part, so rounding error scales with the largest sample.
     work_dtype = torch.float64
     values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
     num_samples = values.shape[-1]
-    # A constant series has an identically zero profile; mean removal leaves
-    # rounding error, so report F = 0 exactly instead of a roundoff value.
+    # A constant series has an exactly zero profile; report F = 0 rather than rounding error.
     constant = (values == values[..., :1]).all(dim=-1) if num_samples > 0 else None
 
     fluctuations = []
@@ -91,15 +88,7 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
         if num_windows == 0:
             fluctuations.append(torch.full(values.shape[:-1], float("nan"), dtype=values.dtype, device=values.device))
             continue
-        # Each window's profile is the global profile minus a constant (the
-        # sum before the window) and a linear term (the mean times the
-        # position). Detrending of order >= 1 removes both, so integrating
-        # each window from its own start, after subtracting any per-window
-        # offset, gives the same residuals; the offset is subtracted in the
-        # input's units, where x - c is exact for nearby values, so a large
-        # common offset or dominant dropped samples cause no cancellation.
-        # Order 0 keeps the linear term: subtract the global mean, after the
-        # first sample so a large common offset cancels exactly.
+        # Subtract offsets before the cumsum for exactness; order 0 keeps the linear term, so use the global mean.
         kept = values[..., : num_windows * size].reshape(values.shape[0], num_windows, size)
         if order == 0:
             first = values[:, :1, None]
@@ -108,8 +97,7 @@ def dfa_fluctuation(trajectory, window_size, order: int = 1) -> torch.Tensor:
             kept = kept - kept.mean(dim=-1, keepdim=True)
         windows = torch.cumsum(kept, dim=-1)
         residual = windows @ _residual_projector(size, order, values)
-        # Residuals are also rescaled by their own maximum: the kept windows
-        # can be far smaller than the row maximum, and their squares underflow.
+        # Rescale residuals by their own maximum: kept windows can be far smaller than the row maximum and underflow.
         residual_scale = residual.detach().abs().amax(dim=(-2, -1))
         # Masking before the sqrt keeps its infinite derivative at 0 out of backward.
         zero = constant | (residual_scale == 0)

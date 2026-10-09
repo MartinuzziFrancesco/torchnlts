@@ -150,8 +150,7 @@ def soft_sample_entropy(
     a = soft_correlation_sum(
         long_embed, temperature=temperature, kind=kind, theiler_window=theiler_window, norm_order=norm_order
     )
-    # Substitute safe operands before the log so a degenerate row's
-    # backward pass stays finite for other rows sharing an input.
+    # Substitute safe operands before the log so a degenerate row can't make backward non-finite for other rows.
     no_match = (b == 0) | torch.isnan(b)
     no_extension = (a == 0) & ~no_match
     safe_a = torch.where(no_match | no_extension, torch.ones_like(a), a)

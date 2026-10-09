@@ -108,22 +108,18 @@ def complexity_invariant_distance(trajectory, other) -> torch.Tensor:
     first, first_nonfinite = _mask_nonfinite_rows(first.to(work_dtype))
     second, second_nonfinite = _mask_nonfinite_rows(second.to(work_dtype))
     nonfinite = first_nonfinite | second_nonfinite
-    # Power-of-two scales keep every norm in range. ED uses one scale for the pair; each CE uses its own
-    # series' scale, so a series much smaller than the other keeps a nonzero scaled CE.
+    # Power-of-two scales keep norms in range: one ED scale for the pair, one scale per series for each CE.
     pair_scale = _power_of_two_scale(first.unsqueeze(-1), second.unsqueeze(-1))[:, :, 0]
     first_scale = _power_of_two_scale(first.unsqueeze(-1))[:, :, 0]
     second_scale = _power_of_two_scale(second.unsqueeze(-1))[:, :, 0]
     euclidean = torch.linalg.vector_norm((first - second) / pair_scale, dim=-1)
     first_complexity = _complexity(first / first_scale)
     second_complexity = _complexity(second / second_scale)
-    # A zero CE is exact (a constant series). Pairs with a zero CE (both zero: ratio 1; one zero: infinite)
-    # use a placeholder ratio of 1 in the arithmetic, so the infinite result is selected afterwards and
-    # cannot put NaN into backward.
+    # A zero CE (constant series) uses placeholder ratio 1 so the later-selected result can't put NaN into backward.
     first_zero, second_zero = first_complexity == 0, second_complexity == 0
     first_safe = torch.where(first_zero, torch.ones_like(first_complexity), first_complexity)
     second_safe = torch.where(second_zero, torch.ones_like(second_complexity), second_complexity)
-    # The scales enter only as integer exponents, applied once at the end, so no intermediate overflows
-    # or underflows unless the result does. The larger CE goes in the numerator.
+    # Scales enter as integer exponents applied once at the end; the larger CE goes in the numerator.
     with torch.no_grad():
         exponents = [
             torch.frexp(scale[:, 0])[1].to(torch.int64) - 1 for scale in (pair_scale, first_scale, second_scale)

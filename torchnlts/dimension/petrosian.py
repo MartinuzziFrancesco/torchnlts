@@ -55,16 +55,12 @@ def petrosian_dimension(trajectory) -> torch.Tensor:
     batch_size = values.shape[0]
     series_length = values.shape[1]
 
-    # Edge case: series too short to have a difference
     if series_length < 2:
         result = torch.full((batch_size,), float("nan"), dtype=values.dtype, device=values.device)
     else:
-        # Compute first difference: [B, T-1]
         differences = values[:, 1:] - values[:, :-1]
 
-        # Count sign changes in the difference:
-        # signbit is True for negative values and -0.0 (antropy's convention).
-        # diff(signbit) gives 1 where the sign changes.
+        # signbit is True for -0.0 too (antropy's convention); diff(signbit) is 1 where the sign changes.
         sign_bits = torch.signbit(differences)  # [B, T-1]
         sign_changes = torch.diff(sign_bits.to(torch.int32), dim=1).abs().sum(dim=1)  # [B]
 

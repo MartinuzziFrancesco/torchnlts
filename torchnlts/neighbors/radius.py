@@ -39,7 +39,6 @@ def radius_neighbors(
     distance = pairwise_distance(trajectory, other, norm_order=norm_order)
     mask = distance <= radius
     if other is None:
-        # AND the Theiler mask in directly instead of filling excluded
-        # entries with inf and comparing: inf <= inf is True in IEEE 754.
+        # AND the Theiler mask in directly: filling with inf and comparing fails because inf <= inf is True.
         mask = mask & theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     return mask

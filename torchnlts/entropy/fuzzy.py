@@ -52,17 +52,8 @@ def _fuzzy_correlation(
     distance = pairwise_distance(embedded, norm_order=norm_order)
     radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    # The diagonal (always masked out, distance == 0 exactly) has an
-    # infinite local gradient through distance**fuzzy_power for
-    # fuzzy_power < 1; torch.where backprops through both branches, so
-    # substitute a safe placeholder there before the power, same as
-    # trajectory_kernel's finite-distance substitution for inf. Only
-    # Euclidean's (norm_order=2.0) cdist backward is confirmed to
-    # already return a finite (0) gradient at a zero distance on its
-    # own -- both the default Chebyshev (norm_order=inf) and Manhattan
-    # (norm_order=1.0) cdist backwards propagate this as NaN, confirmed
-    # directly -- but the substitution is cheap and correct for every
-    # norm_order, so it's not conditioned on it.
+    # Substitute a placeholder on the zero diagonal before the power: its gradient is infinite for fuzzy_power < 1,
+    # and the Chebyshev and Manhattan cdist backwards give NaN at zero distance.
     safe_distance = torch.where(mask, distance, torch.ones_like(distance))
     weight = _fuzzy_membership(safe_distance, _broadcast_over_matrix(radius, distance), fuzzy_power)
     return torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()

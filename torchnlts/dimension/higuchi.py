@@ -86,9 +86,7 @@ def _higuchi_length_single_k(values: torch.Tensor, k: int) -> torch.Tensor:
     for offset in range(k):
         num_steps = (num_points - 1 - offset) // k
         if num_steps < 1:
-            # Matches Julia's own natural failure mode for this offset
-            # (a literal division by zero there propagates to NaN, not
-            # an error) -- poisons the whole L(k), not just this offset.
+            # Matches Julia: division by zero here gives NaN for the whole L(k).
             return torch.full(values.shape[:-1], float("nan"), dtype=values.dtype, device=values.device)
         indices = offset + k * torch.arange(num_steps + 1, device=values.device)
         subsequence = values[..., indices]

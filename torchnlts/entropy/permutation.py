@@ -125,7 +125,7 @@ def _probabilities(trajectory, embedding_dim: int, delay: int, weighting, amplit
         probability = sums / torch.where(invalid, torch.ones_like(total), total)
         return torch.where(invalid, torch.full_like(probability, float("nan")), probability)
     has_nan = ~torch.isfinite(embedded).all(dim=(-2, -1))
-    codes = _ordinal_pattern_codes(embedded)  # exact ranks for integer input
+    codes = _ordinal_pattern_codes(embedded)
     counts = torch.nn.functional.one_hot(codes, num_classes=num_patterns).sum(dim=-2).to(work.dtype)
     probability = counts / counts.sum(dim=-1, keepdim=True)
     return torch.where(has_nan.unsqueeze(-1), torch.full_like(probability, float("nan")), probability)

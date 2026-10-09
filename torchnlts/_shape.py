@@ -115,8 +115,7 @@ def _as_positive_int_list(value, name: str) -> tuple[list[int], bool]:
     """
     if _is_complex(value):
         raise ValueError(f"{name} must be integer-valued, got complex {value!r}")
-    # float64 so a Python float like 1.00000001 is not rounded to an
-    # integer by float32 before the integrality check.
+    # float64 so a Python float like 1.00000001 is not rounded to an integer in float32.
     value_tensor = torch.as_tensor(value, dtype=torch.float64)
     flat = value_tensor.reshape(-1)
     if flat.numel() == 0:
@@ -214,8 +213,7 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | N
             f"expected a boolean mask of shape {tuple(sweep.shape)} or {tuple(values.shape)}, got {mask.dtype} {tuple(mask.shape)}"
         )
     out_dtype = _output_dtype(values)
-    # The wider of the two dtypes, so distinct float64 sweep points are not
-    # merged when values are float32 (also rejects a complex sweep).
+    # The wider dtype, so distinct float64 sweep points are not merged for float32 values.
     work_dtype = torch.promote_types(_work_dtype(out_dtype), _work_dtype(sweep.dtype))
     if sweep.shape[0] == 0:
         # Zero-weighted sums keep the result connected to both inputs.
@@ -224,19 +222,14 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | N
     sweep = sweep.to(work_dtype).view((-1,) + (1,) * (values.dim() - 1))
     values = values.to(work_dtype)
     fallback = torch.arange(sweep.shape[0], dtype=work_dtype, device=sweep.device).view_as(sweep)
-    # Degenerate sweeps and invalid columns are replaced before any
-    # arithmetic, so their NaN/inf cannot reach backward through a shared
-    # input. Repeated values are checked on sweep itself: centering can
-    # leave a rounding-sized nonzero denominator instead of an exact zero.
-    # Tensor masks, not Python branches, so vmap still works.
+    # Degenerate sweeps and invalid columns are replaced before arithmetic so NaN/inf cannot reach backward;
+    # tensor masks rather than Python branches keep vmap working.
     if mask is None:
         sweep_valid = torch.isfinite(sweep).all() & ~(sweep == sweep[:1]).all()
         column_valid = torch.isfinite(values).all(dim=0) & sweep_valid
         safe_sweep = torch.where(sweep_valid, sweep, fallback)
         safe_values = torch.where(column_valid, values, torch.zeros_like(values))
-        # Translating by the first point before centering keeps close points
-        # far from zero distinct (the rounded mean of 2**24 and 2**24 + 2 is
-        # not) and constant values exactly zero.
+        # Translate by the first point before centering so close points far from zero stay distinct.
         safe_sweep = safe_sweep - safe_sweep[:1]
         safe_values = safe_values - safe_values[:1]
         sweep_centered = safe_sweep - safe_sweep.mean(dim=0, keepdim=True)
@@ -245,17 +238,15 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | N
         selected = mask.view((-1,) + (1,) * (values.dim() - 1)).expand_as(values) if mask.dim() == 1 else mask
         sweep_full = sweep.expand_as(values)
         zeros = torch.zeros_like(values)
-        first = selected.long().argmax(dim=0, keepdim=True)  # first selected point per column
+        first = selected.long().argmax(dim=0, keepdim=True)
         first_sweep = sweep_full.gather(0, first)
         sweep_valid = torch.isfinite(torch.where(selected, sweep_full, zeros)).all(dim=0) & (
             selected & (sweep_full != first_sweep)
         ).any(dim=0)
         column_valid = torch.isfinite(torch.where(selected, values, zeros)).all(dim=0) & sweep_valid
-        # Invalid columns fit every point of a safe sweep, as in the unmasked path.
         selected = selected | ~column_valid
         weight = selected.to(work_dtype)
-        # Unselected points take the first selected point's coordinates (finite,
-        # zero after translation), and the translation uses that first point.
+        # Unselected points take the first selected point's coordinates (zero after translation).
         safe_values = torch.where(column_valid, values, zeros)
         first_values = safe_values.gather(0, first)
         safe_sweep = torch.where(column_valid, sweep_full, fallback.expand_as(values))
@@ -265,9 +256,8 @@ def _ols_slope(sweep: torch.Tensor, values: torch.Tensor, mask: torch.Tensor | N
         count = weight.sum(dim=0, keepdim=True)
         sweep_centered = weight * (safe_sweep - (weight * safe_sweep).sum(dim=0, keepdim=True) / count)
         values_centered = weight * (safe_values - (weight * safe_values).sum(dim=0, keepdim=True) / count)
-    # Products of centered terms overflow at about the square root of the
-    # dtype's range; divide both by their (detached, hence exact) maxima
-    # first and put the ratio back at the end.
+    # Centered products overflow near the square root of the dtype range; divide by detached maxima first and
+    # restore the ratio at the end.
     sweep_scale = _safe_scale(sweep_centered.detach().abs().amax(dim=0))
     values_scale = _safe_scale(values_centered.detach().abs().amax(dim=0))
     sweep_centered = sweep_centered / sweep_scale
@@ -344,8 +334,7 @@ def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
     reference = tensors[0]
     if not all(tensor.shape[-2] * tensor.shape[-1] > 0 for tensor in tensors):
         return torch.ones((1, 1, 1), dtype=reference.dtype, device=reference.device)
-    # Finite coordinates only: a NaN/inf point must not disable the scaling
-    # of the finite pairs in its row.
+    # Finite coordinates only, so a NaN/inf point does not disable scaling of the finite pairs in its row.
     magnitudes = [
         torch.where(torch.isfinite(tensor), tensor, 0).detach().abs().amax(dim=(-2, -1), keepdim=True)
         for tensor in tensors

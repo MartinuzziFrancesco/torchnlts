@@ -107,11 +107,7 @@ def rosenstein_divergence(
             evolving trivially with it), or if ``norm_order`` is not a
             real number >= 0.
     """
-    # float64, not torch.as_tensor's default dtype (float32 unless
-    # changed globally): a plain Python float/list argument would
-    # otherwise silently lose precision before validation even runs,
-    # e.g. -1e-50 rounds to -0.0 in float32 (passing the >= 0 check) and
-    # 1.00000001 rounds to exactly 1.0 (passing the integer check).
+    # float64, not the float32 default, so Python float arguments keep their precision until validated.
     if _is_complex(k_values):
         raise ValueError(f"k_values must be real, got {k_values!r}")
     k_values_tensor = torch.as_tensor(k_values, dtype=torch.float64)
@@ -131,32 +127,14 @@ def rosenstein_divergence(
 
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     delay = _as_int(delay, "delay")
-    # Limitation: delay_embedding's `torch.arange(embedding_dim) * delay`
-    # raises OverflowError converting an astronomically large Python int
-    # `delay` to a tensor scalar, even when embedding_dim=1 makes the
-    # actual multiplication trivially 0 regardless of delay's value (a
-    # one-copy embedding has no delayed offsets, so its output never
-    # depends on delay -- confirmed: num_embedded = num_points -
-    # (embedding_dim-1)*delay = num_points exactly at embedding_dim=1).
-    # Worked around locally here rather than fixed at the root in
-    # delay_embedding, since delay_embedding is a shared primitive and
-    # this is far outside any realistic delay value. Upgrade path: guard
-    # the tensor-scalar conversion in delay_embedding itself if another
-    # caller hits the same crash with a non-degenerate embedding_dim.
+    # Limitation: delay_embedding raises OverflowError for a huge int delay at embedding_dim=1; guard it there.
     embedding_delay = 1 if embedding_dim == 1 and delay >= 1 else delay
-    # Masked before embedding: a large delay can leave samples out of every
-    # embedded point, and a row containing NaN/inf is NaN regardless.
+    # Masked before embedding: samples outside every embedded point can hold NaN/inf, which make a row NaN.
     raw, ndim = _ensure_batched(trajectory)
     dtype = _output_dtype(raw)
     raw, nonfinite = _mask_nonfinite_rows(raw.to(_work_dtype(dtype)))
     batched = delay_embedding(raw, embedding_dim, embedding_delay)
-    # Limitation: same OverflowError class, this time in
-    # theiler_window_mask's `abs() > window` comparison against an
-    # astronomically large Python int. Larger-than-the-trajectory
-    # windows all exclude every pair identically, so clamping to
-    # num_points changes nothing about the actual result while avoiding
-    # the crash. Same upgrade path as above: fix at the root in
-    # theiler_window_mask if this recurs elsewhere.
+    # Limitation: theiler_window_mask overflows on a huge int window; clamped to num_points, same excluded pairs.
     theiler_window = min(theiler_window, batched.shape[-2])
     _, neighbor_index = knn_search(batched, num_neighbors=1, theiler_window=theiler_window, norm_order=norm_order)
     neighbor_index = neighbor_index[..., 0]
@@ -169,16 +147,7 @@ def rosenstein_divergence(
     k_list = k_values_tensor.reshape(-1).tolist()
     max_k = int(max(k_list))
 
-    # One reference-point mask for the whole sweep, sized by max_k (see
-    # Returns): a point still qualifies for a smaller k in the sweep
-    # whenever it qualifies for max_k, since k <= max_k keeps both the
-    # reference and its neighbor's evolved index in bounds a fortiori.
-    # `max_k >= num_points` is handled as its own case rather than by
-    # `start_index + max_k`, since max_k is an arbitrary Python int here
-    # (from k_values, not bounded by the trajectory) and could overflow
-    # int64 index arithmetic -- silently wrapping to a small/negative
-    # value that would pass the `< num_points` bounds check it's
-    # supposed to fail.
+    # One reference mask sized by max_k; max_k >= num_points is separate since start_index + max_k can overflow int64.
     if max_k >= num_points:
         valid = torch.zeros(batch_size, num_points, dtype=torch.bool, device=batched.device)
     else:
@@ -189,35 +158,22 @@ def rosenstein_divergence(
 
     curve = []
     for k in k_list:
-        # Out-of-range sweeps have an all-false mask; keep even their
-        # unused gather indices within integer range.
+        # Out-of-range sweeps have an all-false mask; keep their unused gather indices in integer range.
         k = min(int(k), num_points)
         reference_index = (start_index + k).expand(batch_size, -1)
         neighbor_target_index = safe_neighbor_index + k
         reference_evolved = _gather_neighbors(batched, reference_index, valid)
         neighbor_evolved = _gather_neighbors(batched, neighbor_target_index, valid)
         difference = reference_evolved - neighbor_evolved
-        # The norm raises differences to norm_order: compute it on each pair's
-        # differences divided by their largest magnitude (detached), so it
-        # neither overflows nor underflows. Not below norm_order=1, where the
-        # powers cannot overflow and scaling could (norm_order=0 counts nonzeros).
+        # Divide differences by their largest magnitude (detached) before the norm_order power to avoid
+        # overflow and underflow; skipped below norm_order=1, where powers cannot overflow (norm_order=0 counts nonzeros).
         largest = difference.detach().abs().amax(dim=-1, keepdim=True)
         largest = torch.where(
             (largest > 0) & torch.isfinite(largest) & (norm_order >= 1), largest, torch.ones_like(largest)
         )
         divergence = (difference / largest).norm(p=norm_order, dim=-1) * largest.squeeze(-1)
-        # At an invalid (masked) position, both gathers fall back to the
-        # same dummy row 0, so divergence is exactly 0 there -- an
-        # artifact of the safe-index substitution, not real data. Left
-        # alone, log(0)'s 1/0 gradient would poison the backward pass
-        # through torch.where's *unselected* branch (its forward value
-        # is correctly ignored below, but autograd still needs a finite
-        # local gradient there); substituting 1 (log(1) = 0, and its
-        # gradient 1/1 = 1 is finite) avoids that without touching any
-        # valid position, including a genuinely-zero one (see Returns).
-        # A genuine zero at a valid position keeps its -inf forward value
-        # (see Returns) but is also given a safe operand, so log(0)'s
-        # infinite gradient cannot reach a parameter shared with other rows.
+        # Masked positions gather the same dummy row, so divergence is 0 there; substitute 1 so log's backward is
+        # finite in torch.where's unselected branch. A genuine zero at a valid position keeps -inf, with a safe operand.
         usable = valid & (divergence > 0)
         safe_divergence = torch.where(usable, divergence, torch.ones_like(divergence))
         log_divergence = torch.where(
@@ -228,10 +184,7 @@ def rosenstein_divergence(
 
     result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
     result = torch.where(nonfinite, float("nan"), result)
-    # Not `_restore_batch` (which squeezes dim 0): a swept result is
-    # `[K, B]`, batch trailing rather than leading, matching
-    # `correlation_sum`'s own sweep convention -- so the batch axis to
-    # drop for an unbatched trajectory is always the *last* one here.
+    # Not _restore_batch: a swept result is [K, B], so the batch axis to drop is the last one.
     return (result.squeeze(-1) if ndim != 3 else result).to(dtype)
 
 

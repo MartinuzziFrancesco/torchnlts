@@ -83,9 +83,7 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     tensor, ndim = _ensure_batched(trajectory)
     _validate(tensor)
     dtype = _output_dtype(tensor)
-    # Always float64: the pole test then measures float32/half data at
-    # float64 precision, so values that are resolved in the input's own
-    # precision are not rejected as undetermined.
+    # float64 so float32/half data is not rejected as undetermined by the pole test.
     work_dtype = torch.float64
     values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
     num_points = values.shape[-1]
@@ -94,11 +92,7 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
         result = torch.full(values.shape[:-1], float("nan"), dtype=work_dtype, device=values.device)
         return _restore_batch(result.to(dtype), ndim)
 
-    # Steps come from adjacent raw values (subtracting the first value first
-    # could round away small steps far from it) and displacements from the
-    # first value. d / L is unchanged by dividing both coordinates by one
-    # factor, so both are scaled to at most 1: no distance or sum overflows.
-    # The factor is a constant, so detaching it keeps derivatives exact.
+    # Scaled to at most 1 by a detached constant (d / L is scale-invariant), so no distance or sum overflows.
     step = values[:, 1:] - values[:, :-1]
     gap = values[:, 1:] - values[:, :1]
     scale = gap.detach().abs().amax(dim=-1)
@@ -110,13 +104,8 @@ def katz_dimension(trajectory, amplitude_only: bool = False) -> torch.Tensor:
     extent = _planar_extent(gap / scale[:, None], index_step)
     num_steps = num_points - 1
     log_num_steps = torch.log10(torch.tensor(float(num_steps), dtype=work_dtype, device=values.device))
-    # The denominator log10(n) + log10(d / L) = log10(1 + (n d - L) / L) has a
-    # pole at n d = L. Computed from the gap n d - L with log1p it stays
-    # accurate near the pole; rows whose relative gap is at rounding level
-    # (one rounding in n d, about log2(T) in the sum L) have a D that is
-    # not determined by the data and are NaN, as are rows with L = 0. They
-    # get safe operands (d = L = 1) before the division, so their
-    # arithmetic cannot put NaN into the gradients of other rows.
+    # log10(n) + log10(d / L) has a pole at n d = L; use log1p of the gap. Rows at the pole or with L = 0 are NaN,
+    # with safe operands (d = L = 1) so they cannot put NaN into other rows' gradients.
     with torch.no_grad():
         zero_length = length == 0
         relative_gap = (extent * num_steps - length) / torch.where(zero_length, torch.ones_like(length), length)

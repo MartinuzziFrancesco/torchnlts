@@ -14,7 +14,7 @@ import torch.nn.functional as functional
 from torchnlts._shape import _as_int, _validate_square_matrix
 from torchnlts.neighbors.theiler import theiler_window_mask
 
-_WINDOW_ELEMENT_BUDGET = 2**24  # max matrix elements gathered per measure call in windowed_rqa
+_WINDOW_ELEMENT_BUDGET = 2**24
 
 
 def recurrence_rate(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tensor:
@@ -59,12 +59,7 @@ def _check_line_input(recurrence: torch.Tensor, theiler_window: int) -> int:
     _validate_square_matrix(recurrence)
     theiler_window = _as_int(theiler_window, "theiler_window")
     if theiler_window < 0:
-        # Unlike recurrence_rate's plain point count, a negative window
-        # (recurrence_rate's documented "exclude nothing") here would
-        # count the always-recurrent main diagonal itself as one giant
-        # line of length num_points -- a different and murkier
-        # convention that RecurrenceAnalysis.jl special-cases rather than
-        # applying uniformly, and one this port doesn't replicate.
+        # A negative window would count the main diagonal as one line of length num_points.
         raise ValueError(f"theiler_window must be >= 0 for line measures, got {theiler_window}")
     return theiler_window
 
@@ -83,10 +78,7 @@ def _run_length_counts(lines: torch.Tensor) -> torch.Tensor:
     lines = lines.long()
     group = torch.cumsum(1 - lines, dim=-1)
     bin_counts = lines.new_zeros(*lines.shape[:-1], lines.shape[-1] + 1).scatter_add(-1, group, lines)
-    # Each run of True contributes exactly one positive entry to
-    # bin_counts (indexed by its group id), so scattering "1 where
-    # positive" by bin_counts itself both selects each run once and
-    # bins it by length -- no separate start-of-run detection needed.
+    # Each run adds one positive bin_count at its group id, so scattering by bin_counts bins each run once.
     return torch.zeros_like(bin_counts).scatter_add(-1, bin_counts, (bin_counts > 0).long())
 
 
@@ -147,8 +139,7 @@ def _recurrence_time_histogram(recurrence: torch.Tensor, theiler_window: int) ->
     index = torch.arange(num_points, device=lines.device)
     is_start = lines & ~functional.pad(lines, (1, 0))[..., :-1]
     is_end = lines & ~functional.pad(lines, (0, 1))[..., 1:]
-    # Sorting pushes the sentinel ``num_points`` to the end, so entry k of
-    # starts and ends describes the k-th line of each column.
+    # Sorting puts the sentinel num_points last, so entry k of starts and ends is the k-th line of each column.
     starts = torch.where(is_start, index, num_points).sort(dim=-1).values
     ends = torch.where(is_end, index, num_points).sort(dim=-1).values
     half = torch.where(starts < num_points, (ends - starts + 1) // 2, 0)
@@ -200,9 +191,7 @@ def _average_line_length(histogram: torch.Tensor, lengths: torch.Tensor) -> torc
 
 def _max_line_length(histogram: torch.Tensor, lengths: torch.Tensor, recurrence: torch.Tensor) -> torch.Tensor:
     if histogram.shape[-1] == 0:
-        # lmin exceeds every possible line length (e.g. a 1-point
-        # trajectory with the default lmin=2): no line can ever
-        # qualify, and amax has no identity for an empty reduction.
+        # No line can reach lmin, and amax has no identity for an empty reduction.
         return torch.zeros(recurrence.shape[:-2], dtype=torch.long, device=recurrence.device)
     return torch.where(histogram > 0, lengths, torch.zeros_like(lengths)).amax(dim=-1)
 
@@ -211,8 +200,7 @@ def _line_entropy(histogram: torch.Tensor) -> torch.Tensor:
     counts = histogram.to(torch.get_default_dtype())
     num_lines = counts.sum(dim=-1, keepdim=True)
     probability = counts / num_lines.clamp(min=1)
-    # probability is 0 wherever histogram is 0, so 0 * log(clamped-tiny) is
-    # always 0 -- no separate has_lines mask needed to avoid 0 * -inf.
+    # probability is 0 where histogram is 0, so 0 * log(tiny) is 0; no has_lines mask is needed.
     log_probability = torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny))
     entropy = -(probability * log_probability).sum(dim=-1)
     return torch.where(num_lines.squeeze(-1) > 0, entropy, torch.full_like(entropy, float("nan")))

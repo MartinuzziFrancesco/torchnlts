@@ -49,16 +49,13 @@ def _znormalized_windows(values: torch.Tensor, window: int) -> tuple[torch.Tenso
     finite = torch.isfinite(windows).all(dim=-1)
     windows = torch.where(finite[..., None], windows, torch.zeros_like(windows))
     constant = (windows.amax(dim=-1) == windows.amin(dim=-1))[..., None]
-    # Per-window power-of-two scaling (exact) and a shift by the first value (differences of nearby
-    # values are exact) before the mean: z-normalization is invariant to both, and neither overflows
-    # near the dtype's maximum nor loses precision for data with a large offset.
+    # Exact rescalings z-normalization is invariant to: frexp power-of-two scale (finite even at the dtype max),
+    # shift by the first value, division by the detached peak. They prevent overflow and offset precision loss.
     magnitude = windows.detach().abs().amax(dim=-1, keepdim=True)
     magnitude = torch.where(magnitude > 0, magnitude, torch.ones_like(magnitude))
-    # frexp's exponent keeps the scale finite even at the dtype's maximum (log2 would round up to overflow).
     windows = torch.ldexp(windows, -torch.frexp(magnitude)[1])
     windows = windows - windows[..., :1]
     centered = windows - windows.mean(dim=-1, keepdim=True)
-    # Dividing by the (detached) peak first keeps the variance away from under/overflow at any scale.
     peak = centered.detach().abs().amax(dim=-1, keepdim=True)
     constant = constant | (peak == 0)
     scaled = centered / torch.where(constant, torch.ones_like(peak), peak)

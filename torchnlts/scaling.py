@@ -83,8 +83,7 @@ def _segment_labels(sweep, values, tolerance, saturation) -> torch.Tensor:
     if saturation is None:
         active = torch.ones_like(slope, dtype=torch.bool)
     else:
-        # Segments between the first and last one that move by more than
-        # ``saturation``; with none, every segment stays.
+        # Keep segments between the first and last one that move by more than saturation.
         big = (values[1:] - values[:-1]).abs() > saturation
         first = torch.where(big, position, num_segments).amin(dim=0)
         last = torch.where(big, position, -1).amax(dim=0)
@@ -104,8 +103,7 @@ def _segment_labels(sweep, values, tolerance, saturation) -> torch.Tensor:
                 | ((current - previous).abs() <= tolerance * torch.maximum(current.abs(), previous.abs()))
             )
         )
-        # The first active segment opens region 0; a later one opens a new
-        # region when it is not close to the opening segment's slope.
+        # The first active segment opens region 0; a later one opens a new region if not close to the opening slope.
         opens = on & (~seen | ~close)
         label = torch.where(on & ~seen, torch.zeros_like(label), label + (opens & seen).long())
         previous = torch.where(opens, current, previous)
@@ -217,7 +215,6 @@ def scaling_slope(sweep, values, tolerance: float = 0.25, saturation: float | No
     start, stop = _largest(labels)
     point = torch.arange(sweep.shape[0], device=sweep.device).unsqueeze(-1)
     slope = _ols_slope(sweep, values, (point >= start) & (point < stop))
-    # Rows with a non-finite entry, or any non-finite sweep point, are NaN.
     invalid = nonfinite | ~torch.isfinite(sweep).all()
     slope = torch.where(invalid, torch.full_like(slope, float("nan")), slope).to(out_dtype)
     return slope if batched else slope.squeeze(0)

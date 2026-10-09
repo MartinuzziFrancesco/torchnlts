@@ -26,7 +26,7 @@ import torch
 
 from torchnlts._shape import _as_int, _ensure_batched, _output_dtype, _restore_batch
 
-_ELEMENT_BUDGET = 2**24  # max surrogate elements generated per statistic call
+_ELEMENT_BUDGET = 2**24
 
 _TAILS = ("left", "right", "both")
 

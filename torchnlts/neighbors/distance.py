@@ -63,25 +63,13 @@ def pairwise_distance(
     # cdist supports neither integer nor (on CPU) half precision.
     batched = batched.to(_work_dtype(batched.dtype))
     other_batched = other_batched.to(_work_dtype(other_batched.dtype))
-    # Points with a NaN/inf coordinate are zeroed before cdist, so its
-    # backward cannot put NaN into the gradients of other pairs, and their
-    # distances are set to NaN afterwards.
+    # Zero non-finite points so cdist's backward can't put NaN into other pairs; their distances are NaN below.
     nonfinite = ~torch.isfinite(batched).all(dim=-1)
     other_nonfinite = ~torch.isfinite(other_batched).all(dim=-1)
     batched = torch.where(nonfinite[..., None], torch.zeros_like(batched), batched)
     other_batched = torch.where(other_nonfinite[..., None], torch.zeros_like(other_batched), other_batched)
-    # compute_mode forced: torch.cdist's default matmul path for p=2
-    # loses precision in float32 for points sharing a large offset.
-    # cdist squares coordinates for p=2, overflowing at about the square root
-    # of the dtype's range; distances are homogeneous of degree 1, so compute
-    # them on inputs divided by a common scale. The scale is detached (exact
-    # derivatives) and a power of two, so the division and multiplication
-    # are exact and distances at a threshold (e.g. radius=2) stay exact.
-    # The extra factor 4 keeps coordinate differences below 1, so their
-    # norm_order-th powers cannot overflow. Below norm_order=1 those powers
-    # cannot overflow anyway and the sum's 1/norm_order-th power is the
-    # distance itself, so scaling would only risk overflow (and
-    # norm_order=0 counts unequal coordinates).
+    # The default matmul path loses float32 precision for points sharing a large offset.
+    # Exact power-of-two scaling keeps cdist from overflowing; skipped below norm_order=1, where it can't overflow.
     if norm_order < 1:
         distance = torch.cdist(batched, other_batched, p=norm_order)
     else:

@@ -47,7 +47,6 @@ def kaplan_yorke_dimension(spectrum) -> torch.Tensor:
     values, nonfinite = _mask_nonfinite_rows(values.reshape(-1, values.shape[-1]))
     ordered = values.sort(dim=-1, descending=True).values
     partial = ordered.cumsum(dim=-1)
-    # Number of leading non-negative partial sums.
     count = (partial >= 0).to(torch.long).cumprod(dim=-1).sum(dim=-1, keepdim=True)
     last = ordered.shape[-1] - 1
     head = partial.gather(-1, (count - 1).clamp(min=0))
