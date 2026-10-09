@@ -262,3 +262,185 @@ def test_mutual_information_disagrees_with_causalitytools_jl():
     assert torch.isclose(julia_mi, torch.tensor(-0.875, dtype=torch.float64))
     assert torch.isclose(torch_mi, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)
     assert not torch.isclose(torch_mi, julia_mi, atol=0.1)
+
+
+def _naive_ksg2(x, y, num_neighbors, julia_variant=False, theiler_window=0):
+    # Loop reference for KSG2 (Chebyshev, 1-D marginals; Theiler window on the joint search only).
+    # julia_variant reproduces CausalityTools.jl's KSG2: marginal radius from
+    # the k-th joint neighbor only, and "- 1" in place of "- 1/k".
+    num = len(x)
+    total = 0.0
+    for i in range(num):
+        joint = sorted((max(abs(x[i] - x[j]), abs(y[i] - y[j])), j) for j in range(num) if abs(i - j) > theiler_window)
+        neighbors = [j for _, j in joint[:num_neighbors]]
+        if julia_variant:
+            neighbors = neighbors[-1:]
+        for series in (x, y):
+            radius = max(abs(series[i] - series[j]) for j in neighbors)
+            count = sum(1 for j in range(num) if j != i and abs(series[i] - series[j]) <= radius)
+            total += float(torch.digamma(torch.tensor(float(count), dtype=torch.float64)))
+    digamma = lambda value: float(torch.digamma(torch.tensor(float(value), dtype=torch.float64)))
+    correction = 1.0 if julia_variant else 1.0 / num_neighbors
+    return digamma(num_neighbors) - correction + digamma(num) - total / num
+
+
+def test_mutual_information_ksg2_hand_derived():
+    # 4 points, k=1. Joint nearest neighbors: 0->1, 1->0, 2->1, 3->2, so the
+    # marginal radii are |dx| = [1, 1, 3, 6] and |dy| = [2, 2, 1, 19].
+    # Inclusive counts: nx = [1, 1, 1, 1], ny = [2, 2, 2, 2].
+    # I2 = psi(1) - 1 - (psi(1) + psi(2)) + psi(4) = psi(4) - psi(2) - 1 = -1/6.
+    x = torch.tensor([0.0, 1.0, 4.0, 10.0], dtype=torch.float64)
+    y = torch.tensor([0.0, 2.0, 1.0, 20.0], dtype=torch.float64)
+    result = mutual_information(x, y, num_neighbors=1, estimator="ksg2")
+    assert torch.isclose(result, torch.tensor(-1 / 6, dtype=torch.float64), atol=1e-12, rtol=0)
+
+
+def test_mutual_information_ksg2_matches_naive_reference():
+    # k=3 exercises the max over the k neighbors' marginal extents.
+    torch.manual_seed(5)
+    x = torch.randn(40, dtype=torch.float64)
+    y = 0.6 * x + torch.randn(40, dtype=torch.float64)
+    result = mutual_information(x, y, num_neighbors=3, estimator="ksg2")
+    assert abs(result.item() - _naive_ksg2(x.tolist(), y.tolist(), 3)) < 1e-10
+
+
+def test_mutual_information_ksg2_theiler_window_excludes_joint_neighbors_only():
+    # w=1: the joint neighbors of each point skip indices i-1, i, i+1; marginal
+    # counts still see them (only self is excluded). Smooth ramps would give a
+    # huge n if marginal counts ignored temporal neighbors.
+    torch.manual_seed(6)
+    x = torch.cumsum(torch.randn(30, dtype=torch.float64), dim=0)
+    y = torch.cumsum(torch.randn(30, dtype=torch.float64), dim=0)
+    with_window = mutual_information(x, y, num_neighbors=2, theiler_window=3, estimator="ksg2")
+    without = mutual_information(x, y, num_neighbors=2, theiler_window=0, estimator="ksg2")
+    assert torch.isfinite(with_window) and not torch.isclose(with_window, without)
+
+
+def test_mutual_information_default_estimator_is_ksg1_and_invalid_raises():
+    torch.manual_seed(0)
+    x = torch.randn(30, dtype=torch.float64)
+    y = torch.randn(30, dtype=torch.float64)
+    assert torch.equal(mutual_information(x, y), mutual_information(x, y, estimator="ksg1"))
+    try:
+        mutual_information(x, y, estimator="ksg3")
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_mutual_information_ksg2_batched_nan_and_starvation():
+    torch.manual_seed(7)
+    x = torch.randn(3, 40, 1, dtype=torch.float64)
+    y = torch.randn(3, 40, 1, dtype=torch.float64)
+    batched = mutual_information(x, y, num_neighbors=3, estimator="ksg2")
+    assert batched.shape == (3,)
+    for i in range(3):
+        assert torch.isclose(batched[i], mutual_information(x[i], y[i], num_neighbors=3, estimator="ksg2"))
+    # NaN / inf rows NaN only their own batch element.
+    x[1, 5, 0] = float("nan")
+    x[2, 5, 0] = float("inf")
+    out = mutual_information(x, y, num_neighbors=3, estimator="ksg2")
+    assert torch.isfinite(out[0]) and torch.isnan(out[1]) and torch.isnan(out[2])
+    z = torch.arange(4, dtype=torch.float64)
+    assert torch.isnan(mutual_information(z, z, num_neighbors=4, estimator="ksg2"))
+    assert torch.isnan(mutual_information(z, z, num_neighbors=5, estimator="ksg2"))
+    assert torch.isfinite(mutual_information(z, z, num_neighbors=3, estimator="ksg2"))
+    assert torch.isnan(mutual_information(z, z, num_neighbors=2, theiler_window=1, estimator="ksg2"))
+    vmapped = torch.vmap(lambda a, b: mutual_information(a, b, num_neighbors=3, estimator="ksg2"))(
+        torch.randn(2, 20, 1, dtype=torch.float64), torch.randn(2, 20, 1, dtype=torch.float64)
+    )
+    assert vmapped.shape == (2,)
+
+
+def test_mutual_information_both_estimators_match_analytic_gaussian():
+    torch.manual_seed(3)
+    rho = 0.7
+    z1 = torch.randn(4000, dtype=torch.float64)
+    z2 = torch.randn(4000, dtype=torch.float64)
+    y = rho * z1 + math.sqrt(1 - rho**2) * z2
+    true_mi = -0.5 * math.log(1 - rho**2)
+    for estimator in ("ksg1", "ksg2"):
+        result = mutual_information(z1, y, num_neighbors=5, estimator=estimator)
+        assert abs(result.item() - true_mi) < 0.05, estimator
+
+
+def _julia_ksg2(x, y, num_neighbors):
+    julia_code = f"""
+    using CausalityTools
+    x = {x.tolist()}
+    y = {y.tolist()}
+    println(association(KSG2(MIShannon(base=MathConstants.e); k={num_neighbors}, w=0), x, y))
+    """
+    result = subprocess.run(
+        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    return float(result.stdout.strip())
+
+
+def test_mutual_information_ksg2_matches_causalitytools_jl_at_k1_and_deviates_for_larger_k():
+    # At k=1 the paper's and CausalityTools.jl's KSG2 coincide. For k>1 that
+    # package uses only the k-th neighbor's marginal distance and subtracts 1
+    # instead of 1/k (its source comments that the paper's term "gives
+    # erroneous estimates"); this module follows the paper. The Julia value
+    # is locked to the loop reference of that variant.
+    torch.manual_seed(8)
+    x = torch.randn(40, dtype=torch.float64)
+    y = 0.6 * x + torch.randn(40, dtype=torch.float64)
+    assert abs(_julia_ksg2(x, y, 1) - mutual_information(x, y, num_neighbors=1, estimator="ksg2").item()) < 1e-10
+    julia_k3 = _julia_ksg2(x, y, 3)
+    assert abs(julia_k3 - _naive_ksg2(x.tolist(), y.tolist(), 3, julia_variant=True)) < 1e-10
+    assert abs(julia_k3 - mutual_information(x, y, num_neighbors=3, estimator="ksg2").item()) > 0.01
+
+
+def test_mutual_information_ksg2_theiler_matches_loop_reference():
+    # Exact oracle: joint neighbors skip |i-j| <= w; marginal counts do not.
+    torch.manual_seed(9)
+    x = torch.cumsum(torch.randn(40, dtype=torch.float64), dim=0)
+    y = x + torch.randn(40, dtype=torch.float64)
+    result = mutual_information(x, y, num_neighbors=2, theiler_window=3, estimator="ksg2")
+    assert abs(result.item() - _naive_ksg2(x.tolist(), y.tolist(), 2, theiler_window=3)) < 1e-10
+
+
+def test_mutual_information_ksg2_preserves_float32():
+    torch.manual_seed(10)
+    x = torch.randn(40, dtype=torch.float32)
+    y = 0.6 * x + torch.randn(40, dtype=torch.float32)
+    result = mutual_information(x, y, num_neighbors=3, estimator="ksg2")
+    assert result.dtype == torch.float32
+    assert abs(result.item() - _naive_ksg2(x.double().tolist(), y.double().tolist(), 3)) < 1e-4
+
+
+def test_mutual_information_ksg2_vmap_matches_direct_with_nan_row():
+    torch.manual_seed(11)
+    x = torch.randn(3, 20, 1, dtype=torch.float64)
+    y = torch.randn(3, 20, 1, dtype=torch.float64)
+    x[1, 3, 0] = float("nan")
+    direct = mutual_information(x, y, num_neighbors=3, estimator="ksg2")
+    vmapped = torch.vmap(lambda a, b: mutual_information(a, b, num_neighbors=3, estimator="ksg2"))(x, y)
+    assert torch.allclose(direct, vmapped, equal_nan=True)
+    assert torch.isnan(vmapped[1]) and torch.isfinite(vmapped[0])
+
+
+def test_mutual_information_rejects_non_integer_num_neighbors():
+    x = torch.randn(10, dtype=torch.float64)
+    for estimator in ("ksg1", "ksg2"):
+        for bad in (1.5, float("nan"), float("inf")):
+            try:
+                mutual_information(x, x, num_neighbors=bad, estimator=estimator)
+                assert False, "expected ValueError"
+            except ValueError:
+                pass
+
+
+def test_mutual_information_ksg2_small_scale_deviates_from_causalitytools_jl():
+    # CausalityTools.jl adds 10*eps() to each marginal radius, which changes
+    # counts for data near 1e-16 even at k=1; this module is scale-free.
+    scale = 1e-16
+    x = torch.tensor([0.0, 1.0, 4.0, 10.0], dtype=torch.float64) * scale
+    y = torch.tensor([0.0, 2.0, 1.0, 20.0], dtype=torch.float64) * scale
+    assert torch.isclose(mutual_information(x, y, num_neighbors=1, estimator="ksg2"), torch.tensor(-1 / 6, dtype=torch.float64))
+    assert abs(_julia_ksg2(x, y, 1) - (-13 / 6)) < 1e-9

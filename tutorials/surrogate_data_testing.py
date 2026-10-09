@@ -11,8 +11,9 @@ Amplitude distribution is not itself a linear temporal property, and
 IAAFT does not guarantee removal of every nonlinear dependence.
 
 Use a preselected lower-tail permutation-entropy statistic: unusually low
-entropy is the alternative. Report its Monte Carlo rank p-value, whose
-minimum with 20 surrogates is 1/21, rather than assuming Gaussian tails
+entropy is the alternative. Report its Monte Carlo rank p-value
+(``surrogate_test``, ties counted conservatively, the observed sample
+included), whose minimum with 20 surrogates is 1/21, rather than assuming Gaussian tails
 from a z-score. This is an approximate surrogate test: spectral mismatch,
 nonstationarity, and finite-record effects can also cause rejection;
 rejection alone does not establish deterministic chaos.
@@ -21,6 +22,7 @@ rejection alone does not establish deterministic chaos.
 import torch
 
 from torchnlts.entropy.permutation import permutation_entropy
+from torchnlts.surrogate.hypothesis import surrogate_test
 from torchnlts.surrogate.iaaft import iaaft_surrogate
 from torchnlts.systems import trajectory
 
@@ -28,21 +30,26 @@ torch.manual_seed(0)
 signal = trajectory("Lorenz", 1000)[:, 0]
 signal = (signal - signal.mean()) / signal.std()
 
-real_statistic = permutation_entropy(signal, embedding_dim=4, delay=1, normalize=True)
+
+def entropy(data):
+    return permutation_entropy(data, embedding_dim=4, delay=1, normalize=True)
+
 
 num_surrogates = 20
-surrogate_statistics = []
-spectral_errors = []
-target_magnitude = torch.fft.rfft(signal).abs()
-for seed in range(num_surrogates):
-    surrogate = iaaft_surrogate(signal, max_iterations=50, generator=torch.Generator().manual_seed(seed))
-    surrogate_statistics.append(permutation_entropy(surrogate, embedding_dim=4, delay=1, normalize=True))
-    spectral_errors.append((torch.fft.rfft(surrogate).abs() - target_magnitude).norm() / target_magnitude.norm())
-surrogate_statistics = torch.stack(surrogate_statistics)
-spectral_errors = torch.stack(spectral_errors)
+result = surrogate_test(
+    signal, entropy, iaaft_surrogate, num_surrogates, tail="left", generator=torch.Generator().manual_seed(0), max_iterations=50
+)
+real_statistic = result.statistic
+surrogate_statistics = result.surrogate_statistics
+p_value = result.p_value.item()
 
-# Count ties in the rejection tail conservatively; include the observed sample.
-p_value = (1 + (surrogate_statistics <= real_statistic).sum().item()) / (num_surrogates + 1)
+# Regenerate the tested ensemble: same generator seed and batch shape as surrogate_test used.
+ensemble = iaaft_surrogate(
+    signal.view(1, -1, 1).repeat(num_surrogates, 1, 1), max_iterations=50, generator=torch.Generator().manual_seed(0)
+)
+assert torch.equal(entropy(ensemble), surrogate_statistics)
+target_magnitude = torch.fft.rfft(signal).abs()
+spectral_errors = (torch.fft.rfft(ensemble[..., 0], dim=-1).abs() - target_magnitude).norm(dim=-1) / target_magnitude.norm()
 
 print(f"real signal permutation entropy:        {real_statistic.item():.4f}")
 print(f"surrogate permutation entropy (mean/std): {surrogate_statistics.mean().item():.4f} / {surrogate_statistics.std().item():.4f}")

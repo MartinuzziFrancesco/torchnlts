@@ -1,4 +1,4 @@
-"""Kraskov-Stogbauer-Grassberger (KSG1) mutual information estimator.
+"""Kraskov-Stogbauer-Grassberger (KSG1 and KSG2) mutual information estimators.
 
 Reference: Kraskov, A., Stogbauer, H. & Grassberger, P. (2004),
 "Estimating mutual information", Phys. Rev. E 69, 066138, eq. 6-8 (their
@@ -34,13 +34,27 @@ on essentially every point, not just at coincidental ties (see
 both conventions on the same input). This module implements the
 paper's own strict definition; see that test for the confirmed,
 quantified disagreement rather than an attempt to reconcile the two.
+
+The second estimator (``estimator="ksg2"``, I^(2), eq. 9) instead sets, per
+point, the marginal radii to the extents of its ``k`` nearest joint
+neighbors in each marginal (``eps_x(i)/2``, ``eps_y(i)/2``), counts the
+other points within those radii *inclusively* (``<=``, as the paper
+specifies for I^(2)) and returns
+``psi(k) - 1/k - <psi(n_x) + psi(n_y)> + psi(N)``. Ties among equidistant
+joint neighbors are broken by :func:`torch.topk`'s order. CausalityTools.jl's
+``KSG2`` agrees at ``k=1`` at ordinary data scales but deviates for ``k>1``
+(it uses only the ``k``-th neighbor's marginal distance and subtracts ``1``
+for ``1/k``) and, at any ``k``, adds ``10*eps()`` to each marginal radius,
+which changes counts for data near 1e-16 (``[0,1,4,10]*1e-16`` gives -1/6
+here, -13/6 there). This module follows the paper; see
+``tests/test_mutual_information.py``.
 """
 
 from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch
+from torchnlts._shape import _as_int, _ensure_batched, _restore_batch, _validate_matching_batch
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.theiler import _require_self_exclusion, apply_theiler_window
 
@@ -51,12 +65,14 @@ def mutual_information(
     num_neighbors: int = 3,
     theiler_window: int = 0,
     norm_order: float = float("inf"),
+    estimator: str = "ksg1",
 ) -> torch.Tensor:
-    """KSG1 Shannon mutual information estimate between two paired trajectories.
+    """KSG Shannon mutual information estimate between two paired trajectories.
 
     Gradient class: none (see module docstring).
 
-    Reference: Kraskov, Stogbauer & Grassberger (2004), eq. 6-8. See the
+    Reference: Kraskov, Stogbauer & Grassberger (2004), eq. 6-8 (KSG1) or
+    eq. 9 (KSG2). For KSG1, see the
     module docstring for a confirmed, deliberate deviation from
     CausalityTools.jl's ``KSG1`` (strict vs. that package's inclusive
     marginal-counting radius) -- Julia ground truth here is a locked
@@ -97,6 +113,10 @@ def mutual_information(
         norm_order: Shared Minkowski norm order for the marginal distance
             matrices and, through them, the joint metric (``inf`` for the
             paper's and CausalityTools.jl's default Chebyshev choice).
+        estimator: ``"ksg1"`` (default; strict marginal counts) or ``"ksg2"``
+            (inclusive counts within the marginal extents of the ``k``
+            joint neighbors). Marginal counts exclude only the point itself,
+            never Theiler neighbors, for both.
 
     Returns:
         Scalar (unbatched trajectories) or ``[B]`` (batched) mutual
@@ -114,10 +134,14 @@ def mutual_information(
         -- or where some point contains ``NaN`` (see Args).
 
     Raises:
-        ValueError: If ``num_neighbors < 1``, ``theiler_window < 0``, or
+        ValueError: If ``estimator`` is not ``"ksg1"`` or ``"ksg2"``,
+            ``num_neighbors < 1``, ``theiler_window < 0``, or
             ``trajectory``/``other`` disagree on batched-ness or batch
             size (see :func:`torchnlts._shape._validate_matching_batch`).
     """
+    if estimator not in ("ksg1", "ksg2"):
+        raise ValueError(f"estimator must be 'ksg1' or 'ksg2', got {estimator!r}")
+    num_neighbors = _as_int(num_neighbors, "num_neighbors")
     if num_neighbors < 1:
         raise ValueError(f"num_neighbors must be >= 1, got {num_neighbors}")
     _require_self_exclusion(theiler_window, "KSG mutual information")
@@ -127,14 +151,31 @@ def mutual_information(
     _validate_matching_batch(x, y, x_ndim, y_ndim, check_feature_dim=False)
     length = min(x.shape[-2], y.shape[-2])
     x, y = x[..., :length, :], y[..., :length, :]
-    invalid_point = torch.isnan(x).any(dim=-1) | torch.isnan(y).any(dim=-1)
+    invalid_point = ~torch.isfinite(x).all(dim=-1) | ~torch.isfinite(y).all(dim=-1)
 
     dist_x = pairwise_distance(x, norm_order=norm_order)
     dist_y = pairwise_distance(y, norm_order=norm_order)
     joint_distance = apply_theiler_window(torch.maximum(dist_x, dist_y), theiler_window)
     if num_neighbors > length:
         joint_distance = torch.nn.functional.pad(joint_distance, (0, num_neighbors - length), value=float("inf"))
-    radius = joint_distance.topk(num_neighbors, dim=-1, largest=False).values[..., -1]
+    nearest = joint_distance.topk(num_neighbors, dim=-1, largest=False)
+    radius = nearest.values[..., -1]
+    digamma_k = torch.digamma(torch.tensor(float(num_neighbors), dtype=dist_x.dtype, device=dist_x.device))
+    digamma_n = torch.digamma(torch.tensor(float(length), dtype=dist_x.dtype, device=dist_x.device))
+
+    if estimator == "ksg2":
+        # Padded (missing) neighbors have radius inf and are masked below;
+        # clamp their indices so the gather stays in range.
+        index = nearest.indices.clamp(max=length - 1)
+        per_point = torch.zeros_like(radius)
+        for dist in (dist_x, dist_y):
+            extent = dist.gather(-1, index).amax(dim=-1, keepdim=True)
+            # <= includes self, which the paper's n excludes.
+            per_point = per_point + torch.digamma((dist <= extent).sum(dim=-1).sub(1).to(dist.dtype))
+        valid = torch.isfinite(radius) & ~invalid_point
+        per_point = torch.where(valid, per_point, torch.full_like(per_point, float("nan")))
+        mi = digamma_k - 1.0 / num_neighbors + digamma_n - per_point.mean(dim=-1)
+        return _restore_batch(mi, x_ndim)
 
     # Include self unconditionally to implement n_x + 1 and n_y + 1,
     # including when duplicate joint points make the radius zero.
@@ -149,7 +190,5 @@ def mutual_information(
     # neighbor count, under vmap or not.
     valid = torch.isfinite(radius) & ~invalid_point
     per_point = torch.where(valid, per_point, torch.full_like(per_point, float("nan")))
-    digamma_k = torch.digamma(torch.tensor(float(num_neighbors), dtype=dist_x.dtype, device=dist_x.device))
-    digamma_n = torch.digamma(torch.tensor(float(length), dtype=dist_x.dtype, device=dist_x.device))
     mi = digamma_k + digamma_n - per_point.mean(dim=-1)
     return _restore_batch(mi, x_ndim)

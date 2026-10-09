@@ -34,7 +34,7 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   (2000) -- compare permutation and sample entropy for sine, Lorenz x, and
   white noise at fixed sampling and embedding settings.
 - `mutual_information_gaussians.py`: Kraskov, Stogbauer & Grassberger
-  (2004) -- their KSG1 estimator checked against correlated Gaussians'
+  (2004) -- their KSG1 and KSG2 estimators checked against correlated Gaussians'
   analytically known mutual information.
 - `lyapunov_from_data.py`: Rosenstein, Collins & De Luca (1993) + Kantz
   (1994) -- largest Lyapunov exponent from an observed time series,
@@ -50,7 +50,8 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `surrogate_data_testing.py`: Theiler, Eubank, Longtin, Galdrikian &
   Farmer (1992) + Schreiber & Schmitz (1996) -- the surrogate data
   hypothesis-testing methodology, using IAAFT surrogates and a
-  lower-tail rank test against a statically transformed Gaussian-linear null.
+  lower-tail rank test (`surrogate_test`) against a statically transformed
+  Gaussian-linear null.
 - `convergent_cross_mapping.py`: Sugihara, May, Ye, Hsieh, Deyle,
   Fogarty & Munch (2012) -- cross-map skill versus prefix-library size
   in a synthetic unidirectionally coupled map pair.

@@ -33,10 +33,13 @@ Numerical range limits. Outside these, results or gradients can be
 Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test,
 :func:`~torchnlts.scaling.scaling_slope`, Rosenstein, Kantz, Eckmann, the correlation sums (and so sample entropy,
 multiscale and composite multiscale entropy), approximate, fuzzy,
-permutation and dispersion entropy return ``NaN`` for any batch row
+permutation and dispersion entropy, and mutual information (both estimators) return ``NaN`` for any batch row
 containing ``NaN`` or ``inf`` instead of raising, so they work under
 ``torch.vmap``. Lempel-Ziv complexity returns an integer count and is the
-exception.
+exception. :func:`~torchnlts.surrogate.hypothesis.surrogate_test` returns a
+``NaN`` p-value for a row whose trajectory has a non-finite entry or whose
+data or any surrogate statistic is non-finite (``NaN`` or ``inf``); the shuffle and shift surrogates move non-finite values like any
+other.
 :func:`~torchnlts.neighbors.distance.pairwise_distance` returns ``NaN`` for
 every pair involving a point with a ``NaN``/``inf`` coordinate. Other rows
 (or pairs) and their gradients are unaffected, and a non-finite row
@@ -324,8 +327,8 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
 
    * - :doc:`mutual_information <generated/torchnlts.entropy.mutual_information.mutual_information>`
      - none
-     - `Kraskov, Stogbauer & Grassberger (2004) <https://doi.org/10.1103/PhysRevE.69.066138>`__, eq. 6-8 (KSG1)
-     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``; confirmed inclusive-vs-strict marginal-counting deviation from the paper, locked in as a regression rather than reconciled -- see module docstring)
+     - `Kraskov, Stogbauer & Grassberger (2004) <https://doi.org/10.1103/PhysRevE.69.066138>`__, eq. 6-8 (KSG1) and the second estimator I^(2) (``estimator="ksg2"``)
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``: confirmed inclusive-vs-strict marginal-counting deviation from the paper, locked in as a regression; ``KSG2``: agrees at ``k=1`` for data at ordinary scales; deviates for ``k>1`` (uses only the k-th neighbour's marginal distance and ``1`` in place of ``1/k``) and at any ``k`` for data near 1e-16 (adds ``10*eps()`` to each marginal radius), locked in as regressions -- see module docstring)
 
    * - :doc:`coarse_grain <generated/torchnlts.entropy.multiscale.coarse_grain>`
      - exact
@@ -436,6 +439,21 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - none
      - `Schreiber & Schmitz (1996) <https://doi.org/10.1103/PhysRevLett.77.635>`__
      - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``IAAFT``, run live via subprocess; confirmed to share this method's seed-dependent convergence-quality spread on the same input, rather than a fixed always-tiny error -- deliberate, documented differences in initial condition and iteration-count/early-stopping convention, see module docstring)
+
+   * - :doc:`random_shuffle_surrogate <generated/torchnlts.surrogate.shuffle.random_shuffle_surrogate>`
+     - none
+     - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``RandomShuffle``; uniform permutation, checked by property since RNG streams differ)
+
+   * - :doc:`random_shift_surrogate <generated/torchnlts.surrogate.shuffle.random_shift_surrogate>`
+     - none
+     - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``CircShift``; Julia takes the shifts from the caller, here uniform on 0..T-1, the whole cyclic group including the identity, so the rank test is exact)
+
+   * - :doc:`surrogate_test <generated/torchnlts.surrogate.hypothesis.surrogate_test>`
+     - none (rank count)
+     - `Theiler et al. (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__; `Schreiber & Schmitz (2000) <https://doi.org/10.1016/S0167-2789(00)00043-9>`__
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``pvalue(SurrogateTest(...))``, run live; Julia returns k/M, here (1+k)/(M+1) with the same k; two-sided 2(1+min)/(M+1) clipped to 1)
 
    * - :doc:`cross_map_estimate <generated/torchnlts.causality.ccm.cross_map_estimate>`
      - piecewise

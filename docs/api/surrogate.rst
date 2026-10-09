@@ -14,3 +14,7 @@ backpropagated through.
    torchnlts.surrogate.phase.phase_randomized_surrogate
    torchnlts.surrogate.aaft.aaft_surrogate
    torchnlts.surrogate.iaaft.iaaft_surrogate
+   torchnlts.surrogate.shuffle.random_shuffle_surrogate
+   torchnlts.surrogate.shuffle.random_shift_surrogate
+   torchnlts.surrogate.hypothesis.surrogate_test
+   torchnlts.surrogate.hypothesis.SurrogateTestResult
