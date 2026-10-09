@@ -20,7 +20,7 @@ everywhere.
 
 import torch
 
-from torchnlts.dimension.higuchi import higuchi_dimension, higuchi_length
+from torchnlts.dimension import higuchi_dimension, higuchi_length
 from torchnlts.systems import trajectory
 
 torch.manual_seed(0)

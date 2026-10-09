@@ -6,7 +6,7 @@ Lyapunov exponent of a time series", Phys. Lett. A 185(1), 77-87, eq. 1-2
 Cambridge University Press, 2004, Ch. 5): delay-embed the trajectory,
 find each point's full epsilon-neighborhood (excluding temporally
 correlated points via a Theiler window, unlike
-:func:`torchnlts.lyapunov.rosenstein.rosenstein_divergence`'s single
+:func:`torchnlts.lyapunov.rosenstein_divergence`'s single
 nearest neighbor), then track
 S(k) = <ln( (1/|U_i|) * sum_{j in U_i} ||X_{i+k} - X_{j+k}|| )>_i as the
 whole neighborhood is evolved forward k steps -- the *log of the mean*
@@ -14,7 +14,7 @@ neighborhood distance, averaged (in linear space) before the log
 (Rosenstein's single-neighbor divergence has no such within-neighborhood
 averaging). The slope of S(k) vs
 k over a well-defined early-k region estimates the largest Lyapunov
-exponent, via the same :func:`torchnlts.lyapunov.rosenstein.rosenstein_lyapunov`
+exponent, via the same :func:`torchnlts.lyapunov.rosenstein_lyapunov`
 OLS fit used for Rosenstein's curve (the fit itself doesn't care which
 method produced the curve).
 
@@ -59,7 +59,7 @@ def kantz_divergence(
     normally w.r.t. the trajectory once a neighborhood is fixed, but
     which points belong to it is a discrete, non-differentiable decision
     that can flip at an infinitesimal perturbation -- same caveat as
-    :func:`torchnlts.lyapunov.rosenstein.rosenstein_divergence`).
+    :func:`torchnlts.lyapunov.rosenstein_divergence`).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A
@@ -73,7 +73,7 @@ def kantz_divergence(
         embedding_dim: Delay-embedding dimension.
         delay: Embedding lag.
         theiler_window: Theiler window over embedded-point start indices
-            (see :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            (see :func:`torchnlts.neighbors.theiler_window_mask`).
             Must be ``>= 0`` (self-matches must be excluded
             unconditionally, or a point is always its own "neighbor" at
             distance 0).

@@ -11,8 +11,8 @@ feature dimensionality (states of two different systems), but must share a
 time axis: if they differ in length, both are truncated to the shorter one,
 matching RecurrenceAnalysis.jl's ``JointRecurrenceMatrix``.
 
-Reuses :func:`torchnlts.recurrence.matrix.hard_recurrence_matrix` /
-:func:`torchnlts.recurrence.matrix.soft_recurrence_matrix` directly, one
+Reuses :func:`torchnlts.recurrence.hard_recurrence_matrix` /
+:func:`torchnlts.recurrence.soft_recurrence_matrix` directly, one
 call per trajectory.
 
 Julia ground truth note (see tests/test_joint_recurrence.py): RecurrenceAnalysis.jl's
@@ -62,13 +62,13 @@ def hard_joint_recurrence_matrix(
             (both batched with equal batch size, or both unbatched); its
             time length and feature dimensionality may otherwise differ.
         epsilon: Recurrence threshold for ``trajectory`` (see
-            :func:`torchnlts.recurrence.matrix.hard_recurrence_matrix`).
+            :func:`torchnlts.recurrence.hard_recurrence_matrix`).
         other_epsilon: Recurrence threshold for ``other``. Defaults to
             ``epsilon`` (matching RecurrenceAnalysis.jl's single-threshold
             ``JointRecurrenceMatrix(x, y, rthres)`` overload).
         norm_order: Minkowski norm order, shared by both trajectories.
         recurrence_rate: Instead of ``epsilon``: global recurrence rate of each
-            trajectory's own matrix (see :func:`hard_recurrence_matrix`).
+            trajectory's own matrix (see :func:`~torchnlts.recurrence.hard_recurrence_matrix`).
         local_rate: Instead of ``epsilon``: local recurrence rate of each
             trajectory's own matrix.
         scale: ``"max"``, ``"mean"`` or ``"std"``; makes ``epsilon`` and
@@ -79,7 +79,7 @@ def hard_joint_recurrence_matrix(
         shorter of ``trajectory``'s and ``other``'s lengths.
 
     Raises:
-        ValueError: As :func:`hard_recurrence_matrix`; also if
+        ValueError: As :func:`~torchnlts.recurrence.hard_recurrence_matrix`; also if
             ``other_epsilon`` is given with ``recurrence_rate`` or ``local_rate``.
     """
     trajectory_batched, trajectory_ndim = _ensure_batched(trajectory)
@@ -105,13 +105,13 @@ def soft_joint_recurrence_matrix(
     """Kernel-weighted joint recurrence matrix, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (product of two
-    :func:`torchnlts.recurrence.matrix.soft_recurrence_matrix` relaxations).
+    :func:`torchnlts.recurrence.soft_recurrence_matrix` relaxations).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
             numpy array, or pandas Series/DataFrame.
         other: Second trajectory, same batched-ness as ``trajectory`` (see
-            :func:`hard_joint_recurrence_matrix`).
+            :func:`~torchnlts.recurrence.hard_joint_recurrence_matrix`).
         temperature: Kernel bandwidth for ``trajectory``, forwarded to
             ``trajectory_kernel``.
         other_temperature: Kernel bandwidth for ``other``. Defaults to
@@ -120,7 +120,7 @@ def soft_joint_recurrence_matrix(
         norm_order: Minkowski norm order, shared by both trajectories.
 
     Returns:
-        Weight tensor in ``[0, 1]``, same shape as :func:`hard_joint_recurrence_matrix`.
+        Weight tensor in ``[0, 1]``, same shape as :func:`~torchnlts.recurrence.hard_joint_recurrence_matrix`.
     """
     trajectory_batched, trajectory_ndim = _ensure_batched(trajectory)
     other_batched, other_ndim = _ensure_batched(other)

@@ -15,7 +15,7 @@ distribution is visibly less uniform and the entropies drop.
 
 import torch
 
-from torchnlts.entropy.permutation import permutation_entropy
+from torchnlts.entropy import permutation_entropy
 
 torch.manual_seed(0)
 length, embedding_dim = 2000, 4

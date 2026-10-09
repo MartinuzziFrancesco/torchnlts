@@ -20,8 +20,7 @@ values varying smoothly on both sides of where SampEn fails.
 
 import torch
 
-from torchnlts.entropy.fuzzy import fuzzy_entropy
-from torchnlts.entropy.sample import sample_entropy
+from torchnlts.entropy import fuzzy_entropy, sample_entropy
 
 torch.manual_seed(0)
 trajectory = torch.rand(20, dtype=torch.float64)

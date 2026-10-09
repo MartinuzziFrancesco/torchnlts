@@ -6,8 +6,8 @@ point's nearest neighbor in the 3D reconstruction matches its nearest
 neighbor in the true 3D state space far more often than chance.
 """
 
-from torchnlts.embedding.delay import delay_embedding
-from torchnlts.neighbors.knn import knn_search
+from torchnlts.embedding import delay_embedding
+from torchnlts.neighbors import knn_search
 from torchnlts.systems import trajectory
 
 full_state = trajectory("Lorenz", 2000)

@@ -13,7 +13,7 @@ left in them. Directional asymmetry alone is not the convergence test.
 
 import torch
 
-from torchnlts.causality.ccm import ccm_skill, cross_map_estimate
+from torchnlts.causality import ccm_skill, cross_map_estimate
 
 torch.manual_seed(0)
 num_points = 1000

@@ -14,8 +14,7 @@ import numpy as np
 import torch
 from dysts.maps import Logistic
 
-from torchnlts.lyapunov.kantz import kantz_divergence
-from torchnlts.lyapunov.rosenstein import rosenstein_divergence, rosenstein_lyapunov
+from torchnlts.lyapunov import kantz_divergence, rosenstein_divergence, rosenstein_lyapunov
 
 system = Logistic(parameters={"r": 4.0})
 trajectory = torch.as_tensor(system.make_trajectory(2000, init_cond=np.array([0.4])), dtype=torch.float64)

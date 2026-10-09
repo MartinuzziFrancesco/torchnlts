@@ -14,7 +14,7 @@ fractional delay filter design", IEEE Signal Processing Magazine 13(1),
 30-60 -- linear interpolation between the two nearest integer-lag
 samples, the simplest fractional-delay filter in their taxonomy.
 Validated here against that formula directly (hand-derived) and against
-:func:`torchnlts.embedding.delay.delay_embedding` for integer lags,
+:func:`torchnlts.embedding.delay_embedding` for integer lags,
 where the two must agree exactly.
 """
 

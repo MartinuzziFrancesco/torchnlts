@@ -125,7 +125,7 @@ def dfa_exponent(window_size, fluctuation: torch.Tensor) -> torch.Tensor:
 
     Gradient class: exact (closed-form OLS slope; ordinary autodiff
     through whatever produced ``fluctuation`` inherits
-    :func:`dfa_fluctuation`'s own exact gradient class).
+    :func:`~torchnlts.fluctuations.dfa_fluctuation`'s own exact gradient class).
 
     Fits every ``(window_size, fluctuation)`` pair given; see
     :func:`torchnlts.scaling.scaling_slope` for automatic scaling-region
@@ -135,7 +135,7 @@ def dfa_exponent(window_size, fluctuation: torch.Tensor) -> torch.Tensor:
         window_size: Shape ``[K]``, the sweep ``fluctuation`` was
             evaluated at.
         fluctuation: Shape ``[K]`` (unbatched) or ``[K, B]`` (batched),
-            as returned by :func:`dfa_fluctuation` for the same sweep.
+            as returned by :func:`~torchnlts.fluctuations.dfa_fluctuation` for the same sweep.
 
     Returns:
         alpha estimate(s), shape ``[]`` for unbatched ``fluctuation`` or

@@ -16,7 +16,7 @@ larger.
 
 import torch
 
-from torchnlts.causality.transfer_entropy import transfer_entropy
+from torchnlts.causality import transfer_entropy
 
 torch.manual_seed(0)
 num_points = 2000

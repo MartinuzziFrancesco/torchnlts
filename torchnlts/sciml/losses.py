@@ -37,8 +37,8 @@ every training step), matching ``torch.nn.MSELoss``'s own convention,
 and all support the same ``reduction in {"mean", "sum", "none"}`` as
 that class.
 
-- :class:`LyapunovLoss` -- matches a differentiable model's own rollout
-  Lyapunov spectrum (:func:`torchnlts.lyapunov.spectrum.lyapunov_spectrum`)
+- :class:`~torchnlts.sciml.LyapunovLoss` -- matches a differentiable model's own rollout
+  Lyapunov spectrum (:func:`torchnlts.lyapunov.lyapunov_spectrum`)
   against a target. Directly inherits that function's own documented
   gradient-stability caveat (Metz et al., "Gradients are Not All You
   Need"): differentiating this loss backpropagates through
@@ -47,20 +47,20 @@ that class.
   no mitigation of its own -- see ``lyapunov_spectrum``'s own docstring
   for what's actionable (keep ``num_steps`` modest, clip gradients in
   the optimizer, or detach state in an outer rollout).
-- :class:`CorrelationDimensionLoss` -- matches a predicted trajectory's
+- :class:`~torchnlts.sciml.CorrelationDimensionLoss` -- matches a predicted trajectory's
   fractal (correlation) dimension
-  (:func:`torchnlts.dimension.correlation.soft_correlation_sum` +
-  :func:`torchnlts.dimension.correlation.correlation_dimension`)
+  (:func:`torchnlts.dimension.soft_correlation_sum` +
+  :func:`torchnlts.dimension.correlation_dimension`)
   against a target. Uses the *soft* correlation sum unconditionally
   (the hard variant's Heaviside threshold has no useful gradient, see
   its own "none" gradient class) -- this is the one place in this
   module a hard/soft choice isn't left to the caller, since a
   non-differentiable loss can't train anything.
-- :class:`RecurrenceLoss` -- matches a predicted trajectory's recurrence
-  rate (:func:`torchnlts.recurrence.matrix.soft_recurrence_matrix` +
-  :func:`torchnlts.recurrence.rqa.recurrence_rate`) against a target,
+- :class:`~torchnlts.sciml.RecurrenceLoss` -- matches a predicted trajectory's recurrence
+  rate (:func:`torchnlts.recurrence.soft_recurrence_matrix` +
+  :func:`torchnlts.recurrence.recurrence_rate`) against a target,
   same soft-only reasoning as above.
-- :class:`AttractorLoss` -- unlike the other three (which each match one
+- :class:`~torchnlts.sciml.AttractorLoss` -- unlike the other three (which each match one
   fixed target value -- a scalar for ``CorrelationDimensionLoss`` and
   ``RecurrenceLoss``, a whole spectrum for ``LyapunovLoss``), this
   compares two whole trajectories' state-space point clouds directly,
@@ -68,7 +68,7 @@ that class.
   V-statistic) squared Maximum Mean Discrepancy [Gretton2012]_:
   ``MMD^2(P, Q) = E[k(x,x')] + E[k(y,y')] - 2*E[k(x,y)]`` for points
   ``x ~ P`` (predicted), ``y ~ Q`` (target), built entirely from
-  :func:`torchnlts.neighbors.kernels.trajectory_kernel` (the same
+  :func:`torchnlts.neighbors.trajectory_kernel` (the same
   kernel already used for soft recurrence and soft correlation sum)
   applied to the predicted/predicted, target/target, and
   predicted/target pairwise distance matrices. No temporal
@@ -81,7 +81,7 @@ that class.
   contribution is a model-independent constant either way, so this
   mainly risks nearby-in-time-but-distinct points inflating apparent
   self-similarity, not a gradient sign error).
-- :class:`SinkhornLoss` -- same purpose as ``AttractorLoss`` (whole-
+- :class:`~torchnlts.sciml.SinkhornLoss` -- same purpose as ``AttractorLoss`` (whole-
   attractor point-cloud matching) but the two-sample distance is a
   debiased Sinkhorn divergence [Feydy2019]_ (entropy-regularized
   optimal transport) instead of MMD. Jiang, Lu, Orlova & Willett
@@ -169,7 +169,7 @@ class LyapunovLoss(torch.nn.Module):
     spectrum and a target spectrum.
 
     Gradient class: exact (see the module docstring's gradient-stability
-    caveat, inherited from :func:`torchnlts.lyapunov.spectrum.lyapunov_spectrum`).
+    caveat, inherited from :func:`torchnlts.lyapunov.lyapunov_spectrum`).
 
     Args:
         target: Target Lyapunov exponent(s). Scalar, or shape
@@ -223,7 +223,7 @@ class CorrelationDimensionLoss(torch.nn.Module):
     """Squared error between a predicted trajectory's correlation
     dimension and a target dimension.
 
-    Gradient class: smooth (inherits :func:`torchnlts.dimension.correlation.soft_correlation_sum`'s
+    Gradient class: smooth (inherits :func:`torchnlts.dimension.soft_correlation_sum`'s
     own class; the OLS slope step itself is exact).
 
     Args:
@@ -278,8 +278,8 @@ class RecurrenceLoss(torch.nn.Module):
     """Squared error between a predicted trajectory's recurrence rate
     and a target rate.
 
-    Gradient class: smooth (inherits :func:`torchnlts.recurrence.matrix.soft_recurrence_matrix`'s
-    own class; :func:`torchnlts.recurrence.rqa.recurrence_rate` itself
+    Gradient class: smooth (inherits :func:`torchnlts.recurrence.soft_recurrence_matrix`'s
+    own class; :func:`torchnlts.recurrence.recurrence_rate` itself
     is exact).
 
     Args:
@@ -336,7 +336,7 @@ class AttractorLoss(torch.nn.Module):
     invariant losses (see the module docstring).
 
     Gradient class: smooth (built entirely on
-    :func:`torchnlts.neighbors.kernels.trajectory_kernel`'s own class).
+    :func:`torchnlts.neighbors.trajectory_kernel`'s own class).
 
     Unlike this module's other three losses, ``norm_order`` is not
     configurable here: it's fixed to Euclidean distance, not exposed as
@@ -381,7 +381,7 @@ class AttractorLoss(torch.nn.Module):
                 rather than being auto-promoted, matching this
                 codebase's usual trust-the-caller convention for
                 dtype-matched inputs); its own time length may differ
-                (see :func:`torchnlts.neighbors.distance.pairwise_distance`'s
+                (see :func:`torchnlts.neighbors.pairwise_distance`'s
                 own ``other`` argument, used directly for the cross
                 term below).
 
@@ -404,7 +404,7 @@ class AttractorLoss(torch.nn.Module):
 class SinkhornLoss(torch.nn.Module):
     """Debiased Sinkhorn divergence between a predicted trajectory's and
     a target trajectory's state-space point clouds -- a whole-attractor
-    -shape loss like :class:`AttractorLoss`, but comparing point clouds
+    -shape loss like :class:`~torchnlts.sciml.AttractorLoss`, but comparing point clouds
     via entropy-regularized optimal transport (Jiang, Lu, Orlova &
     Willett, 2023) instead of MMD.
 
@@ -443,7 +443,7 @@ class SinkhornLoss(torch.nn.Module):
             predicted_trajectory: Shape ``[T]``, ``[T, D]``, or
                 ``[B, T, D]``.
             target_trajectory: Second trajectory, same convention as
-                :class:`AttractorLoss`'s own ``target_trajectory``.
+                :class:`~torchnlts.sciml.AttractorLoss`'s own ``target_trajectory``.
 
         Returns:
             Scalar loss (``reduction != "none"``), shape ``[]`` for

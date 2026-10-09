@@ -34,7 +34,7 @@ def _require_self_exclusion(theiler_window: int, context: str) -> None:
     """Shared guard for statistics that require excluding self-matches
     unconditionally (sample entropy, KSG mutual information, ...): a
     negative ``theiler_window`` would otherwise admit them via
-    :func:`theiler_window_mask`'s documented "no exclusion" case, where
+    :func:`~torchnlts.neighbors.theiler_window_mask`'s documented "no exclusion" case, where
     every point trivially matches itself at distance 0 and the
     statistic's defining ratio/neighbor-count breaks down.
     """
@@ -47,8 +47,8 @@ def apply_theiler_window(distance: torch.Tensor, window: int, fill_value: float 
 
     Args:
         distance: Shape ``[T, T]`` or ``[B, T, T]``, as produced by
-            :func:`torchnlts.neighbors.distance.pairwise_distance`.
-        window: Theiler window (see :func:`theiler_window_mask`).
+            :func:`torchnlts.neighbors.pairwise_distance`.
+        window: Theiler window (see :func:`~torchnlts.neighbors.theiler_window_mask`).
         fill_value: Value written into excluded entries. Use ``inf``
             (default) for a nearest-neighbor search; use ``0`` if
             ``distance`` instead holds kernel weights.

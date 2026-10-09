@@ -8,19 +8,19 @@ m, sum the subsequence's consecutive absolute differences, and
 normalize by ``(N - 1) / (floor((N - m) / k) * k**2)`` to get that
 offset's curve length L_m(k); L(k) is the average of L_m(k) over m.
 The dimension D_H, in [1, 2] *in theory* (not a guarantee for any
-particular finite-sample sweep -- see :func:`higuchi_dimension`'s own
+particular finite-sample sweep -- see :func:`~torchnlts.dimension.higuchi_dimension`'s own
 Returns section), is the OLS slope of ``log(L(k))`` against
 ``log(1/k)`` over a k sweep -- the same "caller picks the sweep, no
 automatic scaling-region detection" convention as
-:func:`torchnlts.dimension.correlation.correlation_dimension`.
+:func:`torchnlts.dimension.correlation_dimension`.
 
-:func:`higuchi_length` matches FractalDimensions.jl's own
+:func:`~torchnlts.dimension.higuchi_length` matches FractalDimensions.jl's own
 ``higuchi_length`` exactly (confirmed both by independent
 hand-derivation and by direct Julia execution for a small example):
 its ``k**2`` (not ``k``) denominator is Higuchi's own original
 formula, confirmed against a secondary source quoting the paper's
 equation directly, not a package-specific convention this module
-happens to inherit uncritically. :func:`higuchi_dimension` does
+happens to inherit uncritically. :func:`~torchnlts.dimension.higuchi_dimension` does
 *not* generally match Julia's own ``higuchi_dim`` the same way, even
 though it happens to on some inputs -- Julia's own function picks an
 automatic linear-region subset of the sweep (``linear_region``)
@@ -34,7 +34,7 @@ enough that some offset m has no valid
 subsequence step (``floor((N - m) / k) < 1``) makes Julia's own
 literal formula divide by zero for that one offset -- confirmed
 directly to propagate to a ``NaN`` L(k), not an error -- replicated
-here explicitly (see :func:`higuchi_length`'s Returns section) rather
+here explicitly (see :func:`~torchnlts.dimension.higuchi_length`'s Returns section) rather
 than left to an incidental floating-point division.
 
 Univariate only, same reasoning as
@@ -51,8 +51,8 @@ parsing -- all fundamentally discrete/combinatorial, gradient class
 pattern once ``k`` is chosen -- differentiable almost everywhere, the
 same "piecewise" caveat (a kink at an exact tie between two indexed
 points) already documented for
-:func:`torchnlts.lyapunov.rosenstein.rosenstein_divergence`/
-:func:`torchnlts.lyapunov.kantz.kantz_divergence`'s own
+:func:`torchnlts.lyapunov.rosenstein_divergence`/
+:func:`torchnlts.lyapunov.kantz_divergence`'s own
 absolute-difference-based curves.
 """
 
@@ -147,8 +147,8 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
 
     Gradient class: exact (closed-form OLS slope; ordinary autodiff
     through whatever produced ``length`` -- inherits
-    :func:`higuchi_length`'s ``piecewise``, matching
-    :func:`torchnlts.dimension.correlation.correlation_dimension`'s own
+    :func:`~torchnlts.dimension.higuchi_length`'s ``piecewise``, matching
+    :func:`torchnlts.dimension.correlation_dimension`'s own
     framing for its analogous OLS-slope step).
 
     This is a plain regression over every ``(k, length)`` pair given;
@@ -161,7 +161,7 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
     Args:
         k: Shape ``[K]``, the sweep ``length`` was evaluated at.
         length: Shape ``[K]`` (unbatched trajectory) or ``[K, B]``
-            (batched trajectory), as returned by :func:`higuchi_length`
+            (batched trajectory), as returned by :func:`~torchnlts.dimension.higuchi_length`
             for the same sweep.
 
     Returns:
@@ -173,7 +173,7 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
         (an 8-point series at a 2-stride sweep) gives ``3.263``. ``NaN``
         if ``k`` has fewer than two distinct values.
         ``NaN`` also if any ``length`` entry is non-positive or itself
-        ``NaN`` (e.g. a degenerate ``k``, see :func:`higuchi_length`'s
+        ``NaN`` (e.g. a degenerate ``k``, see :func:`~torchnlts.dimension.higuchi_length`'s
         own Returns section).
 
     Raises:

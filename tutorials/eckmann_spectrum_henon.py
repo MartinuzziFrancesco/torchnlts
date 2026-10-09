@@ -16,8 +16,7 @@ import math
 
 import torch
 
-from torchnlts.lyapunov.eckmann import eckmann_spectrum
-from torchnlts.lyapunov.spectrum import lyapunov_spectrum
+from torchnlts.lyapunov import eckmann_spectrum, lyapunov_spectrum
 
 
 def henon_step(state, quadratic_coefficient=1.4, contraction=0.3):

@@ -23,8 +23,8 @@ def recurrence_rate(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.
 
     Gradient class: exact (a mean, differentiable whenever ``recurrence``
     is; ``recurrence`` itself may come from the non-differentiable
-    :func:`torchnlts.recurrence.matrix.hard_recurrence_matrix` or the
-    smooth :func:`torchnlts.recurrence.matrix.soft_recurrence_matrix`).
+    :func:`torchnlts.recurrence.hard_recurrence_matrix` or the
+    smooth :func:`torchnlts.recurrence.soft_recurrence_matrix`).
 
     Reference: Marwan et al. (2007), eq. 11. Matches
     RecurrenceAnalysis.jl's ``recurrencerate``, whose ``theiler`` keyword
@@ -36,7 +36,7 @@ def recurrence_rate(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.
             ``[B, T, T]``, as returned by ``hard_recurrence_matrix`` or
             ``soft_recurrence_matrix``.
         theiler_window: Theiler window (see
-            :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            :func:`torchnlts.neighbors.theiler_window_mask`).
             Pairs with ``|i - j| <= theiler_window`` are excluded from
             both the numerator and denominator; ``0`` (default) excludes
             only the always-recurrent diagonal. Negative excludes nothing.
@@ -224,7 +224,7 @@ def determinism(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0
 
     Reference: Marwan et al. (2007), eq. 13. Matches RecurrenceAnalysis.jl's
     ``determinism`` (``theiler = theiler_window + 1``, see
-    :func:`recurrence_rate`), including its convention of ``0.0`` (not
+    :func:`~torchnlts.recurrence.recurrence_rate`), including its convention of ``0.0`` (not
     ``NaN``) when no line reaches ``lmin`` -- a deliberate empty-case
     convention (Julia's implementation special-cases it directly); it's a
     safe default here too, since the numerator (points in qualifying
@@ -235,8 +235,8 @@ def determinism(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
         lmin: Minimum diagonal line length to count as "deterministic".
         theiler_window: Theiler window, forwarded to both the line search
-            and the point-count denominator (see :func:`recurrence_rate`).
-            Unlike :func:`recurrence_rate`, must be ``>= 0`` here (see
+            and the point-count denominator (see :func:`~torchnlts.recurrence.recurrence_rate`).
+            Unlike :func:`~torchnlts.recurrence.recurrence_rate`, must be ``>= 0`` here (see
             :func:`_diagonal_line_histogram`).
 
     Returns:
@@ -249,10 +249,10 @@ def determinism(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0
 def dl_average(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """L: average length of diagonal lines (Marwan et al. (2007), eq. 12).
 
-    Gradient class: none (see :func:`determinism`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
 
     Matches RecurrenceAnalysis.jl's ``dl_average`` (``theiler =
-    theiler_window + 1``, see :func:`recurrence_rate`), including its
+    theiler_window + 1``, see :func:`~torchnlts.recurrence.recurrence_rate`), including its
     convention of ``0.0`` (not ``NaN``) when no line reaches ``lmin``.
 
     Args:
@@ -271,13 +271,13 @@ def dl_average(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0)
 def dl_max(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """Lmax: length of the longest diagonal line.
 
-    Gradient class: none (see :func:`determinism`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
 
     Matches RecurrenceAnalysis.jl's ``dl_max`` (``theiler = theiler_window
-    + 1``, see :func:`recurrence_rate`), including its convention of
+    + 1``, see :func:`~torchnlts.recurrence.recurrence_rate`), including its convention of
     ``0`` when no line reaches ``lmin``.
 
-    Args: same as :func:`dl_average`.
+    Args: same as :func:`~torchnlts.recurrence.dl_average`.
 
     Returns:
         Scalar (or ``[B]``) longest diagonal line length, ``0`` if none qualify.
@@ -289,17 +289,17 @@ def dl_max(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> 
 def dl_entropy(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """ENTR: Shannon entropy of the diagonal line length distribution.
 
-    Gradient class: none (see :func:`determinism`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
 
     Matches RecurrenceAnalysis.jl's ``dl_entropy`` (``theiler =
-    theiler_window + 1``, see :func:`recurrence_rate`).
+    theiler_window + 1``, see :func:`~torchnlts.recurrence.recurrence_rate`).
 
-    Args: same as :func:`dl_average`.
+    Args: same as :func:`~torchnlts.recurrence.dl_average`.
 
     Returns:
         Scalar (or ``[B]``) entropy (nats), or ``NaN`` if no line reaches
         ``lmin`` (an empty distribution has no defined entropy, unlike
-        :func:`dl_average`/:func:`dl_max`'s ``0`` convention).
+        :func:`~torchnlts.recurrence.dl_average`/:func:`~torchnlts.recurrence.dl_max`'s ``0`` convention).
     """
     histogram, _ = _qualifying_line_lengths(recurrence, lmin, theiler_window)
     return _line_entropy(histogram)
@@ -317,7 +317,7 @@ def laminarity(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0)
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
         lmin: Minimum vertical line length to count.
-        theiler_window: Theiler window, ``>= 0`` (see :func:`determinism`).
+        theiler_window: Theiler window, ``>= 0`` (see :func:`~torchnlts.recurrence.determinism`).
 
     Returns:
         Scalar (or ``[B]``) laminarity in ``[0, 1]``.
@@ -328,13 +328,13 @@ def laminarity(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0)
 def trapping_time(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """TT: average length of vertical lines.
 
-    Gradient class: none (see :func:`laminarity`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
 
     Reference: Marwan et al. (2007), eq. 63. Matches RecurrenceAnalysis.jl's
     ``trappingtime`` (``theiler = theiler_window + 1``), ``0.0`` if no line
     reaches ``lmin``.
 
-    Args: same as :func:`laminarity`.
+    Args: same as :func:`~torchnlts.recurrence.laminarity`.
 
     Returns:
         Scalar (or ``[B]``) average vertical line length.
@@ -346,12 +346,12 @@ def trapping_time(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int =
 def vl_max(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """Vmax: length of the longest vertical line.
 
-    Gradient class: none (see :func:`laminarity`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
 
     Reference: Marwan et al. (2007), eq. 64. Matches RecurrenceAnalysis.jl's
     ``vl_max`` (``theiler = theiler_window + 1``), ``0`` if no line reaches ``lmin``.
 
-    Args: same as :func:`laminarity`.
+    Args: same as :func:`~torchnlts.recurrence.laminarity`.
 
     Returns:
         Scalar (or ``[B]``) longest vertical line length (long).
@@ -363,11 +363,11 @@ def vl_max(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> 
 def vl_entropy(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """VENTR: Shannon entropy of the vertical line length distribution.
 
-    Gradient class: none (see :func:`laminarity`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
 
     Matches RecurrenceAnalysis.jl's ``vl_entropy`` (``theiler = theiler_window + 1``).
 
-    Args: same as :func:`laminarity`.
+    Args: same as :func:`~torchnlts.recurrence.laminarity`.
 
     Returns:
         Scalar (or ``[B]``) entropy (nats), ``NaN`` if no line reaches ``lmin``.
@@ -379,7 +379,7 @@ def vl_entropy(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0)
 def rt_entropy(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tensor:
     """RTE: Shannon entropy of the recurrence time distribution.
 
-    Gradient class: none (see :func:`laminarity`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
 
     Reference: Little et al. (2007), BioMed. Eng. OnLine 6, 23 (recurrence
     period density entropy); Baptista et al. (2010). Recurrence times are the
@@ -390,7 +390,7 @@ def rt_entropy(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tenso
 
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        theiler_window: Theiler window, ``>= 0`` (see :func:`determinism`).
+        theiler_window: Theiler window, ``>= 0`` (see :func:`~torchnlts.recurrence.determinism`).
 
     Returns:
         Scalar (or ``[B]``) entropy (nats), ``NaN`` if no column has two lines.
@@ -401,7 +401,7 @@ def rt_entropy(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tenso
 def ratio(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """RATIO: determinism over recurrence rate, ``DET / RR``.
 
-    Gradient class: none (see :func:`determinism`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
 
     Reference: Marwan et al. (2007), Sec. 3.5.2. RecurrenceAnalysis.jl has no
     ``ratio``; this is ``determinism / recurrencerate`` with
@@ -410,7 +410,7 @@ def ratio(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> t
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
         lmin: Minimum diagonal line length to count.
-        theiler_window: Theiler window, ``>= 0`` (see :func:`determinism`).
+        theiler_window: Theiler window, ``>= 0`` (see :func:`~torchnlts.recurrence.determinism`).
 
     Returns:
         Scalar (or ``[B]``) ratio, ``NaN`` if there are no recurrent points
@@ -422,13 +422,13 @@ def ratio(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> t
 def divergence(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """DIV: inverse of the longest diagonal line, ``1 / Lmax``.
 
-    Gradient class: none (see :func:`determinism`).
+    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
 
     Reference: Marwan et al. (2007), Sec. 3.5.2. Matches RecurrenceAnalysis.jl's
     ``divergence`` and ``rqa(...)[:DIV]`` (``theiler = theiler_window + 1``),
     including ``inf`` when no line reaches ``lmin`` (``Lmax = 0``).
 
-    Args: same as :func:`dl_max`.
+    Args: same as :func:`~torchnlts.recurrence.dl_max`.
 
     Returns:
         Scalar (or ``[B]``) divergence, ``inf`` if no line qualifies.
@@ -459,7 +459,7 @@ def windowed_rqa(
     Args:
         recurrence: Recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
         measure: Function mapping ``[..., w, w]`` matrices to one value each,
-            e.g. :func:`determinism`.
+            e.g. :func:`~torchnlts.recurrence.determinism`.
         window_size: Window width ``w``, ``2 <= w <= T``.
         step: Offset between consecutive windows, ``>= 1``.
         **measure_kwargs: Forwarded to ``measure`` (e.g. ``lmin``).

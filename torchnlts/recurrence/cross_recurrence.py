@@ -7,8 +7,8 @@ recurrence matrix is generally neither square nor symmetric (``x`` and
 ``y`` are different trajectories, possibly of different lengths), and has
 no always-recurrent diagonal.
 
-Reuses :func:`torchnlts.neighbors.distance.pairwise_distance`'s ``other``
-argument and :func:`torchnlts.neighbors.kernels.trajectory_kernel`, the
+Reuses :func:`torchnlts.neighbors.pairwise_distance`'s ``other``
+argument and :func:`torchnlts.neighbors.trajectory_kernel`, the
 same primitives :mod:`torchnlts.recurrence.matrix` builds on.
 """
 
@@ -76,8 +76,8 @@ def soft_cross_recurrence_matrix(
     """Kernel-weighted cross recurrence matrix, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (differentiable relaxation of
-    :func:`hard_cross_recurrence_matrix`, built on
-    :func:`torchnlts.neighbors.kernels.trajectory_kernel` rather than a
+    :func:`~torchnlts.recurrence.hard_cross_recurrence_matrix`, built on
+    :func:`torchnlts.neighbors.trajectory_kernel` rather than a
     hidden default swap).
 
     Args:

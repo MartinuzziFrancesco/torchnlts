@@ -13,8 +13,7 @@ sine wave, the Lorenz system's chaotic x-coordinate, and white noise.
 
 import torch
 
-from torchnlts.recurrence.matrix import hard_recurrence_matrix
-from torchnlts.recurrence.rqa import determinism, recurrence_rate
+from torchnlts.recurrence import determinism, hard_recurrence_matrix, recurrence_rate
 from torchnlts.systems import trajectory
 
 torch.manual_seed(0)

@@ -4,7 +4,7 @@ exactly to Shannon entropy at their order parameter equal to 1, and
 Rényi's own theorem that its entropy is non-increasing in that order
 -- checked here not on a synthetic probability vector, but on the
 *real* ordinal-pattern distribution the Lorenz system's x-coordinate
-produces, reusing `torchnlts.entropy.permutation.ordinal_pattern_probabilities`
+produces, reusing `torchnlts.entropy.ordinal_pattern_probabilities`
 directly rather than recomputing it. This is the "pluggable probability
 estimator" idea the gap survey flagged: `torchnlts.entropy.generalized`
 knows nothing about ordinal patterns, delay embedding, or the Lorenz
@@ -13,8 +13,7 @@ system -- it just takes whatever probability distribution it's handed.
 
 import torch
 
-from torchnlts.entropy.generalized import renyi_entropy, tsallis_entropy
-from torchnlts.entropy.permutation import ordinal_pattern_probabilities, permutation_entropy
+from torchnlts.entropy import ordinal_pattern_probabilities, permutation_entropy, renyi_entropy, tsallis_entropy
 from torchnlts.systems import trajectory
 
 state = trajectory("Lorenz", 3000)[:, 0].to(torch.float64)

@@ -13,8 +13,7 @@ trajectory) is then used for a three-dimensional delay embedding.
 import torch
 
 from torchnlts.convert import as_tensor
-from torchnlts.embedding.delay import delay_embedding
-from torchnlts.embedding.delay_selection import auto_mutual_information, estimate_delay
+from torchnlts.embedding import auto_mutual_information, delay_embedding, estimate_delay
 from torchnlts.systems import load_system
 
 times, states = load_system("Lorenz").make_trajectory(3000, return_times=True)

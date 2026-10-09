@@ -116,7 +116,7 @@ would corrupt the Tsallis sum for order < 0, a case Rényi's own
 alpha >= 0 requirement in this module doesn't need to worry about but
 Tsallis's q has no such restriction here, matching ComplexityMeasures.jl).
 A ``probability`` row containing ``NaN`` (e.g.
-:func:`torchnlts.entropy.permutation.ordinal_pattern_probabilities`'s
+:func:`torchnlts.entropy.ordinal_pattern_probabilities`'s
 own convention for a degenerate delay-embedded window, see its
 docstring) is detected and propagated to a ``NaN`` output explicitly --
 ``NaN`` values would otherwise silently fail the ``> 0`` nonzero check
@@ -306,7 +306,7 @@ def _deviation_saturated(u: torch.Tensor, exponent_out_of_range: torch.Tensor, d
     Same class of bug as this codebase's own ``rosenstein.py`` lesson:
     both branches of a ``torch.where`` need a finite local gradient
     everywhere the mask is defined, not just a correct forward value
-    where selected. Both :func:`renyi_entropy` and :func:`tsallis_entropy`
+    where selected. Both :func:`~torchnlts.entropy.renyi_entropy` and :func:`~torchnlts.entropy.tsallis_entropy`
     substitute a safe dummy value into whichever branch is about to be
     discarded, specifically to keep that branch's own local gradient
     finite there too.
@@ -414,8 +414,8 @@ def tsallis_entropy(probability: torch.Tensor, q: float, k: float = 1.0) -> torc
     Args:
         probability: A discrete probability distribution, shape
             ``[..., num_outcomes]``, summing to 1 along the last
-            dimension (not validated, see :func:`renyi_entropy`).
-        q: Order. Unlike :func:`renyi_entropy`'s ``alpha``, no sign
+            dimension (not validated, see :func:`~torchnlts.entropy.renyi_entropy`).
+        q: Order. Unlike :func:`~torchnlts.entropy.renyi_entropy`'s ``alpha``, no sign
             restriction (matching ComplexityMeasures.jl) -- but see the
             module docstring's numerical-range caveat for very large
             ``|q|``.

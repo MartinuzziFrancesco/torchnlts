@@ -19,7 +19,7 @@ signature and skill stays flat as the library grows.
 
 Neither function in this module performs that convergence check itself
 -- each call computes one estimate/skill value at one library size (see
-:func:`ccm_skill`'s own docstring: the causality read is in how skill
+:func:`~torchnlts.causality.ccm_skill`'s own docstring: the causality read is in how skill
 changes *across several calls* at different ``library_size`` values, not
 in any single returned number). Nor is "high/increasing skill" a
 guarantee of causation on its own even across a full convergence sweep:
@@ -33,11 +33,11 @@ confounds is the caller's responsibility, not something this module
 checks.
 
 This module keeps the direction unambiguous in its own terms rather than
-in "X"/"Y causes" language: :func:`cross_map_estimate` takes
+in "X"/"Y causes" language: :func:`~torchnlts.causality.cross_map_estimate` takes
 ``manifold_series`` (embedded and searched for neighbors) and
 ``estimated_series`` (whose values are cross-map-predicted from those
 neighbors' own indices). Under the assumptions above, high/increasing
-skill (see :func:`ccm_skill`) when embedding ``manifold_series`` and
+skill (see :func:`~torchnlts.causality.ccm_skill`) when embedding ``manifold_series`` and
 predicting ``estimated_series`` across a library-size sweep is evidence
 that ``estimated_series`` drives ``manifold_series`` -- the
 reversed-looking direction the paper itself notes trips people up.
@@ -81,7 +81,7 @@ to ``Neighborhood.jl``, whose own documented semantics are
 ``|i - j| <= 1`` (self *and* its immediate temporal neighbors), not only
 self as the docstring claims. This module's own ``theiler_window``
 matches this package's own established convention throughout (see
-:func:`torchnlts.neighbors.theiler.theiler_window_mask`:
+:func:`torchnlts.neighbors.theiler_window_mask`:
 ``|i - j| <= theiler_window`` excluded, ``theiler_window = 0`` excludes
 only self, exactly as documented) rather than replicating Julia's
 inconsistency.
@@ -112,7 +112,7 @@ def cross_map_estimate(
     delay-embedded shadow manifold.
 
     Gradient class: piecewise (built on nearest-neighbor selection, same
-    caveat as :func:`torchnlts.neighbors.knn.knn_search`: the weighted
+    caveat as :func:`torchnlts.neighbors.knn_search`: the weighted
     combination differentiates normally once neighbors are picked, but
     the pick itself is a discrete, non-differentiable decision).
 
@@ -136,7 +136,7 @@ def cross_map_estimate(
             ``N = len(manifold_series) - (embedding_dim - 1) * delay``
             after truncation.
         theiler_window: Theiler window over embedded-point start indices
-            (see :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            (see :func:`torchnlts.neighbors.theiler_window_mask`).
             Must be ``>= 0`` (self-matches must be excluded
             unconditionally, matching Sugihara et al.'s own convention
             that a point is never its own neighbor).
@@ -145,7 +145,7 @@ def cross_map_estimate(
     Returns:
         Cross-map estimate of ``estimated_series``, shape ``[N, D]`` or
         ``[B, N, D]`` (``D`` from ``estimated_series``; unlike
-        :func:`torchnlts.embedding.delay.delay_embedding`'s own
+        :func:`torchnlts.embedding.delay_embedding`'s own
         ``[T] -> [N, E]``-style restoration, an unbatched ``[T]`` input
         for either series still yields a 2D ``[N, D]`` result, not a
         flattened ``[N]`` one -- ``D`` is genuinely ``estimated_series``'s
@@ -237,7 +237,7 @@ def ccm_skill(estimate: torch.Tensor, actual: torch.Tensor) -> torch.Tensor:
 
     Args:
         estimate: Shape ``[N]``, ``[N, D]``, or ``[B, N, D]``, as
-            returned by :func:`cross_map_estimate` (or any array of the
+            returned by :func:`~torchnlts.causality.cross_map_estimate` (or any array of the
             same convention).
         actual: The corresponding true values, exactly matching
             ``estimate``'s shape.

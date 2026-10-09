@@ -67,7 +67,7 @@ benchmark; add one whenever a new module lands a result worth reproducing.
 - `sinkhorn_vs_mmd_invariant_matching.py`: Jiang, Lu, Orlova & Willett
   (2023) -- training a differentiable Lorenz vector field with a
   whole-attractor distributional loss added to MSE, comparing
-  `torchnlts.sciml.losses.SinkhornLoss` (their entropic-OT loss,
+  `torchnlts.sciml.SinkhornLoss` (their entropic-OT loss,
   new in this tutorial) against `AttractorLoss` (MMD, already in the
   library) on Lyapunov-exponent and correlation-dimension recovery.
 - `multiscale_entropy_noise.py`: Costa, Goldberger & Peng (2002) --
@@ -101,7 +101,7 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   in order across the full sweep, as Rényi's own theorem requires.
 - `fuzzy_vs_sample_entropy.py`: Chen, Wang, Xie & Yu (2007) -- sample
   entropy's hard threshold diverges to infinity at small
-  radius/short trajectories (`torchnlts.entropy.sample.sample_entropy`,
+  radius/short trajectories (`torchnlts.entropy.sample_entropy`,
   zero matching long templates), while fuzzy entropy
   (`torchnlts.entropy.fuzzy`), whose continuous membership function
   degrades far more gracefully, stays finite and smoothly increasing

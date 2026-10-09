@@ -79,7 +79,7 @@ def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
     notational difference). The paper recommends fitting only
     ``l = 1, 2`` (its eq. 18, ``L=2``); this function evaluates whatever
     lags are given, same "caller picks the sweep" convention as
-    :func:`torchnlts.dimension.higuchi.higuchi_length`.
+    :func:`torchnlts.dimension.higuchi_length`.
 
     Gradient class: depends on ``power`` -- see module docstring.
 
@@ -136,7 +136,7 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
 
     Gradient class: exact (closed-form OLS slope; ordinary autodiff
     through whatever produced ``variogram`` -- inherits
-    :func:`power_variogram`'s own gradient class).
+    :func:`~torchnlts.dimension.power_variogram`'s own gradient class).
 
     This is a plain regression over every ``(lag, variogram)`` pair
     given (the paper itself recommends fitting only lags 1 and 2); see
@@ -147,16 +147,16 @@ def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> tor
     Args:
         lag: Shape ``[K]``, the sweep ``variogram`` was evaluated at.
         variogram: Shape ``[K]`` (unbatched) or ``[K, B]`` (batched), as
-            returned by :func:`power_variogram` for the same sweep.
+            returned by :func:`~torchnlts.dimension.power_variogram` for the same sweep.
         power: ``p`` used to compute ``variogram``; must be ``> 0`` and
-            match the ``power`` passed to :func:`power_variogram`.
+            match the ``power`` passed to :func:`~torchnlts.dimension.power_variogram`.
 
     Returns:
         ``D`` estimate(s), shape ``[]`` for an unbatched ``variogram``
         or ``[B]`` for a batched one. ``NaN`` if ``lag`` has fewer than
         two distinct values, or any ``variogram`` entry is non-positive
         or itself ``NaN`` (e.g. a degenerate lag, see
-        :func:`power_variogram`'s Returns section, or a constant series,
+        :func:`~torchnlts.dimension.power_variogram`'s Returns section, or a constant series,
         whose zero variogram gives ``log(0) = -inf``).
 
     Raises:

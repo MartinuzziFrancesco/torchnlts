@@ -21,5 +21,5 @@ short for ``max_lag`` return ``NaN``.
    :toctree: ../generated/
    :nosignatures:
 
-   torchnlts.chaos.zero_one.zero_one_growth_rate
-   torchnlts.chaos.zero_one.zero_one_test
+   torchnlts.chaos.zero_one_growth_rate
+   torchnlts.chaos.zero_one_test

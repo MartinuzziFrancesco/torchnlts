@@ -24,7 +24,7 @@ clearly beats a naive baseline, even at 90% missing -- reproduces.
 import torch
 import torchdiffeq
 
-from torchnlts.embedding.delay import delay_embedding
+from torchnlts.embedding import delay_embedding
 
 torch.manual_seed(0)
 dtype = torch.float64

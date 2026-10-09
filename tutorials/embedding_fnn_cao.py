@@ -12,8 +12,7 @@ dimension. This is an embedding-dimension diagnostic, not an estimate
 of the attractor's fractal dimension (about 2.05 for Lorenz).
 """
 
-from torchnlts.embedding.cao import cao_e1
-from torchnlts.embedding.fnn import hard_fnn
+from torchnlts.embedding import cao_e1, hard_fnn
 from torchnlts.systems import trajectory
 
 full_state = trajectory("Lorenz", 3000)

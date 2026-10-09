@@ -29,7 +29,7 @@ Algorithm:
 
 Built on already-validated primitives for steps 3-4 (delay embedding,
 the same one-hot-count-then-Shannon-entropy pattern
-:func:`torchnlts.entropy.permutation.permutation_entropy` already
+:func:`torchnlts.entropy.permutation_entropy` already
 uses) -- step 1-2's Gaussian-CDF classification is this module's one
 genuinely new piece.
 
@@ -42,10 +42,10 @@ same fundamental discreteness as permutation entropy's ordinal-pattern
 histogram (see its own module docstring for why no soft/kernel variant
 exists there) -- no soft variant here either.
 
-Unlike :func:`torchnlts.entropy.lempel_ziv.lempel_ziv_complexity`
+Unlike :func:`torchnlts.entropy.lempel_ziv_complexity`
 (this subpackage's other recent addition), this function is fully
 ``torch.vmap``-compatible: the NaN handling for a zero-variance
-trajectory (see :func:`dispersion_entropy`'s own Returns docstring)
+trajectory (see :func:`~torchnlts.entropy.dispersion_entropy`'s own Returns docstring)
 masks via ``torch.where`` before the one required integer conversion,
 never branches on tensor content with a Python ``if``, and never
 leaves torch tensors for a Python-level loop -- confirmed directly,
@@ -138,7 +138,7 @@ def dispersion_entropy(
         ValueError: If ``trajectory`` has a feature dim other than 1,
             ``num_classes < 2``, or ``trajectory`` is too short for
             ``embedding_dim``/``delay`` (see
-            :func:`torchnlts.embedding.delay.delay_embedding`).
+            :func:`torchnlts.embedding.delay_embedding`).
     """
     if num_classes < 2:
         raise ValueError(f"num_classes must be at least 2, got {num_classes!r}")

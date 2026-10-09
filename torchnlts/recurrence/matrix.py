@@ -3,9 +3,9 @@
 Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6),
 237-329, eq. 1: R_ij = Theta(epsilon - ||x_i - x_j||).
 
-The hard variant reuses :func:`torchnlts.neighbors.distance.pairwise_distance`
+The hard variant reuses :func:`torchnlts.neighbors.pairwise_distance`
 and is validated against RecurrenceAnalysis.jl's ``RecurrenceMatrix``. The
-soft variant reuses :func:`torchnlts.neighbors.kernels.trajectory_kernel` as
+soft variant reuses :func:`torchnlts.neighbors.trajectory_kernel` as
 its base primitive -- ``temperature`` plays the role of
 ``epsilon``'s smooth analogue, not a relaxed threshold at a fixed epsilon.
 """
@@ -181,8 +181,8 @@ def soft_recurrence_matrix(
     """Kernel-weighted recurrence matrix, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (differentiable relaxation of
-    :func:`hard_recurrence_matrix`, built on
-    :func:`torchnlts.neighbors.kernels.trajectory_kernel` rather than a
+    :func:`~torchnlts.recurrence.hard_recurrence_matrix`, built on
+    :func:`torchnlts.neighbors.trajectory_kernel` rather than a
     hidden default swap).
 
     Args:

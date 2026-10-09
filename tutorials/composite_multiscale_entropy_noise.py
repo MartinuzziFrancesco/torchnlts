@@ -15,7 +15,7 @@ standard deviation is below MSE's at the larger scales.
 
 import torch
 
-from torchnlts.entropy.multiscale import composite_multiscale_entropy, multiscale_entropy
+from torchnlts.entropy import composite_multiscale_entropy, multiscale_entropy
 
 torch.manual_seed(0)
 num_points = 1500

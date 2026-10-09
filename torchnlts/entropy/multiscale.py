@@ -13,11 +13,11 @@ irregularity. Their fix: coarse-grain the signal at scale ``s``
 on *each* coarse-grained series, producing a complexity *curve* over
 scales instead of one number.
 
-Built entirely on already-validated primitives -- :func:`coarse_grain`
+Built entirely on already-validated primitives -- :func:`~torchnlts.entropy.coarse_grain`
 is the only new logic here (a length-changing reshape-and-mean, no
-counting/thresholding of its own), and :func:`multiscale_entropy`/
-:func:`soft_multiscale_entropy` are a Python loop applying
-:func:`torchnlts.entropy.sample.sample_entropy`/``soft_sample_entropy``
+counting/thresholding of its own), and :func:`~torchnlts.entropy.multiscale_entropy`/
+:func:`~torchnlts.entropy.soft_multiscale_entropy` are a Python loop applying
+:func:`torchnlts.entropy.sample_entropy`/``soft_sample_entropy``
 per scale and stacking the results -- so this module's tests validate
 the coarse-graining formula and the loop's composition, not sample
 entropy itself over again.
@@ -54,7 +54,7 @@ def coarse_grain(trajectory, scale: int, offset: int = 0) -> torch.Tensor:
         Coarse-grained trajectory, same shape convention as
         ``trajectory`` (``[T']``, ``[T', D]``, or ``[B, T', D]``) with
         ``T' = (T - offset) // scale``, trailing ``(T - offset) % scale`` samples dropped --
-        unlike :func:`torchnlts.embedding.delay.delay_embedding`, the
+        unlike :func:`torchnlts.embedding.delay_embedding`, the
         feature axis keeps its original meaning here (still ``D``
         channels, not a new ``embedding_dim``-sized axis), so a scalar
         ``[T]`` input stays ``[T']``, not ``[T', 1]``.
@@ -88,7 +88,7 @@ def multiscale_entropy(
 ) -> torch.Tensor:
     """Sample entropy at each of a range of coarse-graining scales.
 
-    Gradient class: none (inherits :func:`torchnlts.entropy.sample.sample_entropy`'s).
+    Gradient class: none (inherits :func:`torchnlts.entropy.sample_entropy`'s).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
@@ -117,7 +117,7 @@ def multiscale_entropy(
         convention for that entry (see its own Returns docstring). A
         scale coarse enough that the coarse-grained series itself is
         *too short* to embed at all -- fewer than ``embedding_dim + 1``
-        points after :func:`coarse_grain` -- raises instead (see
+        points after :func:`~torchnlts.entropy.coarse_grain` -- raises instead (see
         Raises), aborting the whole curve rather than degrading that
         one entry to ``NaN``; multiscale sweeps are far more likely to
         hit this than a single ``sample_entropy`` call, since large
@@ -127,9 +127,9 @@ def multiscale_entropy(
         ValueError: If any ``scale`` in ``scales`` leaves the
             coarse-grained trajectory shorter than ``embedding_dim + 1``
             samples (propagated from
-            :func:`torchnlts.embedding.delay.delay_embedding` via
+            :func:`torchnlts.embedding.delay_embedding` via
             ``sample_entropy``), or if any ``scale < 1`` (from
-            :func:`coarse_grain`).
+            :func:`~torchnlts.entropy.coarse_grain`).
     """
     return torch.stack(
         [
@@ -149,16 +149,16 @@ def soft_multiscale_entropy(
     theiler_window: int = 0,
     norm_order: float = float("inf"),
 ) -> torch.Tensor:
-    """Kernel-weighted multiscale entropy, a smooth stand-in for :func:`multiscale_entropy`.
+    """Kernel-weighted multiscale entropy, a smooth stand-in for :func:`~torchnlts.entropy.multiscale_entropy`.
 
-    Gradient class: smooth (inherits :func:`torchnlts.entropy.sample.soft_sample_entropy`'s,
+    Gradient class: smooth (inherits :func:`torchnlts.entropy.soft_sample_entropy`'s,
     including its Chebyshev-tie caveat).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
-        scales: Iterable of positive integers, forwarded to :func:`coarse_grain`.
+        scales: Iterable of positive integers, forwarded to :func:`~torchnlts.entropy.coarse_grain`.
         temperature: Kernel bandwidth, forwarded to ``soft_sample_entropy``
-            unchanged at every scale (see :func:`multiscale_entropy`'s
+            unchanged at every scale (see :func:`~torchnlts.entropy.multiscale_entropy`'s
             ``radius`` for why).
         embedding_dim: Template length m, forwarded to ``soft_sample_entropy``.
         delay: Embedding lag, forwarded to ``soft_sample_entropy``.
@@ -167,10 +167,10 @@ def soft_multiscale_entropy(
         norm_order: Forwarded to ``soft_sample_entropy``.
 
     Returns:
-        Entropy curve, same shape convention as :func:`multiscale_entropy`.
+        Entropy curve, same shape convention as :func:`~torchnlts.entropy.multiscale_entropy`.
 
     Raises:
-        ValueError: Same conditions as :func:`multiscale_entropy`'s own
+        ValueError: Same conditions as :func:`~torchnlts.entropy.multiscale_entropy`'s own
             Raises (a too-coarse scale, or ``scale < 1``).
     """
     return torch.stack(
@@ -218,7 +218,7 @@ def composite_multiscale_entropy(
     ``coarse_grain(trajectory, s, offset)``, ``offset = 0..s-1``, each get a
     sample entropy, and the ``s`` values are averaged.
 
-    Gradient class: none (inherits :func:`torchnlts.entropy.sample.sample_entropy`'s).
+    Gradient class: none (inherits :func:`torchnlts.entropy.sample_entropy`'s).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
@@ -232,7 +232,7 @@ def composite_multiscale_entropy(
 
     Returns:
         Entropy curve with the same shape convention as
-        :func:`multiscale_entropy`. The per-offset values are combined by a
+        :func:`~torchnlts.entropy.multiscale_entropy`. The per-offset values are combined by a
         plain mean, so an entry is ``NaN``/``inf`` if any offset's sample
         entropy is (Wu et al. average without exclusion; the same holds in
         ComplexityMeasures.jl). Offsets keep their natural lengths
@@ -261,9 +261,9 @@ def soft_composite_multiscale_entropy(
     theiler_window: int = 0,
     norm_order: float = float("inf"),
 ) -> torch.Tensor:
-    """Kernel-weighted composite multiscale entropy, a smooth stand-in for :func:`composite_multiscale_entropy`.
+    """Kernel-weighted composite multiscale entropy, a smooth stand-in for :func:`~torchnlts.entropy.composite_multiscale_entropy`.
 
-    Gradient class: smooth (inherits :func:`torchnlts.entropy.sample.soft_sample_entropy`'s,
+    Gradient class: smooth (inherits :func:`torchnlts.entropy.soft_sample_entropy`'s,
     including its Chebyshev-tie caveat).
 
     Args:
@@ -278,10 +278,10 @@ def soft_composite_multiscale_entropy(
 
     Returns:
         Entropy curve, same shape convention and offset averaging as
-        :func:`composite_multiscale_entropy`.
+        :func:`~torchnlts.entropy.composite_multiscale_entropy`.
 
     Raises:
-        ValueError: Same conditions as :func:`composite_multiscale_entropy`.
+        ValueError: Same conditions as :func:`~torchnlts.entropy.composite_multiscale_entropy`.
     """
     return _composite_curve(
         trajectory,

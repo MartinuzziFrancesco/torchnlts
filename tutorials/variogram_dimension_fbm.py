@@ -24,8 +24,7 @@ reference point, not asserted against any target.
 
 import torch
 
-from torchnlts.dimension.higuchi import higuchi_dimension, higuchi_length
-from torchnlts.dimension.variogram import power_variogram, variogram_dimension
+from torchnlts.dimension import higuchi_dimension, higuchi_length, power_variogram, variogram_dimension
 
 
 def fractional_gaussian_noise(hurst: float, length: int, dtype=torch.float64) -> torch.Tensor:

@@ -15,14 +15,14 @@ this is directional: ``transfer_entropy(source, target, ...)`` and
 ``transfer_entropy(target, source, ...)`` generally differ, and neither
 equals ``mutual_information(source, target)``.
 
-:func:`conditional_mutual_information` implements the K-nearest-neighbor
+:func:`~torchnlts.causality.conditional_mutual_information` implements the K-nearest-neighbor
 conditional mutual information estimator of Frenzel, S. & Pompe, B.
 (2007), "Partial Mutual Information for Coupling Analysis of
 Multivariate Time Series", Phys. Rev. Lett. 99, 204101 -- the natural,
 consistent generalization of this codebase's own
-:func:`torchnlts.entropy.mutual_information.mutual_information` (KSG1)
+:func:`torchnlts.entropy.mutual_information` (KSG1)
 from two variables to three with conditioning, reusing the same
-building blocks (:func:`torchnlts.neighbors.distance.pairwise_distance`,
+building blocks (:func:`torchnlts.neighbors.pairwise_distance`,
 the same strict marginal-counting convention, the same Theiler-window-
 on-the-joint-search-only convention). Critically, this is *not* the
 same as calling ``mutual_information`` twice and subtracting: that naive
@@ -37,7 +37,7 @@ Matches CausalityTools.jl's ``FPVP`` conditional-mutual-information
 estimator (its own transfer entropy, ``TEShannon``, is defined as this
 same conditional mutual information, matching the decomposition above
 exactly). Known, confirmed deviation, same playbook as
-:func:`torchnlts.entropy.mutual_information.mutual_information`'s own
+:func:`torchnlts.entropy.mutual_information`'s own
 CausalityTools.jl comparison: that package's ``FPVP`` counts marginal
 neighbors with an *inclusive* (``<=``) radius query
 (``Neighborhood.jl``'s ``inrangecount``, the same primitive
@@ -45,14 +45,14 @@ neighbors with an *inclusive* (``<=``) radius query
 inclusive there), not Frenzel & Pompe's strict ``<``. This module
 implements the paper's strict definition.
 
-:func:`transfer_entropy` uses a single shared ``embedding_dim`` for
+:func:`~torchnlts.causality.transfer_entropy` uses a single shared ``embedding_dim`` for
 *both* the source's and the target's own past (matching
 CausalityTools.jl's own default, ``EmbeddingTE()``'s ``dS = dT = 1``) --
 a deliberate simplification relative to Julia's fully general
 ``EmbeddingTE``, which supports independent source/target embedding
 dimensions and arbitrary (non-uniform-lag) embedding vectors. Symmetric
 dimensions keep the two embeddings' raw-time alignment identical (see
-:func:`torchnlts.causality.ccm.cross_map_estimate`'s own docstring for
+:func:`torchnlts.causality.cross_map_estimate`'s own docstring for
 why this codebase's forward-offset ``delay_embedding`` needs this
 re-derivation at all); independent dimensions would need two different
 offsets reconciled against a shared "current time", which this module
@@ -85,7 +85,7 @@ def conditional_mutual_information(
     ``I(x ; y | z)``.
 
     Gradient class: none (same reasoning as
-    :func:`torchnlts.entropy.mutual_information.mutual_information`:
+    :func:`torchnlts.entropy.mutual_information`:
     k-th-nearest-neighbor selection and the marginal threshold counts
     are discrete).
 
@@ -174,7 +174,7 @@ def transfer_entropy(
 ) -> torch.Tensor:
     """Transfer entropy from ``source`` to ``target``.
 
-    Gradient class: none (see :func:`conditional_mutual_information`).
+    Gradient class: none (see :func:`~torchnlts.causality.conditional_mutual_information`).
 
     Args:
         source: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
@@ -190,13 +190,13 @@ def transfer_entropy(
         prediction_lag: How many steps ahead the target is predicted
             from (Schreiber's/CausalityTools.jl's ``eta``). Must be
             ``>= 1``.
-        num_neighbors: Forwarded to :func:`conditional_mutual_information`.
-        theiler_window: Forwarded to :func:`conditional_mutual_information`.
-        norm_order: Forwarded to :func:`conditional_mutual_information`.
+        num_neighbors: Forwarded to :func:`~torchnlts.causality.conditional_mutual_information`.
+        theiler_window: Forwarded to :func:`~torchnlts.causality.conditional_mutual_information`.
+        norm_order: Forwarded to :func:`~torchnlts.causality.conditional_mutual_information`.
 
     Returns:
         Scalar (unbatched) or ``[B]`` (batched) transfer entropy
-        estimate, in nats. See :func:`conditional_mutual_information`
+        estimate, in nats. See :func:`~torchnlts.causality.conditional_mutual_information`
         for when this is ``NaN``.
 
     Raises:

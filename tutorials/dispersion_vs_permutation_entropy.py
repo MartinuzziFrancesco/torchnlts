@@ -25,8 +25,7 @@ any two values' order).
 
 import torch
 
-from torchnlts.entropy.dispersion import dispersion_entropy
-from torchnlts.entropy.permutation import permutation_entropy
+from torchnlts.entropy import dispersion_entropy, permutation_entropy
 from torchnlts.systems import trajectory
 
 state = trajectory("Lorenz", 2000)[:, 0].to(torch.float64)

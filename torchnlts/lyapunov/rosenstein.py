@@ -8,7 +8,7 @@ points via a Theiler window), then track the average log-divergence
 E(k) = <ln ||X_{i+k} - X_{j(i)+k}||>_i as the pair is evolved forward k
 steps. For a chaotic system this grows linearly, E(k) ~ lambda_1 * k +
 E(0), over a well-defined early-k region; the largest Lyapunov exponent
-is the slope of that region (:func:`rosenstein_lyapunov` fits the
+is the slope of that region (:func:`~torchnlts.lyapunov.rosenstein_lyapunov` fits the
 range given; :func:`torchnlts.scaling.scaling_slope` detects it).
 
 Matches ChaosTools.jl's more general ``lyapunov_from_data`` at
@@ -18,7 +18,7 @@ Parlitz-due generalization also accepts a radius-neighborhood
 resembling Kantz's method -- but it is *not* a match for Kantz's own
 1994 formula even there (it averages the log of each neighbor's distance
 rather than the log of the mean neighbor distance the paper defines; see
-:func:`torchnlts.lyapunov.kantz.kantz_divergence`'s module docstring for
+:func:`torchnlts.lyapunov.kantz_divergence`'s module docstring for
 the confirmed disagreement). This codebase keeps Rosenstein and Kantz as
 separate functions, ``rosenstein_divergence`` here and ``kantz_divergence``
 there, matching this repo's package layout and the two papers' distinct
@@ -47,7 +47,7 @@ def rosenstein_divergence(
 ) -> torch.Tensor:
     """Rosenstein's average log-divergence curve E(k).
 
-    Gradient class: piecewise (built on :func:`torchnlts.neighbors.knn.knn_search`'s
+    Gradient class: piecewise (built on :func:`torchnlts.neighbors.knn_search`'s
     nearest-neighbor selection: the evolved-point distances differentiate
     normally w.r.t. the trajectory once a neighbor is picked, but the
     pick itself is a discrete, non-differentiable decision that can flip
@@ -62,7 +62,7 @@ def rosenstein_divergence(
         delay: Embedding lag.
         theiler_window: Theiler window over embedded-point start indices,
             for the nearest-neighbor search only (see
-            :func:`torchnlts.neighbors.theiler.theiler_window_mask`). The
+            :func:`torchnlts.neighbors.theiler_window_mask`). The
             paper recommends excluding points within the series' mean
             period; this generalizes that into a plain window, left to
             the caller to size appropriately (default ``0`` excludes
@@ -227,7 +227,7 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
 
     Gradient class: exact (closed-form OLS slope; ordinary autodiff
     through whatever produced ``divergence`` -- it inherits
-    :func:`rosenstein_divergence`'s ``piecewise`` from there).
+    :func:`~torchnlts.lyapunov.rosenstein_divergence`'s ``piecewise`` from there).
 
     This is a plain regression over every ``(k, E(k))`` pair given
     (FractalDimensions.jl's ``slopefit`` with ``ignore_saturation=false``);
@@ -246,9 +246,9 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
 
     Args:
         k_values: Shape ``[K]``, the sweep ``divergence`` was evaluated
-            at (see :func:`rosenstein_divergence`).
+            at (see :func:`~torchnlts.lyapunov.rosenstein_divergence`).
         divergence: Shape ``[K]`` (unbatched trajectory) or ``[K, B]``
-            (batched), as returned by :func:`rosenstein_divergence` for
+            (batched), as returned by :func:`~torchnlts.lyapunov.rosenstein_divergence` for
             the same sweep.
 
     Returns:

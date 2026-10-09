@@ -7,27 +7,41 @@ where the underlying quantity allows it.
 
 ## Contents
 
+Functions and classes are importable from their subpackage, for example
+`from torchnlts.entropy import sample_entropy`.
+
 - `torchnlts.embedding`: delay embedding, fractional delay embedding, false
-  nearest neighbors (`hard_fnn`), Cao's E1 and E2.
+  nearest neighbors (`hard_fnn`), Cao's E1 and E2, and delay selection
+  (`autocorrelation`, `auto_mutual_information`, `estimate_delay`).
 - `torchnlts.neighbors`: pairwise distance, k-nearest-neighbor and radius
   search, Theiler window masks, trajectory kernels.
 - `torchnlts.recurrence`: hard and soft recurrence, cross-recurrence and
-  joint-recurrence matrices; recurrence rate, determinism, diagonal line
-  statistics.
+  joint-recurrence matrices; recurrence quantification: recurrence rate,
+  determinism, diagonal line statistics, laminarity, trapping time,
+  vertical line statistics (`vl_max`, `vl_entropy`), recurrence time
+  entropy, `ratio`, `divergence` and sliding-window `windowed_rqa`. The
+  recurrence matrix threshold can be a fixed `epsilon` (optionally relative
+  to a distance `scale`), a target `recurrence_rate` or a `local_rate`.
 - `torchnlts.dimension`: correlation sum and dimension, generalized (D_q)
   dimension, Higuchi, Katz, Petrosian and variogram estimators.
-- `torchnlts.entropy`: sample, approximate, permutation, dispersion, fuzzy,
-  Renyi and Tsallis entropies, multiscale entropy, Lempel-Ziv complexity,
-  mutual information. Sample, approximate and multiscale entropy have soft
-  variants.
+- `torchnlts.entropy`: sample, approximate, permutation (including weighted
+  and amplitude-aware variants), dispersion, fuzzy, Renyi and Tsallis
+  entropies, multiscale and composite multiscale entropy, Lempel-Ziv
+  complexity, mutual information (KSG1 and KSG2 estimators). Sample,
+  approximate and multiscale entropy have soft variants.
 - `torchnlts.fluctuations`: detrended fluctuation analysis.
-- `torchnlts.lyapunov`: Rosenstein and Kantz divergence curves, Lyapunov
-  spectrum from a known map or flow, step Jacobian.
+- `torchnlts.chaos`: the 0-1 test for chaos.
+- `torchnlts.lyapunov`: Rosenstein and Kantz divergence curves, Eckmann
+  spectrum from data, Lyapunov spectrum from a known map or flow, step
+  Jacobian, Kaplan-Yorke dimension.
 - `torchnlts.causality`: convergent cross mapping, transfer entropy.
-- `torchnlts.surrogate`: phase-randomized, AAFT and IAAFT surrogates.
+- `torchnlts.surrogate`: phase-randomized, AAFT, IAAFT, random shuffle and
+  random shift surrogates; `surrogate_test` for hypothesis tests.
 - `torchnlts.sciml`: loss modules built on the above (`LyapunovLoss`,
   `CorrelationDimensionLoss`, `RecurrenceLoss`, `AttractorLoss`,
   `SinkhornLoss`) for training models of dynamical systems.
+- `torchnlts.scaling`: scaling-region detection for the slope estimators
+  (`linear_regions`, `largest_linear_region`, `scaling_slope`).
 - `torchnlts.systems`: trajectories of reference systems from
   [dysts](https://github.com/williamgilpin/dysts).
 - `torchnlts.convert`: `as_tensor`, `to_numpy`, `to_pandas`. Functions also
@@ -52,8 +66,8 @@ sample entropy with respect to the input series:
 ```python
 import torch
 from torchnlts.systems import trajectory
-from torchnlts.dimension.correlation import correlation_sum, correlation_dimension
-from torchnlts.entropy.sample import soft_sample_entropy
+from torchnlts.dimension import correlation_dimension, correlation_sum
+from torchnlts.entropy import soft_sample_entropy
 
 state = trajectory("Lorenz", 5000).to(torch.float64)
 state = (state - state.mean(dim=0)) / state.std(dim=0)

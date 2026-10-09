@@ -9,8 +9,7 @@ change at the switch (index 500); windows straddling it mix both regimes.
 
 import torch
 
-from torchnlts.recurrence.matrix import hard_recurrence_matrix
-from torchnlts.recurrence.rqa import determinism, divergence, windowed_rqa
+from torchnlts.recurrence import determinism, divergence, hard_recurrence_matrix, windowed_rqa
 
 num_points = 1000
 switch = 500

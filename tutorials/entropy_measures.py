@@ -12,8 +12,7 @@ and depends on the template length, delay, and matching radius.
 
 import torch
 
-from torchnlts.entropy.permutation import permutation_entropy
-from torchnlts.entropy.sample import sample_entropy
+from torchnlts.entropy import permutation_entropy, sample_entropy
 from torchnlts.systems import trajectory
 
 torch.manual_seed(0)

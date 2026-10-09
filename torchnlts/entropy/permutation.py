@@ -103,7 +103,7 @@ def _pattern_weights(embedded: torch.Tensor, weighting: str, amplitude_weight: f
 
 
 def _probabilities(trajectory, embedding_dim: int, delay: int, weighting, amplitude_weight) -> torch.Tensor:
-    """:func:`ordinal_pattern_probabilities` in the working dtype (float32 for half input)."""
+    """:func:`~torchnlts.entropy.ordinal_pattern_probabilities` in the working dtype (float32 for half input)."""
     tensor, _ = _ensure_batched(trajectory)
     _require_univariate(tensor)
     amplitude_weight = _validate_weighting(weighting, amplitude_weight, embedding_dim)
@@ -136,9 +136,9 @@ def ordinal_pattern_probabilities(
 ) -> torch.Tensor:
     """Relative frequency of each ordinal pattern in a delay-embedded
     trajectory (optionally weighted) -- the probability
-    distribution :func:`permutation_entropy` applies Shannon entropy to,
+    distribution :func:`~torchnlts.entropy.permutation_entropy` applies Shannon entropy to,
     exposed so a different entropy (e.g.
-    :func:`torchnlts.entropy.generalized.renyi_entropy`) can be applied to it
+    :func:`torchnlts.entropy.renyi_entropy`) can be applied to it
     (see ``tutorials/generalized_entropy_lorenz.py``).
 
     Gradient class: none for ``weighting=None`` (ranking via ``argsort``).
@@ -174,7 +174,7 @@ def ordinal_pattern_probabilities(
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1, or
             is too short for ``embedding_dim``/``delay`` (see
-            :func:`torchnlts.embedding.delay.delay_embedding`), if
+            :func:`torchnlts.embedding.delay_embedding`), if
             ``weighting`` is unknown, or for ``"amplitude"`` if
             ``amplitude_weight`` is outside ``[0, 1]`` or
             ``embedding_dim < 2``.
@@ -196,7 +196,7 @@ def permutation_entropy(
     ``weighting="amplitude"`` amplitude-aware permutation entropy.
 
     Gradient class: none for ``weighting=None``; piecewise smooth otherwise
-    (see :func:`ordinal_pattern_probabilities`).
+    (see :func:`~torchnlts.entropy.ordinal_pattern_probabilities`).
 
     Reference: Bandt & Pompe (2002), Sec. II-III; Fadlallah et al. (2013);
     Azami & Escudero (2016). Matches
@@ -206,7 +206,7 @@ def permutation_entropy(
     ``WeightedOrdinalPatterns``/``AmplitudeAwareOrdinalPatterns``.
 
     Args:
-        trajectory: Forwarded to :func:`ordinal_pattern_probabilities`.
+        trajectory: Forwarded to :func:`~torchnlts.entropy.ordinal_pattern_probabilities`.
         embedding_dim: Pattern order m (number of points per pattern).
         delay: Embedding lag.
         normalize: Divide by ``log(embedding_dim!)`` so the result is a
@@ -219,13 +219,13 @@ def permutation_entropy(
     Returns:
         Scalar (unbatched trajectory) or ``[B]`` (batched) entropy, in
         nats (or dimensionless if ``normalize=True``). ``NaN`` under
-        the same condition as :func:`ordinal_pattern_probabilities`'s
+        the same condition as :func:`~torchnlts.entropy.ordinal_pattern_probabilities`'s
         own ``NaN`` rows (Shannon entropy of an all-``NaN`` distribution
         is itself ``NaN``, propagated rather than special-cased again
         here).
 
     Raises:
-        ValueError: Same as :func:`ordinal_pattern_probabilities`.
+        ValueError: Same as :func:`~torchnlts.entropy.ordinal_pattern_probabilities`.
     """
     probability = _probabilities(trajectory, embedding_dim, delay, weighting, amplitude_weight)
     log_probability = torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny))

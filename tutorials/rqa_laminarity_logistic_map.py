@@ -15,8 +15,7 @@ entropy (RTE, Little et al. 2007) is reported alongside.
 
 import torch
 
-from torchnlts.recurrence.matrix import hard_recurrence_matrix
-from torchnlts.recurrence.rqa import determinism, laminarity, recurrence_rate, rt_entropy, trapping_time
+from torchnlts.recurrence import determinism, hard_recurrence_matrix, laminarity, recurrence_rate, rt_entropy, trapping_time
 
 num_points = 1000
 transient = 500

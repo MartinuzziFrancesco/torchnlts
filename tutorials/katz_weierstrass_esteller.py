@@ -27,8 +27,7 @@ import math
 
 import torch
 
-from torchnlts.dimension.higuchi import higuchi_dimension, higuchi_length
-from torchnlts.dimension.katz import katz_dimension
+from torchnlts.dimension import higuchi_dimension, higuchi_length, katz_dimension
 
 
 def weierstrass_cosine(hurst: float, num_points: int, gamma: int = 5, num_terms: int = 26) -> torch.Tensor:

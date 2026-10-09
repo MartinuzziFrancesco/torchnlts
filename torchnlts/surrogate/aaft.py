@@ -4,7 +4,7 @@ observed data.
 Reference: Theiler, J., Eubank, S., Longtin, A., Galdrikian, B. & Farmer,
 J.D. (1992), "Testing for nonlinearity in time series: the method of
 surrogate data", Physica D 58(1-4), 77-94: extend phase randomization
-(:func:`torchnlts.surrogate.phase.phase_randomized_surrogate`) to also
+(:func:`torchnlts.surrogate.phase_randomized_surrogate`) to also
 preserve a signal's exact amplitude distribution (its set of values, not
 merely its power spectrum), for signals whose own marginal distribution
 isn't Gaussian -- plain phase randomization implicitly assumes
@@ -29,7 +29,7 @@ defines. Confirmed live, not just by reading source: running
 ``juliaenv`` and rank-restoring the ``RandomFourier`` surrogate to the
 data by hand reproduces ``AAFT``'s output exactly -- see this module's
 test. Locked in as a disagreement rather than reconciled, same playbook
-as :func:`torchnlts.lyapunov.kantz.kantz_divergence`'s own confirmed
+as :func:`torchnlts.lyapunov.kantz_divergence`'s own confirmed
 Julia deviation.
 """
 
@@ -51,7 +51,7 @@ def aaft_surrogate(trajectory, generator: torch.Generator | None = None) -> torc
     """Amplitude-adjusted Fourier transform surrogate of ``trajectory``.
 
     Gradient class: none, by policy (see
-    :func:`torchnlts.surrogate.phase.phase_randomized_surrogate`'s
+    :func:`torchnlts.surrogate.phase_randomized_surrogate`'s
     docstring for why a fixed random draw doesn't itself block gradient
     flow through *that* step). This function's own final step is a
     further, distinct source of non-smoothness beyond the policy: rank
@@ -65,14 +65,14 @@ def aaft_surrogate(trajectory, generator: torch.Generator | None = None) -> torc
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``, with
             ``T >= 1`` (an empty time axis reaches ``rfft`` inside
-            :func:`~torchnlts.surrogate.phase.phase_randomized_surrogate`
+            :func:`~torchnlts.surrogate.phase_randomized_surrogate`
             and raises from there), real floating-point dtype
             (``float32``/``float64``). A tensor, numpy array, or pandas
             Series/DataFrame. Each feature channel (and batch element)
             is surrogated independently.
         generator: Optional ``torch.Generator``, forwarded in sequence
             to ``torch.randn`` (the Gaussian-noise draw) and then to
-            :func:`~torchnlts.surrogate.phase.phase_randomized_surrogate`
+            :func:`~torchnlts.surrogate.phase_randomized_surrogate`
             (the phase draw) -- both advance the same generator's state,
             see that function's docstring for reproducibility (including
             its caveat that reuse across calls is only *generally*, not

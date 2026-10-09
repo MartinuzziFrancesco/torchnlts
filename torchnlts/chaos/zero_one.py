@@ -195,7 +195,7 @@ def zero_one_growth_rate(trajectory, frequencies, max_lag: int | None = None) ->
 
 def zero_one_test(trajectory, frequencies, max_lag: int | None = None) -> torch.Tensor:
     """The 0-1 test statistic ``K``: the median over ``frequencies`` of
-    :func:`zero_one_growth_rate`. ``K`` near 0 indicates regular dynamics,
+    :func:`~torchnlts.chaos.zero_one_growth_rate`. ``K`` near 0 indicates regular dynamics,
     near 1 chaotic.
 
     Reference: Gottwald and Melbourne (2009), SIAM J. Appl. Dyn. Syst. 8(1), 129.
@@ -203,10 +203,10 @@ def zero_one_test(trajectory, frequencies, max_lag: int | None = None) -> torch.
     Gradient class: piecewise (see module docstring).
 
     Args:
-        trajectory: As in :func:`zero_one_growth_rate`.
+        trajectory: As in :func:`~torchnlts.chaos.zero_one_growth_rate`.
         frequencies: A 1-D sweep of frequencies in ``(0, pi)``, as in
-            :func:`zero_one_growth_rate` (a scalar gives its ``K_c``).
-        max_lag: As in :func:`zero_one_growth_rate`.
+            :func:`~torchnlts.chaos.zero_one_growth_rate` (a scalar gives its ``K_c``).
+        max_lag: As in :func:`~torchnlts.chaos.zero_one_growth_rate`.
 
     Returns:
         ``K``, shape ``[]`` unbatched or ``[B]`` batched. For an even
@@ -214,7 +214,7 @@ def zero_one_test(trajectory, frequencies, max_lag: int | None = None) -> torch.
         values. ``NaN`` if any ``K_c`` is ``NaN``.
 
     Raises:
-        ValueError: As in :func:`zero_one_growth_rate`.
+        ValueError: As in :func:`~torchnlts.chaos.zero_one_growth_rate`.
     """
     tensor, ndim = _ensure_batched(trajectory)
     growth_rate, _ = _growth_rate(tensor, frequencies, max_lag)  # [C, B]

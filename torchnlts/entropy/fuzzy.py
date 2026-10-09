@@ -16,18 +16,18 @@ is the paper's whole point), so a single function covers both roles.
 For multivariate (``[T, D]``/``[B, T, D]``) input, a template is the
 flattened ``m*D`` window and mean-removal subtracts one scalar mean
 over all of it, generalizing the paper's own univariate ``[T]`` case
-the same way :func:`torchnlts.entropy.sample.sample_entropy` (via the
+the same way :func:`torchnlts.entropy.sample_entropy` (via the
 same :func:`_matched_length_templates`) generalizes to multivariate
 trajectories.
 
 Reuses :func:`torchnlts.entropy.sample._matched_length_templates` for
 the matched short/long embeddings and mirrors
-:func:`torchnlts.dimension.correlation.soft_correlation_sum`'s
+:func:`torchnlts.dimension.soft_correlation_sum`'s
 Theiler-masked averaging pattern for phi^m/phi^{m+1} -- a single flat
 average over all valid pairs, which exactly matches the paper's own
 two-level average (eq. 7) at ``theiler_window=0`` (every template has
 the same number of valid neighbors there), and generalizes it the
-same way :func:`torchnlts.entropy.sample.sample_entropy` generalizes
+same way :func:`torchnlts.entropy.sample_entropy` generalizes
 Richman & Moorman's fixed self-exclusion.
 """
 
@@ -92,7 +92,7 @@ def _degenerate_unit_template_correlation(embedded: torch.Tensor, theiler_window
     Whether any pair survives the Theiler window depends only on
     ``embedded``'s (static) template count and ``theiler_window``
     (already a plain int), not on any tensor's data -- computed
-    directly rather than via :func:`theiler_window_mask` plus a
+    directly rather than via :func:`~torchnlts.neighbors.theiler_window_mask` plus a
     data-dependent ``.item()``, which would force a host sync and
     break ``torch.compile`` fullgraph tracing (same category of
     ceiling as ``fractional_delay_embedding``'s own documented one).
@@ -124,7 +124,7 @@ def fuzzy_entropy(
        components at every single distance evaluation on that
        template -- not the measure-zero coincidence max-norm ties are
        elsewhere in this codebase (e.g.
-       :func:`torchnlts.entropy.sample.soft_sample_entropy`, which has
+       :func:`torchnlts.entropy.soft_sample_entropy`, which has
        no mean-removal step). For a univariate trajectory this is
        exactly ``embedding_dim`` in ``{1, 2}`` (1 via its long-template
        branch, 2 via its short-template branch); for a multivariate
@@ -175,9 +175,9 @@ def fuzzy_entropy(
     ``embedding_dim``-length template has its own mean subtracted
     before distances are computed (eq. 2-3), and the fuzzy membership
     ``exp(-d^fuzzy_power / radius)`` (eq. 5-6) replaces the hard
-    threshold :func:`torchnlts.entropy.sample.sample_entropy` uses.
+    threshold :func:`torchnlts.entropy.sample_entropy` uses.
     ``theiler_window`` generalizes the paper's fixed self-match-only
-    exclusion the same way :func:`torchnlts.entropy.sample.sample_entropy`
+    exclusion the same way :func:`torchnlts.entropy.sample_entropy`
     does; it must be non-negative for the same reason.
 
     Args:

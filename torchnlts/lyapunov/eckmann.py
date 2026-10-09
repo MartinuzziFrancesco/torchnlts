@@ -145,7 +145,7 @@ def eckmann_spectrum(
             ``min(2 * matrix_dim, matrix_dim + 4)``.
         delay: Sample spacing of the embedding coordinates.
         theiler_window: Neighbors with ``|i - j| <= theiler_window`` are
-            excluded (see :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            excluded (see :func:`torchnlts.neighbors.theiler_window_mask`).
         norm_order: Minkowski norm order of the neighbor search
             (default max-norm, as in nolds).
 

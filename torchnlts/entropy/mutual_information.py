@@ -99,13 +99,13 @@ def mutual_information(
             data-dependent Python ``if`` on the tensor's contents, which
             rejects ``torch.vmap``'s ``BatchedTensor`` inputs outright.
         other: Second trajectory, same batched-ness as ``trajectory`` (see
-            :func:`torchnlts.recurrence.joint_recurrence.hard_joint_recurrence_matrix`);
+            :func:`torchnlts.recurrence.hard_joint_recurrence_matrix`);
             its time length and feature dimensionality may otherwise differ.
         num_neighbors: k, the neighbor rank whose joint-space distance sets
             each point's marginal counting radius.
         theiler_window: Theiler window, applied only when searching for
             each point's k-th joint-space neighbor (see
-            :func:`torchnlts.neighbors.theiler.theiler_window_mask`) --
+            :func:`torchnlts.neighbors.theiler_window_mask`) --
             not applied to the marginal counting step, matching
             CausalityTools.jl's KSG1. Must be ``>= 0`` (self-matches must
             be excluded unconditionally, or the "nearest neighbor" is

@@ -46,9 +46,9 @@ import time
 import torch
 import torchdiffeq
 
-from torchnlts.dimension.correlation import correlation_dimension, correlation_sum
-from torchnlts.lyapunov.spectrum import lyapunov_spectrum
-from torchnlts.sciml.losses import AttractorLoss, SinkhornLoss
+from torchnlts.dimension import correlation_dimension, correlation_sum
+from torchnlts.lyapunov import lyapunov_spectrum
+from torchnlts.sciml import AttractorLoss, SinkhornLoss
 
 torch.manual_seed(0)
 dtype = torch.float64

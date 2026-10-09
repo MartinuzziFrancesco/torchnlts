@@ -34,7 +34,7 @@ def random_shuffle_surrogate(trajectory, generator: torch.Generator | None = Non
     Reference: Theiler et al. (1992), Physica D 58, 77.
 
     Gradient class: none, by policy (see
-    :func:`torchnlts.surrogate.phase.phase_randomized_surrogate`).
+    :func:`torchnlts.surrogate.phase_randomized_surrogate`).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``; any
@@ -66,7 +66,7 @@ def random_shift_surrogate(trajectory, generator: torch.Generator | None = None)
     Reference: Theiler et al. (1992), Physica D 58, 77.
 
     Gradient class: none, by policy (see
-    :func:`torchnlts.surrogate.phase.phase_randomized_surrogate`).
+    :func:`torchnlts.surrogate.phase_randomized_surrogate`).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``; any

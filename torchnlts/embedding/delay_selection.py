@@ -160,8 +160,8 @@ def estimate_delay(trajectory, max_delay: int, method: str = "mi_min", num_bins:
     ``ac_min`` follow DelayEmbeddings.jl's ``estimate_delay``; ``ac_1/e`` is
     this library's own threshold criterion, not in DelayEmbeddings.jl):
 
-    - ``"mi_min"``: first local minimum of :func:`auto_mutual_information`.
-    - ``"ac_min"``: first local minimum of :func:`autocorrelation`.
+    - ``"mi_min"``: first local minimum of :func:`~torchnlts.embedding.auto_mutual_information`.
+    - ``"ac_min"``: first local minimum of :func:`~torchnlts.embedding.autocorrelation`.
     - ``"ac_zero"``: first delay with autocorrelation ``<= 0``.
     - ``"ac_1/e"``: first delay with autocorrelation ``< 1/e``.
 

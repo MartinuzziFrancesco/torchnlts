@@ -7,5 +7,5 @@ Scaling of fluctuations and long-range correlations -- the ``torchnlts.fluctuati
    :toctree: ../generated/
    :nosignatures:
 
-   torchnlts.fluctuations.dfa.dfa_fluctuation
-   torchnlts.fluctuations.dfa.dfa_exponent
+   torchnlts.fluctuations.dfa_fluctuation
+   torchnlts.fluctuations.dfa_exponent

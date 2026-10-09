@@ -9,7 +9,7 @@ nor a 3D volume, the fractal signature of a strange attractor.
 
 import torch
 
-from torchnlts.dimension.correlation import correlation_dimension, correlation_sum
+from torchnlts.dimension import correlation_dimension, correlation_sum
 from torchnlts.scaling import largest_linear_region, scaling_slope
 from torchnlts.systems import trajectory
 

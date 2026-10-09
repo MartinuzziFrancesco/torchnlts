@@ -24,7 +24,7 @@ sequences and recognition of different preictal EEG patterns", Proc.
 
 import torch
 
-from torchnlts.dimension.petrosian import petrosian_dimension
+from torchnlts.dimension import petrosian_dimension
 from torchnlts.systems import trajectory
 
 torch.manual_seed(0)

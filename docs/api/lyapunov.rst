@@ -58,10 +58,10 @@ this implementation and its reference.
    :toctree: ../generated/
    :nosignatures:
 
-   torchnlts.lyapunov.rosenstein.rosenstein_divergence
-   torchnlts.lyapunov.rosenstein.rosenstein_lyapunov
-   torchnlts.lyapunov.kantz.kantz_divergence
-   torchnlts.lyapunov.jacobian.step_jacobian
-   torchnlts.lyapunov.spectrum.lyapunov_spectrum
-   torchnlts.lyapunov.eckmann.eckmann_spectrum
-   torchnlts.lyapunov.kaplan_yorke.kaplan_yorke_dimension
+   torchnlts.lyapunov.rosenstein_divergence
+   torchnlts.lyapunov.rosenstein_lyapunov
+   torchnlts.lyapunov.kantz_divergence
+   torchnlts.lyapunov.step_jacobian
+   torchnlts.lyapunov.lyapunov_spectrum
+   torchnlts.lyapunov.eckmann_spectrum
+   torchnlts.lyapunov.kaplan_yorke_dimension

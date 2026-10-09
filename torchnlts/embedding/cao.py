@@ -108,7 +108,7 @@ def cao_e2(trajectory, embedding_dim: int, delay: int = 1, theiler_window: int =
     grows than a deterministic signal's does, not necessarily near 1 at
     any single small ``embedding_dim`` (see module docstring).
 
-    Args: same as :func:`cao_e1`.
+    Args: same as :func:`~torchnlts.embedding.cao_e1`.
 
     Returns:
         Scalar (or ``[B]``) E2(d).

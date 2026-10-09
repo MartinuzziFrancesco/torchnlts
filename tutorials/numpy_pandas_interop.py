@@ -10,8 +10,8 @@ and just want plain data again.
 import pandas as pd
 
 from torchnlts.convert import to_pandas
-from torchnlts.embedding.delay import delay_embedding
-from torchnlts.neighbors.knn import knn_search
+from torchnlts.embedding import delay_embedding
+from torchnlts.neighbors import knn_search
 
 # A pandas Series, as you'd get from reading a CSV column.
 series = pd.Series([0.0, 1.0, 2.0, 3.5, 10.0, 10.2, 20.0], name="sensor_reading")

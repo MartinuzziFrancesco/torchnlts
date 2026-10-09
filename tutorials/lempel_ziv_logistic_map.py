@@ -25,7 +25,7 @@ import numpy as np
 import torch
 from dysts.maps import Logistic
 
-from torchnlts.entropy.lempel_ziv import lempel_ziv_complexity
+from torchnlts.entropy import lempel_ziv_complexity
 
 torch.manual_seed(0)
 num_points, warmup = 2000, 200

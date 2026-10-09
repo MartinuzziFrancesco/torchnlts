@@ -3,7 +3,7 @@ data, from observed data.
 
 Reference: Schreiber, T. & Schmitz, A. (1996), "Improved Surrogate Data
 for Nonlinearity Tests", Phys. Rev. Lett. 77(4), 635-638: AAFT
-(:func:`torchnlts.surrogate.aaft.aaft_surrogate`) already matches the
+(:func:`torchnlts.surrogate.aaft_surrogate`) already matches the
 original data's amplitude distribution exactly (both methods do, by the
 same rank-restoration construction) but reaches its spectral match in a
 *single* amplitude-adjustment pass, which is generally loose; IAAFT
@@ -86,8 +86,8 @@ def iaaft_surrogate(
     ``trajectory``.
 
     Gradient class: none, by policy (see
-    :func:`torchnlts.surrogate.phase.phase_randomized_surrogate`'s
-    docstring). Like :func:`torchnlts.surrogate.aaft.aaft_surrogate`,
+    :func:`torchnlts.surrogate.phase_randomized_surrogate`'s
+    docstring). Like :func:`torchnlts.surrogate.aaft_surrogate`,
     the rank-restoration step run every iteration is itself a discrete
     permutation, not merely policy-excluded from autodiff.
 
@@ -109,7 +109,7 @@ def iaaft_surrogate(
         Surrogate of the same shape and dtype as ``trajectory``: exactly
         ``trajectory``'s own values, permuted along the time axis (per
         channel) to approximately match its power spectrum -- more
-        closely than :func:`~torchnlts.surrogate.aaft.aaft_surrogate`'s
+        closely than :func:`~torchnlts.surrogate.aaft_surrogate`'s
         single amplitude-adjustment pass, in general. A fresh random
         draw every call.
 

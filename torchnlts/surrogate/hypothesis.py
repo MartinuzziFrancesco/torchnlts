@@ -64,7 +64,7 @@ def surrogate_test(
             of surrogates.
         surrogate: Surrogate generator with the signature
             ``surrogate(trajectory, generator=None, **kwargs)``, e.g.
-            :func:`~torchnlts.surrogate.iaaft.iaaft_surrogate`.
+            :func:`~torchnlts.surrogate.iaaft_surrogate`.
         num_surrogates: Number of surrogates ``M`` per row, ``>= 1``.
             The smallest possible p-value is ``1 / (M + 1)``.
         tail: ``"right"`` rejects when the data statistic is
@@ -76,7 +76,7 @@ def surrogate_test(
         **surrogate_kwargs: Forwarded to ``surrogate``.
 
     Returns:
-        :class:`SurrogateTestResult`. The p-value has the dtype of
+        :class:`~torchnlts.surrogate.SurrogateTestResult`. The p-value has the dtype of
         ``trajectory`` (the default float dtype for non-float input);
         the statistics keep their own dtype, and ranking is done in the
         promoted common dtype of the data and surrogate statistics. A

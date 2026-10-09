@@ -7,7 +7,7 @@ with the Theiler (1986) window correction excluding temporally correlated
 pairs from both the count and the normalization.
 
 The correlation sum at a fixed radius is the same quantity RQA calls the
-"recurrence rate" (:func:`torchnlts.recurrence.rqa.recurrence_rate`) of
+"recurrence rate" (:func:`torchnlts.recurrence.recurrence_rate`) of
 the corresponding recurrence matrix -- both are "fraction of
 Theiler-windowed pairs within radius r". This module doesn't reuse
 recurrence_rate directly (its ``[T, T]``/``[B, T, T]`` contract can't
@@ -44,14 +44,14 @@ def correlation_sum(trajectory, radius, theiler_window: int = 0, norm_order: flo
     q=2)`` (Theiler window ``w`` uses the same ``|i - j| <= w`` exclusion
     convention as this codebase's ``theiler_window``, unlike
     RecurrenceAnalysis.jl's off-by-one ``theiler`` keyword -- see
-    :func:`torchnlts.recurrence.rqa.recurrence_rate`).
+    :func:`torchnlts.recurrence.recurrence_rate`).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
             numpy array, or pandas Series/DataFrame.
         radius: Scalar or ``[R]`` tensor of radii to evaluate C(r) at.
         theiler_window: Theiler window (see
-            :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            :func:`torchnlts.neighbors.theiler_window_mask`).
         norm_order: Minkowski norm order.
 
     Returns:
@@ -78,10 +78,10 @@ def soft_correlation_sum(
     """Kernel-weighted correlation sum, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (differentiable relaxation of
-    :func:`correlation_sum`, built on
-    :func:`torchnlts.neighbors.kernels.trajectory_kernel` -- ``temperature``
+    :func:`~torchnlts.dimension.correlation_sum`, built on
+    :func:`torchnlts.neighbors.trajectory_kernel` -- ``temperature``
     plays the role of ``radius``'s smooth analogue, same convention as
-    :func:`torchnlts.recurrence.matrix.soft_recurrence_matrix`).
+    :func:`torchnlts.recurrence.soft_recurrence_matrix`).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
@@ -93,7 +93,7 @@ def soft_correlation_sum(
 
     Returns:
         Weighted correlation sum(s) in ``[0, 1]``, same shape convention
-        and ``NaN`` cases as :func:`correlation_sum`.
+        and ``NaN`` cases as :func:`~torchnlts.dimension.correlation_sum`.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
@@ -108,7 +108,7 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
 
     Gradient class: exact (closed-form OLS slope; ordinary autodiff
     through whatever produced ``correlation_sum`` -- it inherits
-    :func:`correlation_sum`'s ``none`` or :func:`soft_correlation_sum`'s
+    :func:`~torchnlts.dimension.correlation_sum`'s ``none`` or :func:`~torchnlts.dimension.soft_correlation_sum`'s
     ``smooth`` from there).
 
     This is a plain regression over every ``(radius, correlation_sum)``
@@ -120,7 +120,7 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
     ``LinearRegression`` and can silently drop endpoints, so it must be
     turned off to reproduce this function's all-point fit) rather than
     ``slopefit``'s own default, ``LargestLinearRegion``. Matches
-    :func:`torchnlts.dimension.correlation.soft_correlation_sum`'s note
+    :func:`torchnlts.dimension.soft_correlation_sum`'s note
     that ``temperature`` plays the role of ``radius``'s smooth analogue:
     pass the temperature sweep here for the soft variant's dimension
     estimate.
@@ -134,7 +134,7 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
             soft variant).
         correlation_sum: Shape ``[R]`` (unbatched trajectory) or
             ``[R, B]`` (batched trajectory), as returned by
-            :func:`correlation_sum` / :func:`soft_correlation_sum` for
+            :func:`~torchnlts.dimension.correlation_sum` / :func:`~torchnlts.dimension.soft_correlation_sum` for
             the same sweep.
 
     Returns:

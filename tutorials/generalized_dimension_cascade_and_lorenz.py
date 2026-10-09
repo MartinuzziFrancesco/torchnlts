@@ -5,7 +5,7 @@ multifractal measure: a p-weighted binary cascade (recursively split
 ``depth`` levels). D0 (box-counting/"capacity" dimension), D1
 (information dimension), and D2 (Hentschel & Procaccia 1983's own
 order-2 identification with correlation dimension) all fall out of
-the same `torchnlts.dimension.generalized.generalized_dimension` call
+the same `torchnlts.dimension.generalized_dimension` call
 at different `order` values. The cascade's D_q spectrum is checked to
 be non-increasing across the order sweep -- a *finite-sample*
 regression check consistent with Rényi's theorem about the true,
@@ -31,8 +31,7 @@ this tutorial itself, which only prints both values side by side.
 
 import torch
 
-from torchnlts.dimension.correlation import correlation_dimension, correlation_sum
-from torchnlts.dimension.generalized import box_counting_entropy, generalized_dimension
+from torchnlts.dimension import box_counting_entropy, correlation_dimension, correlation_sum, generalized_dimension
 from torchnlts.systems import trajectory
 
 # Part 1: a p-weighted binary cascade -- D_q spectrum and monotonicity.

@@ -25,7 +25,7 @@ qualitatively matching setup).
 
 import torch
 
-from torchnlts.entropy.multiscale import multiscale_entropy
+from torchnlts.entropy import multiscale_entropy
 
 torch.manual_seed(0)
 num_points = 3000

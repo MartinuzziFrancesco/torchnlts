@@ -6,7 +6,7 @@ Reference: Russell, Hanson & Ott (1980), Phys. Rev. Lett. 45(14),
 Hentschel & Procaccia (1983), Physica D 8(3), 435-444, for the D_q
 spectrum's own general definition and its explicit identification of
 order-2 D_q with the correlation dimension
-(:func:`torchnlts.dimension.correlation.correlation_dimension`) in the
+(:func:`torchnlts.dimension.correlation_dimension`) in the
 limit -- the same underlying quantity, estimated here by a genuinely
 different method (see below), not merely "related". Partition the
 state space into boxes of width ``box_size``,
@@ -19,7 +19,7 @@ log-linear slope fit) -- confirmed directly against
 ``entropy(Renyi(;q,base=ℯ), ValueHistogram(ε), X)`` for several ``q``
 and a multivariate point set, including the box-occupation
 probabilities themselves, not just the final entropy -- but, like
-:func:`torchnlts.dimension.correlation.correlation_dimension`, doesn't
+:func:`torchnlts.dimension.correlation_dimension`, doesn't
 replicate that package's own ``estimate_boxsizes`` heuristic (the
 caller supplies ``box_size``) or its automatic
 largest-linear-region detection (``slopefit`` with
@@ -27,7 +27,7 @@ largest-linear-region detection (``slopefit`` with
 "caller picks the sizes, no automatic scaling-region detection"
 convention ``correlation_dimension`` already uses.
 
-Distinct from :func:`torchnlts.dimension.correlation.correlation_sum`'s
+Distinct from :func:`torchnlts.dimension.correlation_sum`'s
 own generalization path: FractalDimensions.jl separately exposes a
 *pairwise-distance*-based q-order correlation sum
 (``correlationsum(X, εs; q)``, Grassberger 2007's definition, as
@@ -42,7 +42,7 @@ recover D0/D1 the way this box-counting route does) -- not implemented
 here, since it doesn't naturally unify D0/D1/D2 the way this module's
 approach does, which was the point of this addition.
 
-Special cases (via :func:`torchnlts.entropy.generalized.renyi_entropy`,
+Special cases (via :func:`torchnlts.entropy.renyi_entropy`,
 reused directly rather than reimplemented): order 0 is "capacity"/
 box-counting dimension (log of the occupied-box count), order 1 is
 information dimension, order 2 is (a box-counting, not
@@ -60,8 +60,8 @@ Gradient class: none. Box-index assignment (``floor``) and occupied-box
 counting (``unique``) are both discrete, non-differentiable operations
 with no natural continuous relaxation the way a distance threshold can
 be kernel-softened -- same reasoning as
-:func:`torchnlts.entropy.permutation.ordinal_pattern_probabilities`/
-:func:`torchnlts.entropy.dispersion.dispersion_entropy`.
+:func:`torchnlts.entropy.ordinal_pattern_probabilities`/
+:func:`torchnlts.entropy.dispersion_entropy`.
 
 Not ``torch.vmap``-compatible, and not vectorized across a box-size
 sweep or a batch either: the number of occupied boxes is inherently
@@ -69,7 +69,7 @@ data- and scale-dependent (finer boxes and larger point clouds occupy
 more distinct boxes), so unlike this codebase's distance-threshold-based
 measures, there's no shared fixed-size shape to vectorize against --
 same reasoning, and the same "loop in Python" resolution, as
-:func:`torchnlts.entropy.lempel_ziv.lempel_ziv_complexity`'s own
+:func:`torchnlts.entropy.lempel_ziv_complexity`'s own
 per-row combinatorial loop.
 """
 
@@ -91,7 +91,7 @@ def box_occupation_probabilities(trajectory, box_size: float) -> torch.Tensor:
         trajectory: Shape ``[T]`` or ``[T, D]`` (unbatched only -- see
             module docstring for why a batched ``[B, T, D]`` input
             can't share this function's fixed-size output contract; use
-            :func:`box_counting_entropy` for a batched trajectory).
+            :func:`~torchnlts.dimension.box_counting_entropy` for a batched trajectory).
         box_size: Box width, the same in every dimension. Must be
             positive (not validated, matching this codebase's general
             trust-the-caller convention for well-formed parameters).
@@ -160,14 +160,14 @@ def box_counting_entropy(trajectory, box_size, order: float = 1.0) -> torch.Tens
             tensor, numpy array, or pandas Series/DataFrame.
         box_size: Box width. Scalar or ``[S]`` tensor to sweep.
         order: Rényi order, forwarded to
-            :func:`torchnlts.entropy.generalized.renyi_entropy`. Must
+            :func:`torchnlts.entropy.renyi_entropy`. Must
             be ``>= 0``.
 
     Returns:
         Entropy, shape ``[]``/``[S]`` for an unbatched trajectory or
         ``[B]``/``[S, B]`` for a batched one (matching whether
         ``box_size`` is scalar or ``[S]``), matching
-        :func:`torchnlts.dimension.correlation.correlation_sum`'s own
+        :func:`torchnlts.dimension.correlation_sum`'s own
         sweep/batch shape convention.
 
     Raises:
@@ -200,7 +200,7 @@ def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
 
     Gradient class: exact (closed-form OLS slope; ordinary autodiff
     through whatever produced ``entropy`` -- inherits
-    :func:`box_counting_entropy`'s ``none``, since that's this
+    :func:`~torchnlts.dimension.box_counting_entropy`'s ``none``, since that's this
     function's only realistic caller).
 
     This is a plain regression over every ``(box_size, entropy)`` pair
@@ -214,7 +214,7 @@ def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
         box_size: Shape ``[S]``, the sweep ``entropy`` was evaluated at.
         entropy: Shape ``[S]`` (unbatched trajectory) or ``[S, B]``
             (batched trajectory), as returned by
-            :func:`box_counting_entropy` for the same sweep.
+            :func:`~torchnlts.dimension.box_counting_entropy` for the same sweep.
 
     Returns:
         D_q estimate(s), shape ``[]`` for an unbatched ``entropy`` or

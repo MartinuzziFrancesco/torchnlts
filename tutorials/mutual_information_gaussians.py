@@ -9,7 +9,7 @@ import math
 
 import torch
 
-from torchnlts.entropy.mutual_information import mutual_information
+from torchnlts.entropy import mutual_information
 
 torch.manual_seed(0)
 num_points = 5000

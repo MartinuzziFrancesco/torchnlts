@@ -79,7 +79,7 @@ def lyapunov_spectrum(
     at every step).
 
     Args:
-        step_fn: See :func:`torchnlts.lyapunov.jacobian.step_jacobian` --
+        step_fn: See :func:`torchnlts.lyapunov.step_jacobian` --
             one discrete step of the dynamics, or one fixed-step
             continuous-flow integration (e.g. via ``torchdiffeq``).
         initial_state: Shape ``[D]`` or ``[B, D]``.

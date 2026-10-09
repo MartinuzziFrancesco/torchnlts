@@ -97,7 +97,7 @@ def approximate_entropy(
         embedding_dim: Template length m.
         delay: Embedding lag.
         theiler_window: Theiler window over template start indices (see
-            :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            :func:`torchnlts.neighbors.theiler_window_mask`).
             ``-1`` (default) recovers Pincus's original self-inclusive
             definition; ``0`` excludes only the self-match.
         norm_order: Minkowski norm order for template distances (``inf``
@@ -132,27 +132,27 @@ def soft_approximate_entropy(
     """Kernel-weighted approximate entropy, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (differentiable relaxation of
-    :func:`approximate_entropy`, built on
-    :func:`torchnlts.neighbors.kernels.trajectory_kernel`) -- except at
+    :func:`~torchnlts.entropy.approximate_entropy`, built on
+    :func:`torchnlts.neighbors.trajectory_kernel`) -- except at
     ties in the default Chebyshev (``norm_order=inf``) distance, the same
-    caveat as :func:`torchnlts.entropy.sample.soft_sample_entropy`.
+    caveat as :func:`torchnlts.entropy.soft_sample_entropy`.
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A
             tensor, numpy array, or pandas Series/DataFrame. A ``NaN``
             anywhere in a given window NaNs that window's contribution
-            rather than raising (see :func:`approximate_entropy`'s Args).
+            rather than raising (see :func:`~torchnlts.entropy.approximate_entropy`'s Args).
         temperature: Kernel bandwidth, playing ``radius``'s role. Scalar
             or ``[R]`` tensor to sweep.
         embedding_dim: Template length m.
         delay: Embedding lag.
         kind: ``"gaussian"`` or ``"exponential"``, forwarded to ``trajectory_kernel``.
         theiler_window: Theiler window, forwarded to the point mask (see
-            :func:`approximate_entropy`).
+            :func:`~torchnlts.entropy.approximate_entropy`).
         norm_order: Minkowski norm order for template distances.
 
     Returns:
-        Weighted ApEn, same shape convention as :func:`approximate_entropy`.
+        Weighted ApEn, same shape convention as :func:`~torchnlts.entropy.approximate_entropy`.
     """
     short_embed = delay_embedding(trajectory, embedding_dim, delay)
     long_embed = delay_embedding(trajectory, embedding_dim + 1, delay)

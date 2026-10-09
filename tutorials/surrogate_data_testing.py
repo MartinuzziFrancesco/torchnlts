@@ -21,9 +21,8 @@ rejection alone does not establish deterministic chaos.
 
 import torch
 
-from torchnlts.entropy.permutation import permutation_entropy
-from torchnlts.surrogate.hypothesis import surrogate_test
-from torchnlts.surrogate.iaaft import iaaft_surrogate
+from torchnlts.entropy import permutation_entropy
+from torchnlts.surrogate import iaaft_surrogate, surrogate_test
 from torchnlts.systems import trajectory
 
 torch.manual_seed(0)

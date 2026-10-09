@@ -35,8 +35,8 @@ Quick Example
 .. code-block:: python
 
    import torch
-   from torchnlts.neighbors.knn import knn_search
-   from torchnlts.embedding.delay import delay_embedding
+   from torchnlts.neighbors import knn_search
+   from torchnlts.embedding import delay_embedding
 
    trajectory = torch.randn(500)
    embedded = delay_embedding(trajectory, embedding_dim=3, delay=5)

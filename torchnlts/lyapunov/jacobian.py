@@ -33,7 +33,7 @@ def step_jacobian(step_fn: Callable[[torch.Tensor], torch.Tensor], state: torch.
     Gradient class: exact (``torch.func.jacrev`` is reverse-mode
     autodiff; composing it under further autograd -- to backpropagate
     through the Jacobian itself, as
-    :func:`torchnlts.lyapunov.spectrum.lyapunov_spectrum` does when
+    :func:`torchnlts.lyapunov.lyapunov_spectrum` does when
     ``state`` or ``step_fn`` depends on upstream parameters -- is a
     double backward through ``step_fn``, only as well-behaved as
     ``step_fn``'s own second derivatives).

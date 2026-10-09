@@ -50,7 +50,7 @@ def sample_entropy(
 ) -> torch.Tensor:
     """Sample entropy SampEn(m, r): -log(A(r)/B(r)) via embedded template matching.
 
-    Gradient class: none (built on :func:`correlation_sum`'s Heaviside threshold).
+    Gradient class: none (built on :func:`~torchnlts.dimension.correlation_sum`'s Heaviside threshold).
 
     Reference: Richman & Moorman (2000), eq. 1-3. Loosely comparable to
     ComplexityMeasures.jl's ``SampleEntropy`` (also Chebyshev distance
@@ -73,7 +73,7 @@ def sample_entropy(
         embedding_dim: Template length m.
         delay: Embedding lag.
         theiler_window: Theiler window over template start indices (see
-            :func:`torchnlts.neighbors.theiler.theiler_window_mask`).
+            :func:`torchnlts.neighbors.theiler_window_mask`).
             Must be ``>= 0``.
         norm_order: Minkowski norm order for template distances
             (``inf`` for the classic Chebyshev definition).
@@ -84,7 +84,7 @@ def sample_entropy(
         zero (no ``embedding_dim``-length template pair matches within
         ``radius``) or itself ``NaN`` (only one usable template, or
         every pair excluded by ``theiler_window``, making
-        :func:`correlation_sum`'s own denominator zero); ``inf`` if
+        :func:`~torchnlts.dimension.correlation_sum`'s own denominator zero); ``inf`` if
         every such match fails to extend to length ``embedding_dim +
         1`` (``A(r) = 0``).
 
@@ -110,12 +110,12 @@ def soft_sample_entropy(
     """Kernel-weighted sample entropy, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (differentiable relaxation of
-    :func:`sample_entropy`, built on :func:`soft_correlation_sum`) --
+    :func:`~torchnlts.entropy.sample_entropy`, built on :func:`~torchnlts.dimension.soft_correlation_sum`) --
     except at ties in the default Chebyshev (``norm_order=inf``)
     distance, e.g. two template coordinates equally far apart, where
     the underlying max-norm itself is non-differentiable (a
     measure-zero case in random data, same caveat as any max-norm use
-    of :func:`torchnlts.neighbors.distance.pairwise_distance`).
+    of :func:`torchnlts.neighbors.pairwise_distance`).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A
@@ -126,15 +126,15 @@ def soft_sample_entropy(
         delay: Embedding lag.
         kind: ``"gaussian"`` or ``"exponential"``, forwarded to ``trajectory_kernel``.
         theiler_window: Theiler window, forwarded to the point mask.
-            Must be ``>= 0`` (see :func:`sample_entropy`).
+            Must be ``>= 0`` (see :func:`~torchnlts.entropy.sample_entropy`).
         norm_order: Minkowski norm order for template distances.
 
     Returns:
-        Weighted SampEn, same shape convention as :func:`sample_entropy`.
+        Weighted SampEn, same shape convention as :func:`~torchnlts.entropy.sample_entropy`.
         ``NaN`` if ``temperature`` is small enough relative to the
         template distances that both the numerator and denominator
         kernel-weight sums underflow to exactly ``0`` (``0/0``, the
-        smooth analogue of :func:`sample_entropy`'s ``B(r) = 0`` case);
+        smooth analogue of :func:`~torchnlts.entropy.sample_entropy`'s ``B(r) = 0`` case);
         ``inf`` if only the numerator underflows. Gradients of such
         entries are ``NaN``/zero but do not leak into other batch rows
         that share an input.

@@ -19,7 +19,7 @@ import math
 
 import torch
 
-from torchnlts.chaos.zero_one import zero_one_test
+from torchnlts.chaos import zero_one_test
 
 
 def logistic_orbit(parameter: float, num_points: int, transient: int = 1000) -> torch.Tensor:
