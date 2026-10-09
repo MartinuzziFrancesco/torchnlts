@@ -44,6 +44,8 @@ test = [
     "EntropyHub",
     "antropy",
     "nolds",
+    "tsfresh",
+    "stumpy",
 ]
 
 [tool.setuptools.packages.find]

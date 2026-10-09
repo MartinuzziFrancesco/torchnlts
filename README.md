@@ -14,7 +14,8 @@ Functions and classes are importable from their subpackage, for example
   nearest neighbors (`hard_fnn`), Cao's E1 and E2, and delay selection
   (`autocorrelation`, `auto_mutual_information`, `estimate_delay`).
 - `torchnlts.neighbors`: pairwise distance, k-nearest-neighbor and radius
-  search, Theiler window masks, trajectory kernels.
+  search, Theiler window masks, trajectory kernels, complexity-invariant
+  distance.
 - `torchnlts.recurrence`: hard and soft recurrence, cross-recurrence and
   joint-recurrence matrices; recurrence quantification: recurrence rate,
   determinism, diagonal line statistics, laminarity, trapping time,
@@ -35,6 +36,8 @@ Functions and classes are importable from their subpackage, for example
   spectrum from data, Lyapunov spectrum from a known map or flow, step
   Jacobian, Kaplan-Yorke dimension.
 - `torchnlts.causality`: convergent cross mapping, transfer entropy.
+- `torchnlts.matrixprofile`: matrix profile (self-join and AB-join), motifs,
+  discords and FLUSS regime boundaries.
 - `torchnlts.surrogate`: phase-randomized, AAFT, IAAFT, random shuffle and
   random shift surrogates; `surrogate_test` for hypothesis tests.
 - `torchnlts.sciml`: loss modules built on the above (`LyapunovLoss`,
@@ -55,7 +58,7 @@ pip install -e .
 
 Optional extras: `pandas`, `tutorials` (dysts and torchdiffeq, used by the
 scripts in `tutorials/`) and `test` (pytest, dysts, and the reference
-packages EntropyHub, antropy and nolds).
+packages EntropyHub, antropy, nolds, stumpy and tsfresh).
 
 ## Example
 
@@ -126,8 +129,10 @@ The test suite checks results against these packages:
   [TimeseriesSurrogates.jl](https://github.com/JuliaDynamics/TimeseriesSurrogates.jl)
   and [CausalityTools.jl](https://github.com/JuliaDynamics/CausalityTools.jl).
 - Python: [EntropyHub](https://github.com/MattWillFlood/EntropyHub),
-  [antropy](https://github.com/raphaelvallat/antropy) and
-  [nolds](https://github.com/CSchoel/nolds).
+  [antropy](https://github.com/raphaelvallat/antropy),
+  [nolds](https://github.com/CSchoel/nolds),
+  [stumpy](https://github.com/stumpy-dev/stumpy) and
+  [tsfresh](https://github.com/blue-yonder/tsfresh).
 
 The tutorials and tests generate reference system trajectories with
 [dysts](https://github.com/williamgilpin/dysts).

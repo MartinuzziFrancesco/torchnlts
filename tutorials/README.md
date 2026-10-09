@@ -141,3 +141,11 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   periodic windows and near 1 for chaos, agreeing with the sign of the
   Lyapunov exponent (Fig. 4), and K growing slowly with N just above the
   edge of chaos (K = 0.029 at N = 2000, as they report 0.027).
+- `matrix_profile_motif_discord_fluss.py`: Yeh et al. (2016) and Gharghabi et
+  al. (2017) -- `torchnlts.matrixprofile` finds a planted motif pair in noise,
+  a planted square-wave discord in a sine, and the boundary of a
+  Lorenz-to-Rossler splice with FLUSS.
+- `complexity_invariant_distance_classification.py`: Batista et al. (2014) --
+  1-nearest-neighbor classification of smooth sinusoids against noisy Lorenz
+  windows: 0.750 accuracy with Euclidean distance, 1.000 with
+  `torchnlts.neighbors.complexity_invariant_distance`.

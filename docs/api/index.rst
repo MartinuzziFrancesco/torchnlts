@@ -16,6 +16,7 @@ Full API reference, one page per subpackage.
    lyapunov
    chaos
    surrogate
+   matrixprofile
    causality
    sciml
    convert

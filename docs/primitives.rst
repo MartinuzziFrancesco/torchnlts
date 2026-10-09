@@ -90,6 +90,16 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - `Judd (1992) <https://doi.org/10.1016/0167-2789(92)90028-B>`__ (gaussian); `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__ (exponential)
      - none (see module docstring)
 
+   * - :doc:`complexity_estimate <generated/torchnlts.neighbors.complexity_estimate>`
+     - exact (zero subgradient at a constant series)
+     - `Batista et al. (2014) <https://doi.org/10.1007/s10618-013-0312-3>`__
+     - none in Julia; `tsfresh <https://github.com/blue-yonder/tsfresh>`__ (``cid_ce``, with and without ``normalize``)
+
+   * - :doc:`complexity_invariant_distance <generated/torchnlts.neighbors.complexity_invariant_distance>`
+     - piecewise (``max``/``min`` of the two complexity estimates)
+     - `Batista et al. (2014) <https://doi.org/10.1007/s10618-013-0312-3>`__
+     - none (hand-derived values and Euclidean distance times the ratio of tsfresh ``cid_ce`` values). Both estimates zero gives a correction factor of 1, one zero gives ``inf``; the paper leaves both cases undefined.
+
    * - :doc:`delay_embedding <generated/torchnlts.embedding.delay_embedding>`
      - exact
      - Takens (1981), *Detecting Strange Attractors in Turbulence*
@@ -499,3 +509,18 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - exact (the region choice is piecewise constant and carries no gradient)
      - none (sequential ``dxi = 1`` linear-region scan of FractalDimensions.jl)
      - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``linear_regions``, ``linear_region``, ``slopefit`` with ``LargestLinearRegion``; regions, largest region and slope match exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve). Not implemented: ``dxi`` stride, ``:overlap`` method.
+
+   * - :doc:`matrix_profile <generated/torchnlts.matrixprofile.matrix_profile>`
+     - piecewise (the index has none)
+     - `Yeh et al. (2016) <https://doi.org/10.1109/ICDM.2016.0179>`__, `Zhu et al. (2016) <https://doi.org/10.1109/ICDM.2016.0085>`__
+     - none in Julia; `stumpy <https://github.com/stumpy-dev/stumpy>`__ (``stump``, self-join and AB-join; profile to 1e-6 in float64, index up to ties). Forms the full distance matrix, O(T^2) memory.
+
+   * - :doc:`motifs <generated/torchnlts.matrixprofile.motifs>` / :doc:`discords <generated/torchnlts.matrixprofile.discords>`
+     - none
+     - `Yeh et al. (2016) <https://doi.org/10.1109/ICDM.2016.0179>`__
+     - none in Julia; `stumpy <https://github.com/stumpy-dev/stumpy>`__ (``motifs`` with ``max_matches=2``); discords hand-derived
+
+   * - :doc:`corrected_arc_curve <generated/torchnlts.matrixprofile.corrected_arc_curve>` / :doc:`regime_boundaries <generated/torchnlts.matrixprofile.regime_boundaries>`
+     - none
+     - `Gharghabi et al. (2017) <https://doi.org/10.1109/ICDM.2017.21>`__
+     - none in Julia; `stumpy <https://github.com/stumpy-dev/stumpy>`__ (``fluss`` with ``custom_iac`` set to the paper's parabola ``2 j (n - j) / n``; stumpy's default idealized arc curve is a fitted beta density, so its default curve differs)

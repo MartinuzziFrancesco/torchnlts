@@ -1,7 +1,8 @@
 Neighbors Reference
 ====================
 
-Distance, Theiler-window masking, neighbor search, and kernel weighting
+Distance, Theiler-window masking, neighbor search, kernel weighting and
+complexity-invariant distance
 -- the ``torchnlts.neighbors`` subpackage.
 
 .. autosummary::
@@ -14,3 +15,5 @@ Distance, Theiler-window masking, neighbor search, and kernel weighting
    torchnlts.neighbors.knn_search
    torchnlts.neighbors.radius_neighbors
    torchnlts.neighbors.trajectory_kernel
+   torchnlts.neighbors.complexity_estimate
+   torchnlts.neighbors.complexity_invariant_distance
