@@ -149,7 +149,3 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   1-nearest-neighbor classification of smooth sinusoids against noisy Lorenz
   windows: 0.750 accuracy with Euclidean distance, 1.000 with
   `torchnlts.neighbors.complexity_invariant_distance`.
-- `analogue_forecasting_lorenz.py`: Lorenz (1969) -- the method of analogues
-  with `torchnlts.prediction.analogues` on Lorenz x: forecast error grows with
-  horizon and the k=1 and k=5 analogue forecasts beat persistence at every
-  horizon from 1 to 64 steps.

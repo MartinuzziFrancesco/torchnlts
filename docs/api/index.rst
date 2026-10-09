@@ -17,7 +17,6 @@ Full API reference, one page per subpackage.
    chaos
    surrogate
    matrixprofile
-   prediction
    causality
    sciml
    convert

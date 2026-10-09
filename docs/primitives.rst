@@ -524,8 +524,3 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - none
      - `Gharghabi et al. (2017) <https://doi.org/10.1109/ICDM.2017.21>`__
      - none in Julia; `stumpy <https://github.com/stumpy-dev/stumpy>`__ (``fluss`` with ``custom_iac`` set to the paper's parabola ``2 j (n - j) / n``; stumpy's default idealized arc curve is a fitted beta density, so its default curve differs)
-
-   * - :doc:`analogues <generated/torchnlts.prediction.analogues>`
-     - piecewise (selection is discrete; starts have none)
-     - `Lorenz (1969) <https://doi.org/10.1175/1520-0469(1969)26%3C636:APARBN%3E2.0.CO;2>`__ (method of analogues); distance as in `Yeh et al. (2016) <https://doi.org/10.1109/ICDM.2016.0179>`__
-     - none in Julia (independent brute-force reference in the tests; only starts with ``start + context_length + horizon <= origin`` are admissible)

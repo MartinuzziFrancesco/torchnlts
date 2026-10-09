@@ -38,8 +38,6 @@ Functions and classes are importable from their subpackage, for example
 - `torchnlts.causality`: convergent cross mapping, transfer entropy.
 - `torchnlts.matrixprofile`: matrix profile (self-join and AB-join), motifs,
   discords and FLUSS regime boundaries.
-- `torchnlts.prediction`: the method of analogues (nearest past windows of
-  the current context and their rescaled continuations).
 - `torchnlts.surrogate`: phase-randomized, AAFT, IAAFT, random shuffle and
   random shift surrogates; `surrogate_test` for hypothesis tests.
 - `torchnlts.sciml`: loss modules built on the above (`LyapunovLoss`,
