@@ -23,15 +23,15 @@ sequences and recognition of different preictal EEG patterns", Proc.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.dimension import petrosian_dimension
-from torchnlts.systems import trajectory
 
 torch.manual_seed(0)
 time_points = torch.linspace(0, 100, 2000, dtype=torch.float64)
 periodic = torch.sin(time_points)
 noise = torch.randn(2000, dtype=torch.float64)
-chaotic = trajectory("Lorenz", 2000)[:, 0].to(torch.float64)
+chaotic = torch.as_tensor(Lorenz().make_trajectory(2000))[:, 0].to(torch.float64)
 
 signals = {"periodic (sine)": periodic, "chaotic (Lorenz x)": chaotic, "white noise": noise}
 signals = {name: (signal - signal.mean()) / signal.std() for name, signal in signals.items()}  # comparable scale

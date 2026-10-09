@@ -1,7 +1,7 @@
 """Tests for torchnlts.convert (numpy/pandas interop) and its wiring
 into torchnlts._shape, which every trajectory-consuming public function
 goes through. Data conversion, not an algorithm, so no paper/Julia
-ground truth applies here (same precedent as torchnlts.systems).
+ground truth applies here.
 """
 
 import numpy as np

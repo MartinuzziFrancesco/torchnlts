@@ -1,27 +1,60 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "torchnlts"
 version = "0.1.0"
 description = "Differentiable nonlinear time series analysis on PyTorch"
-requires-python = ">=3.10"
-license = {text = "MIT"}
+readme = "README.md"
+authors = [
+    { name = "Francesco Martinuzzi", email = "martinuzzi.francesco@gmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "torch>=2.2",
     "numpy",
-    "dysts",
-    "torchdiffeq",
+]
+requires-python = ">=3.10"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: OS Independent"
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "EntropyHub", "antropy", "nolds"]
-sde = ["torchsde"]
 pandas = ["pandas"]
+tutorials = ["dysts", "torchdiffeq"]
+test = [
+    "pytest>=7.0",
+    "dysts",
+    "pandas",
+    "scipy",
+    "EntropyHub",
+    "antropy",
+    "nolds",
+]
 
 [tool.setuptools.packages.find]
 include = ["torchnlts*"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+extend-select = ["I"]
+ignore = ["E731"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

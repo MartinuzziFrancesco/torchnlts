@@ -10,13 +10,15 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
+import torchnlts
+
 # -- Project information -----------------------------------------------------
 
 project = "torchnlts"
 html_title = "torchnlts"
 copyright = "2026, Francesco Martinuzzi"
 author = "Francesco Martinuzzi"
-release = "0.1.0"
+release = torchnlts.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

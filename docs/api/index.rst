@@ -18,5 +18,4 @@ Full API reference, one page per subpackage.
    surrogate
    causality
    sciml
-   systems
    convert

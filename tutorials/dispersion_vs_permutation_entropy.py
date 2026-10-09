@@ -24,11 +24,11 @@ any two values' order).
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.entropy import dispersion_entropy, permutation_entropy
-from torchnlts.systems import trajectory
 
-state = trajectory("Lorenz", 2000)[:, 0].to(torch.float64)
+state = torch.as_tensor(Lorenz().make_trajectory(2000))[:, 0].to(torch.float64)
 transformed = torch.exp(state / state.std())  # strictly increasing, so ranks are untouched
 
 permutation_state = permutation_entropy(state, embedding_dim=3)

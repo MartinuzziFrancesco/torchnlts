@@ -20,13 +20,13 @@ rejection alone does not establish deterministic chaos.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.entropy import permutation_entropy
 from torchnlts.surrogate import iaaft_surrogate, surrogate_test
-from torchnlts.systems import trajectory
 
 torch.manual_seed(0)
-signal = trajectory("Lorenz", 1000)[:, 0]
+signal = torch.as_tensor(Lorenz().make_trajectory(1000))[:, 0]
 signal = (signal - signal.mean()) / signal.std()
 
 

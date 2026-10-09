@@ -8,12 +8,12 @@ nor a 3D volume, the fractal signature of a strange attractor.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.dimension import correlation_dimension, correlation_sum
 from torchnlts.scaling import largest_linear_region, scaling_slope
-from torchnlts.systems import trajectory
 
-state = trajectory("Lorenz", 5000).to(torch.float64)
+state = torch.as_tensor(Lorenz().make_trajectory(5000)).to(torch.float64)
 state = (state - state.mean(dim=0)) / state.std(dim=0)  # normalize each coordinate's scale
 
 radius = torch.logspace(-1.8, 0.2, 20, dtype=torch.float64)  # wide sweep: includes the noisy and saturated ends

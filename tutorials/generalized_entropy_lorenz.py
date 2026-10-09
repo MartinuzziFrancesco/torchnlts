@@ -12,11 +12,11 @@ system -- it just takes whatever probability distribution it's handed.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.entropy import ordinal_pattern_probabilities, permutation_entropy, renyi_entropy, tsallis_entropy
-from torchnlts.systems import trajectory
 
-state = trajectory("Lorenz", 3000)[:, 0].to(torch.float64)
+state = torch.as_tensor(Lorenz().make_trajectory(3000))[:, 0].to(torch.float64)
 probability = ordinal_pattern_probabilities(state, embedding_dim=4, delay=1)
 
 shannon = permutation_entropy(state, embedding_dim=4, delay=1)

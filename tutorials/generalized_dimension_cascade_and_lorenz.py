@@ -30,9 +30,9 @@ this tutorial itself, which only prints both values side by side.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.dimension import box_counting_entropy, correlation_dimension, correlation_sum, generalized_dimension
-from torchnlts.systems import trajectory
 
 # Part 1: a p-weighted binary cascade -- D_q spectrum and monotonicity.
 generator = torch.Generator().manual_seed(0)
@@ -63,7 +63,7 @@ assert dimensions[0] - dimensions[-1] > 0.1, "D_q should vary substantially with
 
 # Part 2: the Lorenz attractor -- box-counting D2 vs the library's
 # existing pairwise-distance D2, an illustrative (not tight) comparison.
-state = trajectory("Lorenz", 5000).to(torch.float64)
+state = torch.as_tensor(Lorenz().make_trajectory(5000)).to(torch.float64)
 state = (state - state.mean(dim=0)) / state.std(dim=0)
 
 box_size_lorenz = torch.logspace(-1.5, 0.0, 12, dtype=torch.float64)

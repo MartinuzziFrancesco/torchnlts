@@ -6,11 +6,13 @@ point's nearest neighbor in the 3D reconstruction matches its nearest
 neighbor in the true 3D state space far more often than chance.
 """
 
+import torch
+from dysts.flows import Lorenz
+
 from torchnlts.embedding import delay_embedding
 from torchnlts.neighbors import knn_search
-from torchnlts.systems import trajectory
 
-full_state = trajectory("Lorenz", 2000)
+full_state = torch.as_tensor(Lorenz().make_trajectory(2000))
 observable = full_state[:, 0]
 
 embedding_dim, delay, theiler_window = 3, 5, 5

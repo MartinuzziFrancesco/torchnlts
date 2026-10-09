@@ -12,15 +12,15 @@ sine wave, the Lorenz system's chaotic x-coordinate, and white noise.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.recurrence import determinism, hard_recurrence_matrix, recurrence_rate
-from torchnlts.systems import trajectory
 
 torch.manual_seed(0)
 t = torch.linspace(0, 100, 1000)
 periodic = torch.sin(t)
 noise = torch.randn(1000)
-chaotic = trajectory("Lorenz", 1000)[:, 0]
+chaotic = torch.as_tensor(Lorenz().make_trajectory(1000))[:, 0]
 chaotic = (chaotic - chaotic.mean()) / chaotic.std()
 
 target_rate = 0.1

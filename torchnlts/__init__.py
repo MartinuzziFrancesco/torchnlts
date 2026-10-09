@@ -1,6 +1,5 @@
 """Nonlinear time series analysis in PyTorch."""
 
-from importlib import import_module
 from importlib.metadata import PackageNotFoundError, version
 
 from torchnlts import (
@@ -36,12 +35,5 @@ __all__ = [
     "recurrence",
     "sciml",
     "surrogate",
-    "systems",
 ]
 
-
-def __getattr__(name):
-    # systems imports dysts (~0.7 s), so it is loaded on first access.
-    if name == "systems":
-        return import_module("torchnlts.systems")
-    raise AttributeError(f"module 'torchnlts' has no attribute {name!r}")

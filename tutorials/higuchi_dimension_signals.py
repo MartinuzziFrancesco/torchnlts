@@ -19,15 +19,15 @@ everywhere.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.dimension import higuchi_dimension, higuchi_length
-from torchnlts.systems import trajectory
 
 torch.manual_seed(0)
 t = torch.linspace(0, 100, 2000, dtype=torch.float64)
 periodic = torch.sin(t)
 noise = torch.randn(2000, dtype=torch.float64)
-chaotic = trajectory("Lorenz", 2000)[:, 0].to(torch.float64)
+chaotic = torch.as_tensor(Lorenz().make_trajectory(2000))[:, 0].to(torch.float64)
 
 signals = {"periodic (sine)": periodic, "chaotic (Lorenz x)": chaotic, "white noise": noise}
 signals = {name: (x - x.mean()) / x.std() for name, x in signals.items()}  # comparable scale

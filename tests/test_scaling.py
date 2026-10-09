@@ -10,9 +10,10 @@ Dual ground truth:
 
 import functools
 
-import pytest
 import numpy
+import pytest
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts._shape import _ols_slope
 from torchnlts.dimension.correlation import correlation_dimension, correlation_sum
@@ -22,7 +23,6 @@ from torchnlts.dimension.variogram import variogram_dimension
 from torchnlts.fluctuations.dfa import dfa_exponent
 from torchnlts.lyapunov.rosenstein import rosenstein_lyapunov
 from torchnlts.scaling import largest_linear_region, linear_regions, scaling_slope
-from torchnlts.systems import trajectory
 
 DOUBLE = torch.float64
 
@@ -42,7 +42,7 @@ def _regions(labels):
 
 @functools.cache
 def _lorenz_curve():
-    state = trajectory("Lorenz", 3000).to(DOUBLE)
+    state = torch.as_tensor(Lorenz().make_trajectory(3000)).to(DOUBLE)
     state = (state - state.mean(dim=0)) / state.std(dim=0)
     radius = torch.logspace(-1.8, 0.2, 20, dtype=DOUBLE)
     return radius, correlation_sum(state, radius, theiler_window=10)

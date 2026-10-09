@@ -11,12 +11,12 @@ trajectory) is then used for a three-dimensional delay embedding.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.convert import as_tensor
 from torchnlts.embedding import auto_mutual_information, delay_embedding, estimate_delay
-from torchnlts.systems import load_system
 
-times, states = load_system("Lorenz").make_trajectory(3000, return_times=True)
+times, states = Lorenz().make_trajectory(3000, return_times=True)
 sampling_step = float(times[1] - times[0])
 observable = as_tensor(states[:, 0])
 

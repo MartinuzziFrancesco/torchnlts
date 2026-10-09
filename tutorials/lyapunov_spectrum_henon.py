@@ -13,7 +13,7 @@ Jacobian determinant is the constant -b).
 
 import torch
 
-from torchnlts.lyapunov import lyapunov_spectrum
+from torchnlts.lyapunov import kaplan_yorke_dimension, lyapunov_spectrum
 
 
 def henon_step(x, a=1.4, b=0.3):
@@ -30,7 +30,6 @@ print("This negative sum is the log-area growth per iteration, not the determina
 
 # Kaplan & Yorke (1979): the attractor's information dimension is estimated
 # from the spectrum as k + (sum of the first k exponents) / |lambda_{k+1}|.
-from torchnlts.lyapunov import kaplan_yorke_dimension
 
 dimension = kaplan_yorke_dimension(spectrum)
 print(f"Kaplan-Yorke dimension: {dimension.item():.4f} (literature value approximately 1.258)")

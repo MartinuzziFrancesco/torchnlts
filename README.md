@@ -42,8 +42,6 @@ Functions and classes are importable from their subpackage, for example
   `SinkhornLoss`) for training models of dynamical systems.
 - `torchnlts.scaling`: scaling-region detection for the slope estimators
   (`linear_regions`, `largest_linear_region`, `scaling_slope`).
-- `torchnlts.systems`: trajectories of reference systems from
-  [dysts](https://github.com/williamgilpin/dysts).
 - `torchnlts.convert`: `as_tensor`, `to_numpy`, `to_pandas`. Functions also
   accept numpy arrays and pandas objects directly.
 
@@ -51,25 +49,27 @@ Functions and classes are importable from their subpackage, for example
 
 Requires Python 3.10 or later and PyTorch 2.2 or later. From a checkout:
 
-```
+```shell
 pip install -e .
 ```
 
-Optional extras: `sde` (torchsde), `pandas`, and `dev` (pytest and the
-reference packages EntropyHub, antropy and nolds used in the tests).
+Optional extras: `pandas`, `tutorials` (dysts and torchdiffeq, used by the
+scripts in `tutorials/`) and `test` (pytest, dysts, and the reference
+packages EntropyHub, antropy and nolds).
 
 ## Example
 
 Correlation dimension of the Lorenz attractor, and the gradient of a soft
-sample entropy with respect to the input series:
+sample entropy with respect to the input series. The trajectory comes from
+[dysts](https://github.com/williamgilpin/dysts) (`pip install -e ".[tutorials]"`):
 
 ```python
 import torch
-from torchnlts.systems import trajectory
+from dysts.flows import Lorenz
 from torchnlts.dimension import correlation_dimension, correlation_sum
 from torchnlts.entropy import soft_sample_entropy
 
-state = trajectory("Lorenz", 5000).to(torch.float64)
+state = torch.as_tensor(Lorenz().make_trajectory(5000)).to(torch.float64)
 state = (state - state.mean(dim=0)) / state.std(dim=0)
 
 radius = torch.logspace(-1.5, -0.3, 12, dtype=torch.float64)
@@ -91,20 +91,18 @@ Each function has a gradient class: exact, smooth (a differentiable
 relaxation of a hard threshold), piecewise, implicit, or none. Hard-threshold
 functions such as `sample_entropy` have no gradient; their `soft_*`
 counterparts do. `docs/primitives.rst` lists the class of every function,
-the paper it follows, and the Julia function it was checked against where one
-exists (DynamicalSystems.jl packages such as DelayEmbeddings.jl,
-RecurrenceAnalysis.jl and FractalDimensions.jl). Entropy functions are also
-compared with EntropyHub, antropy and nolds.
+the paper it follows, and the reference implementation it was checked
+against where one exists.
 
 ## Documentation and tests
 
-```
+```shell
 pip install -r docs/requirements.txt
 sphinx-build docs docs/_build/html
 ```
 
-```
-pip install -e ".[dev]"
+```shell
+pip install -e ".[test]"
 pytest
 ```
 
@@ -114,3 +112,22 @@ Tests that compare against Julia call `julia` with the environments in
 ## License
 
 MIT. See `LICENSE`.
+
+## Acknowledgments
+
+The test suite checks results against these packages:
+
+- Julia, from [DynamicalSystems.jl](https://github.com/JuliaDynamics/DynamicalSystems.jl):
+  [DelayEmbeddings.jl](https://github.com/JuliaDynamics/DelayEmbeddings.jl),
+  [RecurrenceAnalysis.jl](https://github.com/JuliaDynamics/RecurrenceAnalysis.jl),
+  [FractalDimensions.jl](https://github.com/JuliaDynamics/FractalDimensions.jl),
+  [ChaosTools.jl](https://github.com/JuliaDynamics/ChaosTools.jl),
+  [ComplexityMeasures.jl](https://github.com/JuliaDynamics/ComplexityMeasures.jl),
+  [TimeseriesSurrogates.jl](https://github.com/JuliaDynamics/TimeseriesSurrogates.jl)
+  and [CausalityTools.jl](https://github.com/JuliaDynamics/CausalityTools.jl).
+- Python: [EntropyHub](https://github.com/MattWillFlood/EntropyHub),
+  [antropy](https://github.com/raphaelvallat/antropy) and
+  [nolds](https://github.com/CSchoel/nolds).
+
+The tutorials and tests generate reference system trajectories with
+[dysts](https://github.com/williamgilpin/dysts).

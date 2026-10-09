@@ -37,6 +37,5 @@ def test_top_level():
     assert isinstance(torchnlts.__version__, str)
     for name in [*SUBPACKAGES, "convert"]:
         assert getattr(torchnlts, name).__name__ == f"torchnlts.{name}"
-    assert torchnlts.systems.__name__ == "torchnlts.systems"
     with pytest.raises(AttributeError):
         torchnlts.nonexistent

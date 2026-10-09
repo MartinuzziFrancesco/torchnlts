@@ -12,10 +12,12 @@ dimension. This is an embedding-dimension diagnostic, not an estimate
 of the attractor's fractal dimension (about 2.05 for Lorenz).
 """
 
-from torchnlts.embedding import cao_e1, hard_fnn
-from torchnlts.systems import trajectory
+import torch
+from dysts.flows import Lorenz
 
-full_state = trajectory("Lorenz", 3000)
+from torchnlts.embedding import cao_e1, hard_fnn
+
+full_state = torch.as_tensor(Lorenz().make_trajectory(3000))
 observable = full_state[:, 0]
 
 delay, theiler_window = 8, 8

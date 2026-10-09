@@ -11,15 +11,15 @@ and depends on the template length, delay, and matching radius.
 """
 
 import torch
+from dysts.flows import Lorenz
 
 from torchnlts.entropy import permutation_entropy, sample_entropy
-from torchnlts.systems import trajectory
 
 torch.manual_seed(0)
 t = torch.linspace(0, 100, 1000)
 periodic = torch.sin(t)
 noise = torch.randn(1000)
-chaotic = trajectory("Lorenz", 1000)[:, 0]
+chaotic = torch.as_tensor(Lorenz().make_trajectory(1000))[:, 0]
 
 signals = {"periodic (sine)": periodic, "chaotic (Lorenz x)": chaotic, "white noise": noise}
 signals = {name: (x - x.mean()) / x.std() for name, x in signals.items()}  # comparable scale for sample_entropy's radius
