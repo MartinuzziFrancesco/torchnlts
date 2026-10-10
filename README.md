@@ -124,10 +124,26 @@ Tests that compare against Julia call `julia` with the environments in
 
 MIT. See `LICENSE`.
 
+## Citation
+
+If you use torchnlts in your work, please cite it with the metadata in
+`CITATION.cff` (GitHub shows it under "Cite this repository") or the BibTeX
+entry in `CITATION.bib`:
+
+```bibtex
+@software{martinuzzi2026torchnlts,
+  author = {Martinuzzi, Francesco},
+  title = {torchnlts: Nonlinear time series analysis in PyTorch},
+  year = {2026},
+  version = {0.1.0},
+  url = {https://github.com/MartinuzziFrancesco/torchnlts}
+}
+```
+
 ## Acknowledgments
 
-This work builds on a great deal of previous projects, software, and publications.
-We have used some of the to  check the correctness of our implementations, by checking results against these packages:
+This work builds on previous software and publications. We checked the
+correctness of our implementations against the results of these packages:
 
 - Julia, from [DynamicalSystems.jl](https://github.com/JuliaDynamics/DynamicalSystems.jl):
   [DelayEmbeddings.jl](https://github.com/JuliaDynamics/DelayEmbeddings.jl),
@@ -143,9 +159,7 @@ We have used some of the to  check the correctness of our implementations, by ch
   [stumpy](https://github.com/stumpy-dev/stumpy) and
   [tsfresh](https://github.com/blue-yonder/tsfresh).
 
-Additionally, the tutorials and tests generate reference system trajectories with
+The tutorials and tests generate reference system trajectories with
 [dysts](https://github.com/williamgilpin/dysts).
 
-Additional software have provided inspiration, such as:
-
- - TISEAN
+The design also draws on [TISEAN](https://www.pks.mpg.de/tisean/).

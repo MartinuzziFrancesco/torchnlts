@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "torchnlts: Nonlinear time series analysis in PyTorch"
+type: software
+authors:
+  - family-names: Martinuzzi
+    given-names: Francesco
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/MartinuzziFrancesco/torchnlts"
+url: "https://martinuzzifrancesco.github.io/torchnlts/"
+keywords:
+  - nonlinear time series analysis
+  - dynamical systems
+  - pytorch
