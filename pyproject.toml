@@ -18,6 +18,7 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
@@ -32,6 +33,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Operating System :: OS Independent"
 ]
+
+[project.urls]
+Homepage = "https://github.com/MartinuzziFrancesco/torchnlts"
+Documentation = "https://martinuzzifrancesco.github.io/torchnlts/"
+Source = "https://github.com/MartinuzziFrancesco/torchnlts"
+Issues = "https://github.com/MartinuzziFrancesco/torchnlts/issues"
 
 [project.optional-dependencies]
 pandas = ["pandas"]
