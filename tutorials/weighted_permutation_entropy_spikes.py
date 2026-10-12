@@ -32,7 +32,10 @@ for name, kwargs in [
     ("weighted (variance)", {"weighting": "variance"}),
     ("amplitude-aware", {"weighting": "amplitude"}),
 ]:
-    pair = [permutation_entropy(signal, embedding_dim, normalize=True, **kwargs).item() for signal in (noise, bursty)]
+    pair = [
+        permutation_entropy(signal, embedding_dim=embedding_dim, normalize=True, **kwargs).item()
+        for signal in (noise, bursty)
+    ]
     results[name] = pair
     print(f"{name:<22}{pair[0]:>10.4f}{pair[1]:>14.4f}")
 

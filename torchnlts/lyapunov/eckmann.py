@@ -1,81 +1,64 @@
 """Lyapunov spectrum from a scalar time series (Eckmann et al. 1986).
 
-Reference: Eckmann, J.-P., Kamphorst, S.O., Ruelle, D. & Ciliberto, S.
-(1986), "Liapunov exponents from time series", Phys. Rev. A 34(6),
-4971-4979: delay-embed the series in dimension ``d_E``; at every orbit
-point fit the tangent map by least squares over its nearest neighbors, in
-the compressed ``d_M``-dimensional "matrix dimension" form (companion
-matrix with last row ``a``, coordinates spaced ``m`` steps apart,
-``d_E - 1 = (d_M - 1) * m``); multiply the successive tangent maps along
-the orbit, re-orthonormalizing by QR (Benettin-style), and average
-``log |diag(R)|``. Each fitted map advances the orbit by ``m`` steps, so
-the product follows the orbit points ``i, i + m, i + 2m, ...`` (Sec. 2c);
-``m`` interleaved chains, one per starting phase, use every orbit point.
+Reference: Eckmann, J.-P., Kamphorst, S.O., Ruelle, D. & Ciliberto, S. (1986), "Liapunov exponents from time series",
+Phys. Rev. A 34(6), 4971-4979. The series is delay-embedded in dimension ``d_E``; at every orbit point the tangent map
+is fitted by least squares over the nearest neighbors, in the compressed ``d_M``-dimensional "matrix dimension" form
+(companion matrix with last row ``a``, coordinates ``m`` steps apart, ``d_E - 1 = (d_M - 1) * m``). The tangent maps are
+multiplied along the orbit, re-orthonormalized by QR, and ``log |diag(R)|`` is averaged. Each fitted map advances the
+orbit by ``m`` steps, so the product follows the points ``i, i + m, i + 2m, ...`` (Sec. 2c); ``m`` interleaved chains,
+one per starting phase, use every orbit point.
 
-Compared with ``nolds.lyap_e`` (``emb_dim``, ``matrix_dim``, ``min_nb``,
-``min_tsep``): neighbor selection (max-norm of the full embedded vector,
-``|i - j| <= theiler_window`` excluded), the intercept-free least-squares
-fit of ``x[j + d_M * m] - x[i + d_M * m]`` on the neighbor differences,
-and the per-exponent average agree, so for ``m = 1`` the two match to
-float64 precision on well-conditioned fits. The exponents are per sample
-step (nolds: ``tau=1``); divide by the sampling interval for
-per-unit-time values. Deviations:
+Compared with ``nolds.lyap_e`` (``emb_dim``, ``matrix_dim``, ``min_nb``, ``min_tsep``), the neighbor selection (max-norm
+of the full embedded vector, ``|i - j| <= theiler_window`` excluded), the intercept-free least-squares fit of
+``x[j + d_M * m] - x[i + d_M * m]`` on the neighbor differences and the per-exponent average agree: for ``m = 1`` the
+two match to float64 precision on well-conditioned fits. Exponents are per sample step (nolds: ``tau = 1``); divide by
+the sampling interval for per-unit-time values. Deviations:
 
-- ``m > 1``: nolds composes the maps at every consecutive orbit point
-  (advancing one step per map instead of ``m``), which does not follow
-  the paper; this module follows the paper, so the two differ for
-  ``d_E > d_M`` (``m = 1`` is unaffected).
-- ``delay`` generalizes the sample spacing of the embedding (``delay=1``
-  is nolds); a map advances ``m * delay`` samples and exponents are
-  divided by it.
-- Ties: exactly ``num_neighbors`` nearest points are used. nolds also
-  keeps every point tied with the last one (``distance <= r``). Under
-  the max-norm such ties do occur (windows overlapping at lag ``m * delay``
-  share coordinates), so the two can differ at those points.
-- Degenerate rows are ``NaN`` where nolds raises or returns ``+inf``: a
-  series too short, an orbit point with fewer than ``num_neighbors``
-  admissible neighbors, a neighbor difference matrix of rank below
-  ``matrix_dim`` (numerical rank, ``torch.linalg.matrix_rank`` default
-  tolerance), or a zero or subnormal growth factor in the QR chain (a
-  singular tangent map, or a product singular to rounding). Constant and
-  exactly periodic series are therefore ``NaN``, not ``-inf``. nolds
-  instead takes the minimum-norm solution of a rank-deficient fit.
-  Every accepted system has full rank and is solved through its QR
-  factorization, on every device.
-- ``d_M`` exponents are returned in the order QR produces them (generally
-  descending). Only the first few are meaningful; with ``d_M`` above the
-  system's dimension the others are spurious (see the paper, Sec. 4).
+- ``m > 1``: nolds composes the maps at every consecutive orbit point (one step per map instead of ``m``), which does
+  not follow the paper. This module follows the paper, so the two differ for ``d_E > d_M``.
+- ``delay`` spaces the embedding coordinates (``delay = 1`` is nolds); a map advances ``m * delay`` samples and the
+  exponents are divided by it.
+- Ties: exactly ``num_neighbors`` nearest points are used, whereas nolds also keeps every point tied with the last
+  (``distance <= r``). Under the max-norm such ties occur (windows overlapping at lag ``m * delay`` share coordinates),
+  so the two can differ at those points.
+- Degenerate rows are ``NaN`` where nolds raises or returns ``+inf``: a series too short, a point with fewer than
+  ``num_neighbors`` admissible neighbors, a neighbor difference matrix of rank below ``matrix_dim`` (numerical rank,
+  ``torch.linalg.matrix_rank`` default tolerance), or a zero or subnormal growth factor in the QR chain (a singular
+  tangent map, or a product singular to rounding). Constant and exactly periodic series are therefore ``NaN``, not
+  ``-inf``. nolds takes the minimum-norm solution of a rank-deficient fit instead.
+- The ``d_M`` exponents come in the order QR produces them (generally descending). Only the first few are meaningful;
+  with ``d_M`` above the system's dimension the others are spurious (paper, Sec. 4).
 
-Limitation: the paper's adaptive neighborhood enlargement and minimum-rank
-requirement on the neighbor set are not implemented (a fixed neighbor
-count and a rejection of rank-deficient neighborhoods instead); a
-radius-growing search is the upgrade path.
+Limitation: the paper's adaptive neighborhood enlargement and minimum-rank requirement are not implemented (a fixed
+neighbor count and rejection of rank-deficient neighborhoods instead); a radius-growing search is the upgrade path.
 
-Limitation: the neighbor search builds the full ``[N, N]`` distance
-matrix; a tree or chunked search is the upgrade path for long series.
+Limitation: the neighbor search builds the full ``[N, N]`` distance matrix; a tree or chunked search is the upgrade
+path for long series.
 
-Limitation: half and bfloat16 input is computed in float32, but its
-gradient is cast back to the input dtype; for moderately ill-conditioned
-fits (condition ~1e3) the input gradient can exceed half's range and
-become ``inf``. Keep the trainable computation upstream in float32 when
-gradients are needed.
+Limitation: half and bfloat16 input is computed in float32 but its gradient is cast back to the input dtype; for
+moderately ill-conditioned fits (condition ~1e3) the input gradient can exceed half's range and become ``inf``. Keep the
+trainable computation upstream in float32 when gradients are needed.
 
-Gradient class: piecewise. Neighbor selection is discrete; the
-least-squares fit and QR are differentiable while the neighbor
-differences have full rank and the tangent maps are nonsingular (QR's
-backward is undefined for singular input). Degeneracy is decided
-without autograd before the linear algebra, and degenerate points get
-placeholder operands, so a degenerate row returns ``NaN`` with zero
-gradient and nothing reaches other rows or shared parameters. Gradients
-through the chain of QR steps inherit the exploding-variance risk of
-products of Jacobians (Metz et al. 2021) for long series.
+Gradient class: piecewise. Neighbor selection is discrete; the least-squares fit and the QR chain are differentiable
+while the neighbor differences have full rank and the tangent maps are nonsingular. Degenerate points get placeholder
+operands before the linear algebra, so a ``NaN`` row has zero gradient and puts nothing into other rows or shared
+parameters. Gradients through the QR chain inherit the exploding-variance risk of products of Jacobians (Metz et al.
+2021) for long series.
 """
 
 from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_int, _ensure_batched, _mask_nonfinite_rows, _output_dtype, _work_dtype
+from torchnlts._shape import (
+    _as_int,
+    _ensure_batched,
+    _mask_nonfinite_rows,
+    _output_dtype,
+    _require_univariate,
+    _restore_batch,
+    _work_dtype,
+)
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import knn_search
@@ -83,20 +66,18 @@ from torchnlts.neighbors.theiler import _require_self_exclusion
 
 
 def _least_squares(design: torch.Tensor, response: torch.Tensor) -> torch.Tensor:
-    """Solution of full-rank ``design @ x = response`` in the least-squares
-    sense, ``[..., k, d]`` and ``[..., k]`` -> ``[..., d]``. Solved through a
-    reduced QR factorization: its backward stays accurate for ill-conditioned
-    designs, where ``torch.linalg.lstsq``'s is off by orders of magnitude."""
+    """Least-squares solution of the full-rank system ``design @ x = response``, ``[..., k, d]`` and ``[..., k]`` ->
+    ``[..., d]``, through a reduced QR factorization: its backward stays accurate for ill-conditioned designs, where
+    ``torch.linalg.lstsq``'s is off by orders of magnitude."""
     orthonormal, upper = torch.linalg.qr(design)
     projected = orthonormal.transpose(-2, -1) @ response.unsqueeze(-1)
     return torch.linalg.solve_triangular(upper, projected, upper=True).squeeze(-1)
 
 
 def _qr_chain(tangent: torch.Tensor, shift: int) -> tuple[torch.Tensor, torch.Tensor]:
-    """Summed ``log |diag R|`` ``[B, d_M]`` of the QR-reorthonormalized
-    products of ``tangent`` ``[B, N, d_M, d_M]``, one chain per starting
-    phase advancing ``shift`` points per map, and the ``[B]`` rows where a
-    growth factor is zero or subnormal (QR's backward divides by it)."""
+    """Summed ``log |diag R|`` ``[B, d_M]`` of the QR-reorthonormalized products of ``tangent`` ``[B, N, d_M, d_M]``,
+    one chain per starting phase advancing ``shift`` points per map, and the ``[B]`` rows where a growth factor is zero
+    or subnormal (QR's backward divides by it)."""
     batch_size, num_points, matrix_dim, _ = tangent.shape
     identity = torch.eye(matrix_dim, dtype=tangent.dtype, device=tangent.device)
     num_chains = min(shift, num_points)
@@ -123,50 +104,44 @@ def eckmann_spectrum(
     trajectory,
     embedding_dim: int,
     matrix_dim: int,
+    *,
     num_neighbors: int | None = None,
     delay: int = 1,
     theiler_window: int = 0,
     norm_order: float = float("inf"),
 ) -> torch.Tensor:
-    """Lyapunov exponents of a scalar series (Eckmann, Kamphorst, Ruelle & Ciliberto).
+    """Lyapunov exponents of a scalar series, per sample step.
+
+    Reference: Eckmann, Kamphorst, Ruelle & Ciliberto (1986), Phys. Rev. A 34(6), 4971-4979.
 
     Gradient class: piecewise (see the module docstring).
 
     Args:
-        trajectory: Scalar series, shape ``[T]``, ``[T, 1]``, or
-            ``[B, T, 1]``. A tensor, numpy array, or pandas
+        trajectory: Scalar series, shape ``[T]``, ``[T, 1]`` or ``[B, T, 1]``. A tensor, numpy array, or pandas
             Series/DataFrame.
-        embedding_dim: Embedding dimension ``d_E``. ``embedding_dim - 1``
-            must be divisible by ``matrix_dim - 1``.
-        matrix_dim: Matrix dimension ``d_M``, ``2 <= d_M <= d_E``; the
-            number of exponents returned.
-        num_neighbors: Neighbors per orbit point for the tangent-map fit,
-            at least ``matrix_dim``. Defaults to
+        embedding_dim: Embedding dimension ``d_E``; ``embedding_dim - 1`` must be divisible by ``matrix_dim - 1``.
+        matrix_dim: Matrix dimension ``d_M``, in ``[2, d_E]``; the number of exponents returned.
+        num_neighbors: Neighbors per orbit point for the tangent-map fit, ``>= matrix_dim``. Default:
             ``min(2 * matrix_dim, matrix_dim + 4)``.
-        delay: Sample spacing of the embedding coordinates.
-        theiler_window: Neighbors with ``|i - j| <= theiler_window`` are
-            excluded (see :func:`torchnlts.neighbors.theiler_window_mask`).
-        norm_order: Minkowski norm order of the neighbor search
-            (default max-norm, as in nolds).
+        delay: Sample spacing of the embedding coordinates, ``>= 1``.
+        theiler_window: Neighbors with ``|i - j| <= theiler_window`` are excluded (see
+            :func:`torchnlts.neighbors.theiler_window_mask`). Must be ``>= 0``.
+        norm_order: Minkowski norm order of the neighbor search (default: the max-norm, as in nolds).
 
     Returns:
-        Exponents per sample step, shape ``[matrix_dim]`` or
-        ``[B, matrix_dim]``. ``NaN`` for a row containing NaN/inf and for
-        any degenerate row (see the module docstring: too short, too few
-        or rank-deficient neighborhoods, singular fitted map, constant or
+        Exponents of shape ``[matrix_dim]`` or ``[B, matrix_dim]``, in the input's floating dtype (the default dtype
+        for integer input; half precision is computed in float32). ``NaN`` for a row containing NaN/inf and for a
+        degenerate row (series too short, too few or rank-deficient neighborhoods, singular fitted map; constant and
         exactly periodic series).
 
     Raises:
-        ValueError: If ``trajectory`` is not scalar or is complex, the
-            dimensions are inconsistent, or any count is not an integer
-            in range (``delay < 1``, ``num_neighbors < matrix_dim``,
-            ``theiler_window < 0``, ``norm_order`` not a real number
-            ``>= 0``).
+        ValueError: If the trajectory is not scalar or is complex, ``embedding_dim``, ``matrix_dim``,
+            ``num_neighbors``, ``delay`` or ``theiler_window`` is not an integer in its range, the dimensions are
+            inconsistent, or ``norm_order`` is not a real number ``>= 0``.
     """
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     matrix_dim = _as_int(matrix_dim, "matrix_dim")
     delay = _as_int(delay, "delay")
-    theiler_window = _as_int(theiler_window, "theiler_window")
     if matrix_dim < 2:
         raise ValueError(f"matrix_dim must be >= 2, got {matrix_dim}")
     if embedding_dim < matrix_dim:
@@ -182,14 +157,13 @@ def eckmann_spectrum(
         raise ValueError(
             f"num_neighbors must be >= matrix_dim (a smaller neighborhood cannot determine the fit), got {num_neighbors} < {matrix_dim}"
         )
-    _require_self_exclusion(theiler_window, "the Eckmann et al. Lyapunov spectrum")
+    theiler_window = _require_self_exclusion(theiler_window, "the Eckmann et al. Lyapunov spectrum")
     norm_order = _validate_norm_order(norm_order)
 
     batched, ndim = _ensure_batched(trajectory)
-    if batched.shape[-1] != 1:
-        raise ValueError(f"expected a scalar series [T], [T, 1], or [B, T, 1], got {tuple(batched.shape)}")
+    _require_univariate(batched, "eckmann_spectrum")
     dtype = _output_dtype(batched)
-    series, nonfinite = _mask_nonfinite_rows(batched[..., 0].to(_work_dtype(dtype)).unsqueeze(-1))
+    series, nonfinite = _mask_nonfinite_rows(batched.to(_work_dtype(dtype)))
     series = series[..., 0]
     batch_size, length = series.shape
     device = series.device
@@ -201,12 +175,10 @@ def eckmann_spectrum(
     if num_points < 1:
         # Zero-weighted sum keeps the result connected to the input.
         result = nan_result + series.sum(dim=-1, keepdim=True) * 0
-        return (result.squeeze(0) if ndim != 3 else result).to(dtype)
+        return _restore_batch(result, ndim).to(dtype)
 
-    embedded = delay_embedding(series[:, : length - shift].unsqueeze(-1), embedding_dim, delay)
-    _, neighbor_index = knn_search(
-        embedded, num_neighbors, theiler_window=min(theiler_window, num_points), norm_order=norm_order
-    )
+    embedded = delay_embedding(series[:, : length - shift].unsqueeze(-1), embedding_dim, delay=delay)
+    _, neighbor_index = knn_search(embedded, num_neighbors, theiler_window=theiler_window, norm_order=norm_order)
     has_neighbors = (neighbor_index >= 0).all(dim=-1)  # [B, N]
     safe_index = torch.where(neighbor_index >= 0, neighbor_index, torch.zeros_like(neighbor_index))
 
@@ -251,4 +223,4 @@ def eckmann_spectrum(
     exponents = total / (num_points * shift)
     bad = bad | degenerate
     exponents = torch.where(bad.unsqueeze(-1), nan_result, exponents)
-    return (exponents.squeeze(0) if ndim != 3 else exponents).to(dtype)
+    return _restore_batch(exponents, ndim).to(dtype)

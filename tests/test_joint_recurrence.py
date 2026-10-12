@@ -15,13 +15,12 @@ Dual ground truth:
      internally, confirmed to agree with it for a shared threshold).
 """
 
-import subprocess
-
+import pytest
 import torch
 
+from tests.conftest import LargestOutput, run_julia
 from torchnlts.recurrence.joint_recurrence import hard_joint_recurrence_matrix, soft_joint_recurrence_matrix
-
-JULIA_PROJECT = "juliaenv"
+from torchnlts.recurrence.matrix import soft_recurrence_matrix
 
 
 def test_hard_joint_recurrence_matrix_hand_derived():
@@ -79,11 +78,8 @@ def test_hard_joint_recurrence_matrix_rejects_batch_mismatch():
     batched = torch.randn(2, 5, 1)
     other_batched = torch.randn(3, 5, 1)
     for x, y in ((unbatched, batched), (batched, unbatched), (batched, other_batched)):
-        try:
+        with pytest.raises(ValueError):
             hard_joint_recurrence_matrix(x, y, epsilon=0.5)
-        except ValueError:
-            continue
-        raise AssertionError(f"expected ValueError for mismatched shapes {tuple(x.shape)} vs {tuple(y.shape)}")
 
 
 def test_hard_joint_recurrence_matrix_matches_recurrenceanalysis_jl():
@@ -105,15 +101,9 @@ def test_hard_joint_recurrence_matrix_matches_recurrenceanalysis_jl():
         println(join(Int.(row), ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
+    stdout = run_julia(julia_code)
     julia_matrix = torch.tensor(
-        [[int(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()],
+        [[int(v) for v in line.split(",")] for line in stdout.strip().splitlines()],
         dtype=torch.bool,
     )
     torch_matrix = hard_joint_recurrence_matrix(x, y, epsilon=epsilon_x, other_epsilon=epsilon_y)
@@ -187,11 +177,8 @@ def test_soft_joint_recurrence_matrix_rejects_batch_mismatch():
     batched = torch.randn(2, 5, 1)
     other_batched = torch.randn(3, 5, 1)
     for x, y in ((unbatched, batched), (batched, unbatched), (batched, other_batched)):
-        try:
+        with pytest.raises(ValueError):
             soft_joint_recurrence_matrix(x, y, temperature=0.5)
-        except ValueError:
-            continue
-        raise AssertionError(f"expected ValueError for mismatched shapes {tuple(x.shape)} vs {tuple(y.shape)}")
 
 
 def test_soft_joint_recurrence_matrix_gradcheck():
@@ -203,3 +190,52 @@ def test_soft_joint_recurrence_matrix_gradcheck():
         return soft_joint_recurrence_matrix(x, y, temperature=0.5)
 
     assert torch.autograd.gradcheck(soft, (x, y))
+
+
+def _sliced_soft_joint(trajectory, other, temperature, other_temperature, kind):
+    """Reference: both full soft recurrence matrices, sliced to the common length afterwards."""
+    weight = soft_recurrence_matrix(trajectory, temperature, kind=kind)
+    other_weight = soft_recurrence_matrix(other, other_temperature, kind=kind)
+    length = min(weight.shape[-1], other_weight.shape[-1])
+    return weight[..., :length, :length] * other_weight[..., :length, :length]
+
+
+@pytest.mark.parametrize("kind", ["gaussian", "exponential"])
+@pytest.mark.parametrize(
+    ("trajectory_shape", "other_shape"),
+    [((9,), (5,)), ((5, 2), (9, 3)), ((3, 9, 2), (3, 5, 4)), ((3, 5, 2), (3, 9, 1)), ((4, 6, 2), (4, 6, 3))],
+)
+def test_soft_joint_recurrence_matrix_equals_slicing_the_full_matrices(trajectory_shape, other_shape, kind):
+    generator = torch.Generator().manual_seed(0)
+    trajectory = torch.randn(*trajectory_shape, generator=generator, dtype=torch.float64).requires_grad_()
+    other = torch.randn(*other_shape, generator=generator, dtype=torch.float64).requires_grad_()
+    temperature = torch.tensor(0.8, dtype=torch.float64, requires_grad=True)
+    other_temperature = torch.tensor(1.3, dtype=torch.float64, requires_grad=True)
+    actual = soft_joint_recurrence_matrix(
+        trajectory, other, temperature, other_temperature=other_temperature, kind=kind
+    )
+    expected = _sliced_soft_joint(trajectory, other, temperature, other_temperature, kind)
+    assert actual.shape == expected.shape
+    torch.testing.assert_close(actual, expected)
+    upstream = torch.randn(actual.shape, generator=generator, dtype=torch.float64)
+    leaves = (trajectory, other, temperature, other_temperature)
+    actual_gradients = torch.autograd.grad((actual * upstream).sum(), leaves)
+    expected_gradients = torch.autograd.grad((expected * upstream).sum(), leaves)
+    for actual_gradient, expected_gradient in zip(actual_gradients, expected_gradients):
+        torch.testing.assert_close(actual_gradient, expected_gradient)
+
+
+def test_soft_joint_recurrence_matrix_truncates_before_computing_the_matrices():
+    generator = torch.Generator().manual_seed(1)
+    trajectory = torch.randn(400, 2, generator=generator)
+    other = torch.randn(20, 3, generator=generator)
+    with LargestOutput() as recorder:
+        result = soft_joint_recurrence_matrix(trajectory, other, 0.5)
+    assert result.shape == (20, 20)
+    assert recorder.numel < 400 * 400 // 10
+
+
+@pytest.mark.parametrize("kwargs", [{"temperature": 0.0}, {"temperature": 0.5, "other_temperature": -1.0}])
+def test_soft_joint_recurrence_matrix_rejects_invalid_temperature(kwargs):
+    with pytest.raises(ValueError, match="temperature"):
+        soft_joint_recurrence_matrix(torch.randn(8), torch.randn(5), **kwargs)

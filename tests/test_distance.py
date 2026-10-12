@@ -13,13 +13,12 @@ Dual ground truth:
      than a loose tolerance).
 """
 
-import subprocess
-
+import numpy
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.neighbors.distance import pairwise_distance
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_pairwise_distance_hand_derived():
@@ -45,7 +44,7 @@ def test_pairwise_distance_shapes():
 def test_pairwise_distance_cross():
     x = torch.randn(4, 3, dtype=torch.float64)
     y = torch.randn(6, 3, dtype=torch.float64)
-    d = pairwise_distance(x, y)
+    d = pairwise_distance(x, other=y)
     assert d.shape == (4, 6)
     # Brute-force cross-check independent of torch.cdist.
     brute = torch.zeros(4, 6, dtype=torch.float64)
@@ -60,31 +59,22 @@ def test_pairwise_distance_rejects_batched_ndim_mismatch():
     unbatched = torch.randn(3)
     batched = torch.randn(2, 5, 1)
     for x, y in ((unbatched, batched), (batched, unbatched)):
-        try:
-            pairwise_distance(x, y)
-        except ValueError:
-            continue
-        raise AssertionError("expected ValueError for a batched/unbatched mismatch")
+        with pytest.raises(ValueError):
+            pairwise_distance(x, other=y)
 
 
 def test_pairwise_distance_rejects_unequal_batch_size():
     x = torch.randn(3, 5, 1)
     y = torch.randn(4, 6, 1)
-    try:
-        pairwise_distance(x, y)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for unequal batch sizes")
+    with pytest.raises(ValueError):
+        pairwise_distance(x, other=y)
 
 
 def test_pairwise_distance_rejects_feature_dim_mismatch():
     x = torch.randn(5, 2)
     y = torch.randn(6, 4)
-    try:
-        pairwise_distance(x, y)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for a feature dim mismatch")
+    with pytest.raises(ValueError):
+        pairwise_distance(x, other=y)
 
 
 def test_pairwise_distance_chebyshev():
@@ -93,11 +83,23 @@ def test_pairwise_distance_chebyshev():
     assert torch.allclose(d, torch.tensor([[0.0, 4.0], [4.0, 0.0]]))
 
 
+@pytest.mark.parametrize("bad", [-1.0, float("nan"), "2", "abc", None, 1j, 10**400, torch.tensor([1.0, 2.0])])
+def test_pairwise_distance_rejects_invalid_norm_order(bad):
+    with pytest.raises(ValueError, match="norm_order"):
+        pairwise_distance(torch.randn(5, 2), norm_order=bad)
+
+
+@pytest.mark.parametrize("good", [1, numpy.float64(1.0), torch.tensor(1.0)])
+def test_pairwise_distance_accepts_real_scalar_norm_order(good):
+    trajectory = torch.randn(5, 2, dtype=torch.float64)
+    assert torch.equal(pairwise_distance(trajectory, norm_order=good), pairwise_distance(trajectory, norm_order=1.0))
+
+
 def test_pairwise_distance_gradcheck():
     # Cross-distance between independent point sets avoids the r=0 singularity.
     x = torch.randn(4, 3, dtype=torch.float64, requires_grad=True)
     y = torch.randn(5, 3, dtype=torch.float64, requires_grad=True)
-    assert torch.autograd.gradcheck(pairwise_distance, (x, y))
+    assert torch.autograd.gradcheck(lambda points, other: pairwise_distance(points, other=other), (x, y))
 
 
 def test_pairwise_distance_float32_large_offset_stable():
@@ -113,7 +115,7 @@ def test_pairwise_distance_float32_large_offset_stable():
 def test_pairwise_distance_matches_julia_distances_jl():
     torch.manual_seed(0)
     x = torch.randn(6, 3, dtype=torch.float64)
-    d_torch = pairwise_distance(x).numpy()
+    d_torch = pairwise_distance(x)
 
     rows = ";".join(" ".join(f"{v:.17g}" for v in row) for row in x.numpy())
     julia_code = f"""
@@ -124,14 +126,9 @@ def test_pairwise_distance_matches_julia_distances_jl():
         println(join(D[i, :], ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
+    stdout = run_julia(julia_code)
+    d_julia = torch.tensor(
+        [[float(v) for v in line.split(",")] for line in stdout.strip().splitlines()], dtype=torch.float64
     )
-    assert result.returncode == 0, result.stderr
-    d_julia = [[float(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()]
-    for i, row in enumerate(d_julia):
-        for j, v in enumerate(row):
-            assert abs(v - d_torch[i, j]) < 1e-10, (i, j, v, d_torch[i, j])
+    assert d_julia.shape == d_torch.shape == (6, 6)
+    assert torch.allclose(d_julia, d_torch, atol=1e-10, rtol=0)

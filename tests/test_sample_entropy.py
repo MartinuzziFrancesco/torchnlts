@@ -12,13 +12,16 @@ Dual ground truth:
 """
 
 import math
-import subprocess
 
+import pytest
 import torch
 
+from tests.conftest import assert_first_row_gradients_unaffected, run_julia
 from torchnlts.entropy.sample import _matched_length_templates, sample_entropy, soft_sample_entropy
 
-JULIA_PROJECT = "juliaenv"
+NONFINITE = [float("nan"), float("inf"), -float("inf")]
+# With embedding_dim=1 and delay=30 on 50 samples, samples 20-29 enter no template.
+GAP = dict(embedding_dim=1, delay=30)
 
 
 def test_sample_entropy_hand_derived_delay_1():
@@ -74,20 +77,14 @@ def test_sample_entropy_zero_a_positive_b_is_inf_not_crash():
 def test_sample_entropy_negative_theiler_window_raises():
     # Self-matches must always be excluded (Richman & Moorman), even with the no-exclusion convention.
     trajectory = torch.tensor([0.0, 1.0, 0.0, 2.0], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         sample_entropy(trajectory, radius=1.5, embedding_dim=1, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_soft_sample_entropy_negative_theiler_window_raises():
     trajectory = torch.tensor([0.0, 1.0, 0.0, 2.0], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         soft_sample_entropy(trajectory, temperature=0.5, embedding_dim=1, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_sample_entropy_batch_size_one_matches_unbatched():
@@ -106,6 +103,32 @@ def test_soft_sample_entropy_underflow_is_nan_not_crash():
     assert torch.isnan(result)
 
 
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("function, parameter", [(sample_entropy, 1.0), (soft_sample_entropy, 0.05)])
+def test_sample_entropies_half_input_is_computed_in_float32(function, parameter, dtype):
+    torch.manual_seed(1)
+    series = torch.randn(2, 300, 1).to(dtype)
+    result = function(series, parameter)
+    assert result.dtype == dtype and torch.isfinite(result).all()
+    assert torch.equal(result, function(series.float(), parameter).to(dtype))
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_soft_sample_entropy_half_kernel_sums_do_not_underflow(dtype):
+    result = soft_sample_entropy(torch.arange(12, dtype=dtype), 0.15)
+    assert result.dtype == dtype and result == 0
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_soft_sample_entropy_half_temperature_is_computed_in_float32(dtype):
+    torch.manual_seed(2)
+    series = torch.randn(2, 300, 1).to(dtype)
+    temperature = torch.tensor([0.05, 0.1], dtype=dtype)
+    result = soft_sample_entropy(series, temperature)
+    assert result.dtype == dtype and torch.isfinite(result).all()
+    assert torch.equal(result, soft_sample_entropy(series.float(), temperature.float()).to(dtype))
+
+
 def test_sample_entropy_unpadded_disagrees_with_complexitymeasures_jl():
     # Locks in the boundary deviation from ComplexityMeasures.jl, whose B(r) leaks one out-of-range neighbor.
     # If a future ComplexityMeasures.jl fixes this, the test fails and the docs need revisiting.
@@ -116,14 +139,8 @@ def test_sample_entropy_unpadded_disagrees_with_complexitymeasures_jl():
     est = SampleEntropy(x; r=1.5, m=1, τ=1)
     println(complexity(est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_entropy = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_entropy = sample_entropy(torch.tensor(trajectory, dtype=torch.float64), radius=1.5, embedding_dim=1, delay=1)
     # Julia's leaked neighbor gives A=4, B=7 -> ln(7/4); strict truncation here gives A=4, B=6 -> ln(3/2).
     assert torch.isclose(julia_entropy, torch.tensor(math.log(7 / 4), dtype=torch.float64))
@@ -183,14 +200,8 @@ def test_sample_entropy_matches_complexitymeasures_jl():
     est = SampleEntropy(m={embedding_dim}, τ=1, r={radius})
     println(complexity(est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_entropy = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_entropy = sample_entropy(trajectory, radius=radius, embedding_dim=embedding_dim, delay=1)
     assert torch.isclose(torch_entropy, julia_entropy, atol=1e-9)
 
@@ -217,3 +228,60 @@ def test_sample_entropies_nan_for_nonfinite_rows():
         for function in (sample_entropy, soft_sample_entropy):
             values = function(batch, 0.5)
             assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
+
+
+@pytest.mark.parametrize("function", [sample_entropy, soft_sample_entropy])
+@pytest.mark.parametrize("bad", NONFINITE)
+def test_sample_entropies_nan_for_nonfinite_sample_outside_every_template(function, bad):
+    # Regression: a non-finite sample that enters no template used to leave its row finite.
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = bad
+    values = function(batch, 0.5, **GAP)
+    assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
+    for row in (0, 2):
+        assert torch.equal(values[row], function(batch[row], 0.5, **GAP))
+    assert torch.isnan(function(batch[1], 0.5, **GAP)) and torch.isnan(function(batch[1, :, 0], 0.5, **GAP))
+    swept = function(batch, torch.tensor([0.5, 0.8], dtype=torch.float64), **GAP)
+    assert swept.shape == (2, 3) and torch.isnan(swept[:, 1]).all() and not torch.isnan(swept[:, [0, 2]]).any()
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_soft_sample_entropy_nonfinite_row_leaves_other_gradients(bad):
+    torch.manual_seed(1)
+    clean, bad_row = torch.randn(50, dtype=torch.float64), torch.randn(50, dtype=torch.float64)
+    bad_row[25] = bad
+
+    def gradients(rows):
+        batch = torch.stack(rows).unsqueeze(-1).requires_grad_()
+        temperature = torch.tensor(0.5, dtype=torch.float64, requires_grad=True)
+        soft_sample_entropy(batch, temperature, **GAP).nansum().backward()
+        return batch.grad, temperature.grad
+
+    batch_grad, temperature_grad = gradients([bad_row, clean])
+    single_grad, single_temperature_grad = gradients([clean])
+    assert torch.isfinite(batch_grad).all() and (batch_grad[0] == 0).all()
+    assert torch.allclose(batch_grad[1], single_grad[0])
+    assert torch.isfinite(temperature_grad) and torch.allclose(temperature_grad, single_temperature_grad)
+
+
+@pytest.mark.parametrize("function", [sample_entropy, soft_sample_entropy])
+def test_sample_entropies_vmap_with_nonfinite_sample_outside_every_template(function):
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = float("nan")
+    direct = function(batch, 0.5, **GAP)
+    mapped = torch.vmap(lambda series: function(series, 0.5, **GAP))(batch)
+    assert torch.allclose(direct, mapped, equal_nan=True) and torch.isnan(mapped[1]) and torch.isfinite(mapped[0])
+
+
+def test_soft_sample_entropy_denormal_kernel_sums_keep_other_gradients_finite():
+    # A kernel sum of about 2e-42 (denormal in float32) overflows a quotient's gradient, which would reach the shared
+    # temperature as 0 * inf. The second row is an arithmetic progression whose nearest templates are 13.74 bandwidths
+    # apart, so its A and B are tiny but not zero.
+    small = [0.00, 0.03, -0.02, 0.05, 0.01, -0.04, 0.02, 0.06, -0.01, 0.00, 0.04, -0.03]
+    progression = [1.374 * index for index in range(12)]
+    result = assert_first_row_gradients_unaffected(
+        lambda series, temperature: soft_sample_entropy(series, temperature), [small, progression], 0.1, torch.float32
+    )
+    assert torch.isfinite(result).all() and result[1].abs() < 1e-3

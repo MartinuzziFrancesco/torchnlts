@@ -11,11 +11,10 @@ import math
 
 import numpy as np
 import pytest
+import stumpy
 import torch
 
 from torchnlts.matrixprofile import corrected_arc_curve, discords, matrix_profile, motifs, regime_boundaries
-
-stumpy = pytest.importorskip("stumpy")
 
 
 def _series(seed, length=300, dtype=torch.float64):
@@ -162,7 +161,7 @@ def test_validation():
         matrix_profile(torch.randn(20), 1)
     with pytest.raises(ValueError):
         matrix_profile(torch.randn(20), 21)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="univariate"):
         matrix_profile(torch.randn(20, 2), 5)
     with pytest.raises(ValueError):
         matrix_profile(torch.randn(20), 5, exclusion_zone=-1)

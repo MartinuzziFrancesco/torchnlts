@@ -10,6 +10,7 @@ Dual ground truth:
 import pytest
 import torch
 
+from tests.conftest import LargestOutput, requires_nolds, run_julia
 from torchnlts.fluctuations.dfa import dfa_exponent, dfa_fluctuation
 
 
@@ -49,38 +50,26 @@ def test_dfa_fluctuation_constant_series_is_zero():
 
 def test_dfa_fluctuation_multivariate_raises():
     trajectory = torch.randn(10, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         dfa_fluctuation(trajectory, 4)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_dfa_fluctuation_negative_order_raises():
     trajectory = torch.randn(10, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         dfa_fluctuation(trajectory, 4, order=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_dfa_fluctuation_empty_window_size_raises():
     trajectory = torch.randn(10, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         dfa_fluctuation(trajectory, [])
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_dfa_fluctuation_window_too_small_for_order_raises():
     trajectory = torch.randn(10, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         dfa_fluctuation(trajectory, 2, order=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_dfa_fluctuation_batched_and_sweep_shapes():
@@ -158,6 +147,7 @@ def test_dfa_exponent_brownian_motion_is_near_one_point_five():
     assert abs(alpha.item() - 1.5) < 0.05
 
 
+@requires_nolds
 def test_dfa_matches_nolds_non_overlapping():
     import nolds
 
@@ -194,6 +184,7 @@ def test_dfa_matches_antropy_default_sweep():
     assert abs(torch_alpha.item() - antropy_alpha) < 1e-6
 
 
+@requires_nolds
 def test_dfa_matches_nolds_higher_order():
     import nolds
 
@@ -308,7 +299,6 @@ def test_dfa_exponent_degenerate_column_does_not_poison_shared_gradient():
 def test_dfa_matches_fluctuationanalysis_jl():
     # bidirectional=false is Julia's forward-only segmentation; both are float64, so agreement is to rounding.
     import pathlib
-    import subprocess
 
     project = pathlib.Path.home() / ".julia" / "dev" / "FluctuationAnalysis"
     if not project.exists():
@@ -325,11 +315,8 @@ def test_dfa_matches_fluctuationanalysis_jl():
         println(join(result.fluctuations, ","))
         println(scaling_exponent(result))
         """
-        completed = subprocess.run(
-            ["julia", f"--project={project}", "-e", julia_code], capture_output=True, text=True, timeout=300
-        )
-        assert completed.returncode == 0, completed.stderr
-        lines = completed.stdout.strip().split("\n")
+        stdout = run_julia(julia_code, str(project))
+        lines = stdout.strip().split("\n")
         julia_fluctuation = torch.tensor([float(item) for item in lines[0].split(",")], dtype=torch.float64)
         fluctuation = dfa_fluctuation(trajectory, window_sizes, order=order)
         assert torch.allclose(fluctuation, julia_fluctuation, rtol=0, atol=1e-12)
@@ -475,3 +462,33 @@ def test_inexact_constant_series_has_zero_fluctuation_and_gradient():
     result = dfa_fluctuation(series, 3)
     (gradient,) = torch.autograd.grad(result, series)
     assert result == 0 and torch.all(gradient == 0)
+
+
+def test_memory_does_not_grow_with_the_square_of_the_window_size():
+    # A dense window_size x window_size detrending matrix is 4e8 elements (3.2 GB in float64) at window_size 20000.
+    import numpy as np
+
+    num_samples, window_size = 40000, 20000
+    series = torch.randn(num_samples, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
+    with LargestOutput() as recorder:
+        fluctuation = dfa_fluctuation(series, window_size)
+    assert recorder.numel <= 2 * num_samples
+
+    index = np.arange(window_size)
+    squares = []
+    for window in series.numpy().reshape(-1, window_size):
+        profile = np.cumsum(window - window.mean())
+        squares.append((profile - np.polyval(np.polyfit(index, profile, 1), index)) ** 2)
+    assert fluctuation.item() == pytest.approx(np.sqrt(np.mean(squares)), rel=1e-9)
+
+
+def test_order_accepts_numpy_integers_and_rejects_other_types():
+    import numpy as np
+
+    trajectory = torch.randn(64, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
+    expected = dfa_fluctuation(trajectory, [8, 16], order=2)
+    for order in (np.int64(2), np.int32(2), np.array(2), torch.tensor(2)):
+        assert torch.equal(dfa_fluctuation(trajectory, [8, 16], order=order), expected)
+    for order in (1.0, np.float64(1.0), 1.5, "1", None, -1, np.int64(-1)):
+        with pytest.raises(ValueError, match="order"):
+            dfa_fluctuation(trajectory, [8, 16], order=order)

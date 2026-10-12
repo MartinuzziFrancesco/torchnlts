@@ -8,13 +8,11 @@ Dual ground truth:
      and ``entropy(Renyi(...), ValueHistogram(eps), X)``.
 """
 
-import subprocess
-
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.dimension.generalized import box_counting_entropy, box_occupation_probabilities, generalized_dimension
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_box_occupation_probabilities_hand_derived():
@@ -45,11 +43,8 @@ def test_box_occupation_probabilities_nan_trajectory_is_nan_not_silently_wrong()
 
 def test_box_occupation_probabilities_batched_raises():
     trajectory = torch.randn(2, 5, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         box_occupation_probabilities(trajectory, box_size=0.5)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_box_occupation_probabilities_int64_overflow_is_nan_not_silently_wrong():
@@ -99,14 +94,8 @@ def test_box_counting_entropy_matches_complexitymeasures_jl():
         println(h)
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    lines = result.stdout.strip().split("\n")
+    stdout = run_julia(julia_code)
+    lines = stdout.strip().split("\n")
     julia_probs = torch.tensor([float(v) for v in lines[0].split(",")], dtype=torch.float64)
     julia_entropies = [float(v) for v in lines[1:]]
 
@@ -138,11 +127,8 @@ def test_box_counting_entropy_unbatched_scalar_is_scalar():
 
 def test_box_counting_entropy_negative_order_raises():
     trajectory = torch.tensor([0.0, 1.0, 2.0], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         box_counting_entropy(trajectory, box_size=0.5, order=-1.0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_generalized_dimension_hand_derived_exact_power_law():
@@ -189,3 +175,24 @@ def test_box_counting_entropy_batch_size_one_matches_unbatched():
     unbatched = box_counting_entropy(trajectory[0], box_size=0.5, order=1.0)
     assert batched.shape == (1,)
     assert torch.isclose(batched[0], unbatched)
+
+
+@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf"), "1", None, 1j])
+def test_box_size_must_be_a_finite_positive_real(bad):
+    trajectory = torch.randn(20, 2, dtype=torch.float64)
+    with pytest.raises(ValueError, match="box_size"):
+        box_occupation_probabilities(trajectory, bad)
+    with pytest.raises(ValueError):
+        box_counting_entropy(trajectory, [0.5, bad] if isinstance(bad, float) else bad)
+
+
+def test_box_occupation_probabilities_dtypes():
+    values = torch.tensor([[0, 0], [1, 0], [3, 3], [3, 4]])
+    integer = box_occupation_probabilities(values, 2.0)
+    assert integer.dtype == torch.get_default_dtype()
+    assert torch.equal(integer, box_occupation_probabilities(values.to(torch.get_default_dtype()), 2.0))
+    # Half precision is computed in float32, so a range above float16's maximum (65504) in box units still works.
+    half = box_occupation_probabilities(torch.tensor([0.0, 1.0, 2.0], dtype=torch.float16), 1e-5)
+    assert half.dtype == torch.float16 and torch.allclose(half.float(), torch.full((3,), 1 / 3), atol=1e-3)
+    with pytest.raises(ValueError, match="complex"):
+        box_occupation_probabilities(torch.ones(4, dtype=torch.complex64), 1.0)

@@ -26,8 +26,8 @@ for index in range(300 + num_points):  # 300 discarded transient steps
 orbit = torch.stack(orbit).unsqueeze(-1)
 
 recurrence = hard_recurrence_matrix(orbit, epsilon=epsilon)
-det = windowed_rqa(recurrence, determinism, window_size, step, theiler_window=1)
-div = windowed_rqa(recurrence, divergence, window_size, step, theiler_window=1)
+det = windowed_rqa(recurrence, determinism, window_size, step=step, theiler_window=1)
+div = windowed_rqa(recurrence, divergence, window_size, step=step, theiler_window=1)
 
 print(f"{'start':>5}  {'DET':>6}  {'DIV':>6}")
 for index in range(len(det)):

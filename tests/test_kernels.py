@@ -1,7 +1,6 @@
 """Tests for torchnlts.neighbors.kernels.trajectory_kernel.
 
-No Julia equivalent exists (see kernels.py docstring), so this validates
-against:
+No Julia equivalent exists, so this validates against:
   1. The defining paper formulas, hand-derived: Judd (1992) eq. for the
      Gaussian correlation-sum kernel, Sugihara et al. (2012) eq. for the
      CCM exponential weight.
@@ -10,6 +9,7 @@ against:
 
 import math
 
+import pytest
 import torch
 
 from torchnlts.neighbors.kernels import trajectory_kernel
@@ -43,11 +43,8 @@ def test_trajectory_kernel_range_and_monotonicity():
 
 
 def test_trajectory_kernel_invalid_kind():
-    try:
+    with pytest.raises(ValueError):
         trajectory_kernel(torch.tensor([1.0]), 1.0, kind="bogus")
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for unknown kind")
 
 
 def test_trajectory_kernel_inf_distance_no_nan_gradient():
@@ -126,3 +123,63 @@ def test_trajectory_kernel_gradcheck():
     t = torch.tensor(1.3, dtype=torch.float64, requires_grad=True)
     for kind in ("gaussian", "exponential"):
         assert torch.autograd.gradcheck(lambda d, t: trajectory_kernel(d, t, kind=kind), (d, t))
+
+
+@pytest.mark.parametrize("kind", ["gaussian", "exponential"])
+@pytest.mark.parametrize(
+    "temperature",
+    [
+        0,
+        0.0,
+        -1.0,
+        float("nan"),
+        torch.tensor(0.0),
+        torch.tensor([1.0, -1.0]),
+        torch.tensor([1.0, float("nan")]),
+        1j,
+        torch.tensor(1.0 + 0j),
+        "1.0",
+        None,
+        [1.0],
+    ],
+)
+def test_trajectory_kernel_rejects_invalid_temperature(kind, temperature):
+    # Regression: a temperature <= 0 gave NaN weights at distance 0.
+    with pytest.raises(ValueError, match="temperature"):
+        trajectory_kernel(torch.tensor([0.0, 1.0]), temperature, kind=kind)
+
+
+def test_trajectory_kernel_accepts_infinite_and_integer_temperature():
+    distance = torch.tensor([0.0, 1.0, 2.0])
+    assert torch.equal(trajectory_kernel(distance, float("inf")), torch.ones(3))
+    assert torch.equal(trajectory_kernel(distance, 2), trajectory_kernel(distance, 2.0))
+    assert torch.equal(trajectory_kernel(distance, torch.tensor(2)), trajectory_kernel(distance, 2.0))
+
+
+def test_trajectory_kernel_temperature_check_under_torch_func():
+    distance = torch.tensor([0.0, 1.0, 2.0], dtype=torch.float64)
+    temperatures = torch.tensor([0.5, 1.0, 2.0], dtype=torch.float64)
+    mapped = torch.vmap(lambda temperature: trajectory_kernel(distance, temperature))(temperatures)
+    assert torch.equal(mapped, torch.stack([trajectory_kernel(distance, temperature) for temperature in temperatures]))
+
+    def total(temperature):
+        return trajectory_kernel(distance, temperature).sum()
+
+    gradient = torch.vmap(torch.func.grad(total))(temperatures)
+    expected = []
+    for value in temperatures:
+        leaf = value.clone().requires_grad_()
+        expected.append(torch.autograd.grad(total(leaf), leaf)[0])
+    assert torch.allclose(gradient, torch.stack(expected))
+    # A concrete invalid temperature is still rejected inside vmap.
+    with pytest.raises(ValueError, match="temperature"):
+        torch.vmap(lambda row: trajectory_kernel(row, 0.0))(distance.reshape(3, 1))
+
+
+def test_trajectory_kernel_weights_lie_in_the_closed_unit_interval():
+    # Non-finite distances and weights below the dtype's range are exactly 0, not positive.
+    distance = torch.tensor([0.0, 1.0, 200.0, float("inf"), float("nan")])
+    for kind in ("gaussian", "exponential"):
+        weight = trajectory_kernel(distance, 0.5, kind=kind)
+        assert weight[0] == 1.0 and 0 < weight[1] < 1
+        assert weight[2:].tolist() == [0.0, 0.0, 0.0], kind

@@ -4,16 +4,13 @@ Ground truth: hand-derived examples and RecurrenceAnalysis.jl's
 ``GlobalRecurrenceRate``, ``LocalRecurrenceRate`` and ``RecurrenceThresholdScaled``.
 """
 
-import subprocess
-
 import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.recurrence.cross_recurrence import hard_cross_recurrence_matrix
 from torchnlts.recurrence.joint_recurrence import hard_joint_recurrence_matrix
 from torchnlts.recurrence.matrix import _nan_quantile, hard_recurrence_matrix
-
-JULIA_PROJECT = "juliaenv"
 
 
 def _julia_matrix(expression: str, *arrays: torch.Tensor) -> torch.Tensor:
@@ -25,13 +22,8 @@ def _julia_matrix(expression: str, *arrays: torch.Tensor) -> torch.Tensor:
         lines.append(f"{name} = StateSpaceSet([{text}])")
     lines.append(f"R = Matrix({expression})")
     lines.append('for row in eachrow(R) println(join(Int.(row), ",")) end')
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", "\n".join(lines)], capture_output=True, text=True, timeout=120
-    )
-    assert result.returncode == 0, result.stderr
-    return torch.tensor(
-        [[int(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()], dtype=torch.bool
-    )
+    stdout = run_julia("\n".join(lines))
+    return torch.tensor([[int(v) for v in line.split(",")] for line in stdout.strip().splitlines()], dtype=torch.bool)
 
 
 def _upper_mirror(matrix: torch.Tensor) -> torch.Tensor:
@@ -82,20 +74,23 @@ def test_local_rate_columns_have_fixed_neighbours(trajectory):
 def test_scaled_hand_derived():
     trajectory = torch.tensor([0.0, 1.0, 4.0])
     # Distances 1, 4, 3: max 4, mean 8/3, std over the 9 entries (diagonal included).
-    expected_max = hard_recurrence_matrix(trajectory, 2.0)
-    assert torch.equal(hard_recurrence_matrix(trajectory, 0.5, scale="max"), expected_max)
-    assert torch.equal(hard_recurrence_matrix(trajectory, 0.75, scale="mean"), hard_recurrence_matrix(trajectory, 2.0))
+    expected_max = hard_recurrence_matrix(trajectory, epsilon=2.0)
+    assert torch.equal(hard_recurrence_matrix(trajectory, epsilon=0.5, scale="max"), expected_max)
+    assert torch.equal(
+        hard_recurrence_matrix(trajectory, epsilon=0.75, scale="mean"), hard_recurrence_matrix(trajectory, epsilon=2.0)
+    )
     entries = torch.tensor([0.0, 1, 4, 1, 0, 3, 4, 3, 0])
     epsilon = 1.0 * entries.std().item()
     assert torch.equal(
-        hard_recurrence_matrix(trajectory, 1.0, scale="std"), hard_recurrence_matrix(trajectory, epsilon)
+        hard_recurrence_matrix(trajectory, epsilon=1.0, scale="std"),
+        hard_recurrence_matrix(trajectory, epsilon=epsilon),
     )
 
 
 def test_std_scale_uses_sample_std():
     # Entries 0, 1, 1, 0: sample std 1/sqrt(3) = 0.577, population std 0.5; ratio 1.8 exceeds 1 only for the sample std.
-    assert hard_recurrence_matrix(torch.tensor([0.0, 1.0]), 1.8, scale="std").all()
-    assert not hard_recurrence_matrix(torch.tensor([0.0, 1.0]), 1.7, scale="std")[0, 1]
+    assert hard_recurrence_matrix(torch.tensor([0.0, 1.0]), epsilon=1.8, scale="std").all()
+    assert not hard_recurrence_matrix(torch.tensor([0.0, 1.0]), epsilon=1.7, scale="std")[0, 1]
 
 
 def test_achieved_rate_close_to_target(trajectory):
@@ -121,7 +116,7 @@ def test_local_rate_matches_julia(trajectory, rate):
 def test_scaled_matches_julia(trajectory, scale):
     function = {"max": "maximum", "mean": "mean", "std": "std"}[scale]
     expected = _julia_matrix(f"RecurrenceMatrix(x, RecurrenceThresholdScaled(0.3, {function}))", trajectory)
-    assert torch.equal(hard_recurrence_matrix(trajectory, 0.3, scale=scale), expected)
+    assert torch.equal(hard_recurrence_matrix(trajectory, epsilon=0.3, scale=scale), expected)
 
 
 def test_chebyshev_global_rate_matches_julia(trajectory):
@@ -190,7 +185,7 @@ def test_nonfinite_rows_are_ignored_by_the_threshold():
     all_bad = torch.full((5, 2), float("nan"), dtype=torch.float64)
     assert not hard_recurrence_matrix(all_bad, recurrence_rate=0.5).any()
     assert not hard_recurrence_matrix(all_bad, local_rate=0.5).any()
-    assert not hard_recurrence_matrix(all_bad, 1.0, scale="std").any()
+    assert not hard_recurrence_matrix(all_bad, epsilon=1.0, scale="std").any()
 
 
 def test_vmap_over_batch():
@@ -261,7 +256,8 @@ def test_std_ignores_nan_entries():
     dirty = torch.cat([clean, torch.tensor([float("nan")], dtype=torch.float64)])
     for ratio in (0.5, 0.8, 0.9, 1.3):
         assert torch.equal(
-            hard_recurrence_matrix(dirty, ratio, scale="std")[:4, :4], hard_recurrence_matrix(clean, ratio, scale="std")
+            hard_recurrence_matrix(dirty, epsilon=ratio, scale="std")[:4, :4],
+            hard_recurrence_matrix(clean, epsilon=ratio, scale="std"),
         )
 
 
@@ -289,7 +285,19 @@ def test_quantile_index_arithmetic_is_float64():
     assert abs(result.item() - 999_999.99) < 1e-3
 
 
-@pytest.mark.parametrize("value", [1j, torch.tensor(0.5 + 0j), 10**400, "a", None])
+def test_quantile_index_arithmetic_follows_the_high_precision_dtype(monkeypatch):
+    # The same boundary case in float32 index arithmetic (the dtype on devices without float64) picks the order
+    # statistic 1000000.0 instead of interpolating to 999999.99.
+    import torchnlts.recurrence.matrix as module
+
+    count = 2_000_001
+    values = torch.arange(count, dtype=torch.float64)
+    probability = (1_000_000 - 0.01) / (count - 1)
+    monkeypatch.setattr(module, "_high_precision_dtype", lambda device: torch.float32)
+    assert abs(_nan_quantile(values, probability, dim=-1).item() - 999_999.99) > 1e-3
+
+
+@pytest.mark.parametrize("value", [1j, torch.tensor(0.5 + 0j), 10**400, "a", "0.5", None, torch.tensor([0.1, 0.2])])
 def test_rate_conversion_errors_are_value_errors(value):
     with pytest.raises(ValueError):
         hard_recurrence_matrix(torch.randn(5), recurrence_rate=value)

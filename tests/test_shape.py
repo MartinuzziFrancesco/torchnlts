@@ -1,16 +1,26 @@
 import math
+import re
 
 import numpy
 import pytest
 import torch
 
+from tests.conftest import LargestOutput
 from torchnlts._shape import (
+    _as_int_list,
+    _as_sweep,
     _ensure_batched,
+    _high_precision_dtype,
     _ols_slope,
     _output_dtype,
+    _pattern_counts,
+    _real_scalar,
+    _require_univariate,
     _restore_batch,
     _restore_shape_preserving,
+    _restore_sweep,
     _safe_log,
+    _shannon_entropy,
     _work_dtype,
 )
 
@@ -39,11 +49,8 @@ def test_ensure_batched_3d_passthrough():
 
 
 def test_ensure_batched_rejects_bad_ndim():
-    try:
+    with pytest.raises(ValueError):
         _ensure_batched(torch.randn(2, 3, 4, 5))
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for 4D input")
 
 
 def test_roundtrip_1d_and_2d():
@@ -80,11 +87,8 @@ def test_restore_shape_preserving_roundtrips_all_three_ndims():
 
 
 def test_restore_shape_preserving_rejects_bad_ndim():
-    try:
+    with pytest.raises(ValueError):
         _restore_shape_preserving(torch.randn(2, 5, 3), 4)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for ndim=4")
 
 
 def test_ols_slope_repeated_sweep_is_nan():
@@ -498,3 +502,251 @@ def test_ols_slope_mask_skips_unselected_nonfinite_sweep_point():
     slope[0].backward()
     torch.testing.assert_close(sweep.grad, torch.tensor([0.0, 1.0, 0.0, -1.0], dtype=torch.float64))
     assert torch.isfinite(values.grad).all() and (values.grad[:, 1] == 0).all()
+
+
+def test_as_int_list_scalars_and_sweeps():
+    assert _as_int_list(3, "k") == ([3], False)
+    assert _as_int_list([1, 2, 5], "k") == ([1, 2, 5], True)
+    assert _as_int_list([4], "k") == ([4], True)
+    assert _as_int_list(numpy.int64(3), "k") == ([3], False)
+    assert _as_int_list(numpy.array([1, 2]), "k") == ([1, 2], True)
+    assert _as_int_list(torch.tensor(7), "k") == ([7], False)
+    assert _as_int_list(torch.tensor([2.0, 3.0]), "k") == ([2, 3], True)
+    items, _ = _as_int_list(numpy.array([1, 2], dtype=numpy.int32), "k")
+    assert all(type(item) is int for item in items)
+
+
+def test_as_int_list_minimum():
+    assert _as_int_list(0, "k", minimum=0) == ([0], False)
+    assert _as_int_list([0, 3], "k", minimum=0) == ([0, 3], True)
+    assert _as_int_list(2, "k", minimum=2) == ([2], False)
+    with pytest.raises(ValueError, match=re.escape("k must be >= 0, got [-1]")):
+        _as_int_list(-1, "k", minimum=0)
+    with pytest.raises(ValueError, match=re.escape("k must be >= 0, got [3, -1]")):
+        _as_int_list([3, -1], "k", minimum=0)
+    with pytest.raises(ValueError, match=re.escape("k must be >= 2, got [1]")):
+        _as_int_list(1, "k", minimum=2)
+    for bad in (0, -2, [1, 0]):
+        with pytest.raises(ValueError, match="window_size must be >= 1, got"):
+            _as_int_list(bad, "window_size")
+
+
+def test_as_int_list_rejects_more_than_one_dimension():
+    for bad in ([[1, 2], [3, 4]], [[1]], numpy.ones((2, 2), dtype=int), torch.ones(1, 3)):
+        with pytest.raises(ValueError, match="scalar or a 1-D"):
+            _as_int_list(bad, "k")
+
+
+def test_as_int_list_invalid_values_raise():
+    for bad in (1j, numpy.complex128(2 + 0j), torch.tensor([1 + 0j])):
+        with pytest.raises(ValueError, match="k must be integer-valued, got complex"):
+            _as_int_list(bad, "k")
+    for bad in ([], numpy.array([]), torch.empty(0)):
+        with pytest.raises(ValueError, match="k must not be empty"):
+            _as_int_list(bad, "k")
+    for bad in (
+        float("nan"),
+        float("inf"),
+        [1, float("-inf")],
+        1.5,
+        [1, 2.5],
+        1.00000001,
+        "a",
+        None,
+        [1, "x"],
+        10**400,
+    ):
+        with pytest.raises(ValueError, match="k must be integer-valued, got"):
+            _as_int_list(bad, "k")
+
+
+def test_real_scalar():
+    for value, expected in ((2, 2.0), (1.5, 1.5), (numpy.float32(0.5), 0.5), (torch.tensor(3.0), 3.0)):
+        result = _real_scalar(value, "alpha")
+        assert type(result) is float and result == expected
+    bad_values = (
+        "1",
+        b"1",
+        None,
+        1j,
+        numpy.complex128(1),
+        torch.tensor(1j),
+        [1.0, 2.0],
+        torch.tensor([1.0, 2.0]),
+        10**400,
+    )
+    for bad in bad_values:
+        with pytest.raises(ValueError, match="alpha must be a real number"):
+            _real_scalar(bad, "alpha")
+
+
+def test_require_univariate():
+    assert _require_univariate(torch.zeros(2, 5, 1), "dfa_fluctuation") is None
+    message = "dfa_fluctuation only supports a univariate (D=1) trajectory, got feature dim 3"
+    with pytest.raises(ValueError, match=re.escape(message)):
+        _require_univariate(torch.zeros(2, 5, 3), "dfa_fluctuation")
+    tensor, _ = _ensure_batched(torch.zeros(5, 2))
+    with pytest.raises(ValueError, match="higuchi_length only supports .* got feature dim 2"):
+        _require_univariate(tensor, "higuchi_length")
+
+
+@pytest.mark.parametrize(
+    ("shape", "swept", "ndim", "expected"),
+    [
+        ((3, 2), True, 3, (3, 2)),
+        ((3, 1), True, 1, (3,)),
+        ((3, 1), True, 2, (3,)),
+        ((1, 2), False, 3, (2,)),
+        ((1, 1), False, 1, ()),
+        ((1, 1), False, 2, ()),
+        ((1, 2), True, 3, (1, 2)),
+        ((3, 1), True, 3, (3, 1)),
+        ((1, 1), True, 3, (1, 1)),
+    ],
+)
+def test_restore_sweep(shape, swept, ndim, expected):
+    result = torch.arange(math.prod(shape), dtype=torch.float32).reshape(shape)
+    restored = _restore_sweep(result, swept, ndim)
+    assert restored.shape == expected
+    assert torch.equal(restored, result.reshape(expected))
+
+
+def test_high_precision_dtype():
+    for device in ("cpu", torch.device("cpu"), "cuda", "cuda:0", torch.device("cuda", 1)):
+        assert _high_precision_dtype(device) == torch.float64
+    for device in ("mps", "mps:0", torch.device("mps"), torch.device("mps", 0)):
+        assert _high_precision_dtype(device) == torch.float32
+
+
+def test_as_sweep_is_float64_on_cpu_and_keeps_floating_dtypes():
+    cpu = torch.device("cpu")
+    for value in ([1, 2, 3], (0.5, 1), numpy.array([1, 2]), 3, torch.tensor([1, 2])):
+        assert _as_sweep(value, cpu).dtype == torch.float64
+    for dtype in (torch.float16, torch.float32, torch.float64):
+        assert _as_sweep(torch.tensor([0.5, 1.5], dtype=dtype), cpu).dtype == dtype
+
+
+def test_as_sweep_takes_its_dtype_from_high_precision_dtype(monkeypatch):
+    monkeypatch.setattr("torchnlts._shape._high_precision_dtype", lambda device: torch.float32)
+    cpu = torch.device("cpu")
+    assert _as_sweep([1, 2], cpu).dtype == torch.float32
+    assert _as_sweep(torch.tensor([1, 2]), cpu).dtype == torch.float32
+    assert _as_sweep(torch.tensor([1.0, 2.0], dtype=torch.float64), cpu).dtype == torch.float64
+
+
+def test_shannon_entropy_values_shape_and_dtype():
+    probability = torch.tensor([[0.5, 0.25, 0.25], [1.0, 0.0, 0.0], [0.25, 0.25, 0.5]], dtype=torch.float64)
+    entropy = _shannon_entropy(probability)
+    assert entropy.shape == (3,)
+    expected = torch.tensor([1.5 * math.log(2), 0.0, 1.5 * math.log(2)], dtype=torch.float64)
+    torch.testing.assert_close(entropy, expected, rtol=1e-14, atol=1e-14)
+    uniform = _shannon_entropy(torch.full((4,), 0.25))
+    assert uniform.shape == () and torch.isclose(uniform, torch.tensor(math.log(4)))
+    for dtype in (torch.float16, torch.bfloat16, torch.float32, torch.float64):
+        assert _shannon_entropy(probability.to(dtype)).dtype == dtype
+
+
+def test_shannon_entropy_zero_entries_have_zero_gradient():
+    probability = torch.tensor([[0.5, 0.5, 0.0], [0.0, 0.0, 1.0]], dtype=torch.float64, requires_grad=True)
+    entropy = _shannon_entropy(probability)
+    assert torch.isfinite(entropy).all()
+    entropy.sum().backward()
+    # d/dp of -p log p is -(log p + 1) for p > 0.
+    expected = torch.tensor([[math.log(2) - 1, math.log(2) - 1, 0.0], [0.0, 0.0, -1.0]], dtype=torch.float64)
+    torch.testing.assert_close(probability.grad, expected)
+    assert (probability.grad[probability.detach() == 0] == 0).all()
+
+
+def test_shannon_entropy_nan_row_is_isolated():
+    probability = torch.tensor(
+        [[float("nan"), 0.5, 0.5], [float("nan"), 0.0, 0.0], [0.5, 0.25, 0.25]], dtype=torch.float64, requires_grad=True
+    )
+    entropy = _shannon_entropy(probability)
+    assert torch.isnan(entropy[:2]).all()
+    assert torch.isclose(entropy[2], torch.tensor(1.5 * math.log(2), dtype=torch.float64))
+    entropy[2].backward()
+    assert torch.isfinite(probability.grad).all() and (probability.grad[:2] == 0).all()
+
+
+PATTERN_CODES = torch.tensor([[0, 2, 2, 1, 2], [3, 3, 3, 3, 0]])
+PATTERN_WEIGHTS = torch.tensor([[0.5, 1.0, 2.0, 3.0, 4.0], [1.0, 1.0, 1.0, 1.0, 1.0]], dtype=torch.float64)
+
+
+def _one_hot_counts(codes, num_patterns, weights=None):
+    one_hot = torch.nn.functional.one_hot(codes, num_patterns)
+    return one_hot.sum(-2) if weights is None else (one_hot * weights.unsqueeze(-1)).sum(-2)
+
+
+def test_pattern_counts_hand_computed():
+    assert torch.equal(_pattern_counts(PATTERN_CODES, 4), torch.tensor([[1.0, 1.0, 3.0, 0.0], [1.0, 0.0, 0.0, 4.0]]))
+    expected = torch.tensor([[0.5, 3.0, 7.0, 0.0], [1.0, 0.0, 0.0, 4.0]], dtype=torch.float64)
+    assert torch.equal(_pattern_counts(PATTERN_CODES, 4, PATTERN_WEIGHTS), expected)
+    assert torch.equal(_pattern_counts(torch.empty(0, dtype=torch.int64), 3), torch.zeros(3))
+
+
+def test_pattern_counts_matches_one_hot_reference():
+    generator = torch.Generator().manual_seed(0)
+    codes = torch.randint(0, 7, (3, 2, 40), generator=generator)
+    weights = torch.rand(3, 2, 40, generator=generator, dtype=torch.float64)
+    counts = _pattern_counts(codes, 7)
+    assert counts.shape == (3, 2, 7)
+    assert torch.equal(counts, _one_hot_counts(codes, 7).to(counts.dtype))
+    weighted = _pattern_counts(codes, 7, weights)
+    torch.testing.assert_close(weighted, _one_hot_counts(codes, 7, weights))
+    assert counts.sum(-1).eq(40).all()
+    assert _pattern_counts(codes[1, 0], 7).shape == (7,)
+    assert torch.equal(_pattern_counts(codes[1, 0], 7), counts[1, 0])
+    torch.testing.assert_close(_pattern_counts(codes[1, 0], 7, weights[1, 0]), weighted[1, 0])
+
+
+def test_pattern_counts_dtype():
+    codes, weights = PATTERN_CODES[0], PATTERN_WEIGHTS[0]
+    assert _pattern_counts(codes, 4).dtype == torch.get_default_dtype()
+    for dtype in (torch.float16, torch.float32, torch.float64):
+        assert _pattern_counts(codes, 4, weights.to(dtype)).dtype == dtype
+    assert _pattern_counts(codes, 4, dtype=torch.float64).dtype == torch.float64
+    assert _pattern_counts(codes, 4, weights, dtype=torch.float32).dtype == torch.float32
+    integer = _pattern_counts(codes, 4, dtype=torch.int64)
+    assert integer.dtype == torch.int64 and integer.tolist() == [1, 1, 3, 0]
+    previous = torch.get_default_dtype()
+    try:
+        torch.set_default_dtype(torch.float64)
+        assert _pattern_counts(codes, 4).dtype == torch.float64
+    finally:
+        torch.set_default_dtype(previous)
+
+
+def test_pattern_counts_weighted_gradient():
+    weights = PATTERN_WEIGHTS.clone().requires_grad_(True)
+    coefficient = torch.tensor([1.0, 10.0, 100.0, 1000.0], dtype=torch.float64)
+    (_pattern_counts(PATTERN_CODES, 4, weights) * coefficient).sum().backward()
+    assert torch.equal(weights.grad, coefficient[PATTERN_CODES])
+    assert torch.autograd.gradcheck(
+        lambda values: _pattern_counts(PATTERN_CODES, 4, values), (PATTERN_WEIGHTS.clone().requires_grad_(True),)
+    )
+
+
+def test_pattern_counts_supports_vmap():
+    unweighted = torch.vmap(lambda row: _pattern_counts(row, 4))(PATTERN_CODES)
+    assert torch.equal(unweighted, _pattern_counts(PATTERN_CODES, 4))
+    weighted = torch.vmap(lambda row, weights: _pattern_counts(row, 4, weights))(PATTERN_CODES, PATTERN_WEIGHTS)
+    assert torch.equal(weighted, _pattern_counts(PATTERN_CODES, 4, PATTERN_WEIGHTS))
+    codes = PATTERN_CODES.expand(3, 2, 5)
+    nested = torch.vmap(torch.vmap(lambda row: _pattern_counts(row, 4)))(codes)
+    assert torch.equal(nested, _pattern_counts(codes, 4))
+
+
+def test_pattern_counts_does_not_allocate_length_times_patterns():
+    num_patterns, length = 10**6, 1000
+    codes = torch.randint(0, num_patterns, (length,), generator=torch.Generator().manual_seed(0))
+    with LargestOutput() as recorder:
+        counts = _pattern_counts(codes, num_patterns)
+    assert counts.shape == (num_patterns,) and counts.sum() == length
+    assert counts[codes].min() >= 1
+    assert recorder.numel <= num_patterns + length
+
+
+@pytest.mark.parametrize("bad", ["1", None, [1.0, "a"], 1j, [1.0, 2j]])
+def test_as_sweep_rejects_non_numeric_and_complex_values(bad):
+    with pytest.raises(ValueError, match="sweep must be real"):
+        _as_sweep(bad, "cpu")

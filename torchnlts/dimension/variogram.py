@@ -1,20 +1,16 @@
-"""Power-variation (variogram / madogram) fractal dimension of a scalar
-time series, from lagged absolute increments; no delay embedding.
+"""Power-variation (variogram / madogram) fractal dimension of a scalar time series, from lagged absolute increments;
+no delay embedding.
 
-Reference: Gneiting, Sevcikova & Percival (2012), "Estimators of fractal
-dimension: assessing the roughness of time series and spatial data",
-Statistical Science 27(2), 247-277, eqs. (16)-(18):
-``V_p(l) = 1 / (2 * (n - l)) * sum_i |x_{i+l} - x_i|**p`` and
-``D = 2 - slope / p``, ``slope`` the OLS slope of ``log V_p(l)`` against
-``log l`` (the paper's ``log(l/n)`` differs by a constant, same slope).
-``p = 2`` is the variogram, ``p = 1`` the madogram. The paper fits lags
-1 and 2 only; as elsewhere in this subpackage the caller picks the lags.
-Matches the R package ``fractaldim`` (``fd.Variation``,
-``fd.estim.variogram``/``fd.estim.madogram``), checked by reading its source.
+Reference: Gneiting, Sevcikova & Percival (2012), "Estimators of fractal dimension: assessing the roughness of time
+series and spatial data", Statistical Science 27(2), 247-277, eqs. (16)-(18):
+``V_p(l) = 1 / (2 * (n - l)) * sum_i |x_{i+l} - x_i|**p`` and ``D = 2 - slope / p``, ``slope`` the OLS slope of
+``log V_p(l)`` against ``log l`` (the paper's ``log(l/n)`` differs by a constant, same slope). ``p = 2`` is the
+variogram, ``p = 1`` the madogram. The paper fits lags 1 and 2 only; as elsewhere in this subpackage the caller picks
+the lags. Matches the R package ``fractaldim`` (``fd.Variation``, ``fd.estim.variogram``, ``fd.estim.madogram``).
+Computed in float64 (float32 on Apple MPS, which has no float64).
 
-Gradient class: exact for ``p = 2``, piecewise for ``p <= 1`` (a zero
-increment contributes a zero gradient; for ``p < 1`` the true derivative
-there is unbounded).
+Gradient class: exact for ``p = 2``, piecewise for ``p <= 1`` (a zero increment contributes a zero gradient; for
+``p < 1`` the true derivative there is unbounded).
 """
 
 from __future__ import annotations
@@ -25,23 +21,19 @@ import numpy
 import torch
 
 from torchnlts._shape import (
-    _as_positive_int_list,
+    _as_int_list,
     _as_sweep,
     _ensure_batched,
+    _high_precision_dtype,
     _is_complex,
     _mask_nonfinite_rows,
     _ols_slope,
     _output_dtype,
+    _require_univariate,
+    _restore_sweep,
     _safe_log,
     _safe_scale,
 )
-
-
-def _require_univariate(tensor: torch.Tensor) -> None:
-    if tensor.shape[-1] != 1:
-        raise ValueError(
-            f"power_variogram only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
-        )
 
 
 def _variogram_single_lag(values: torch.Tensor, lag: int, power: float) -> torch.Tensor:
@@ -80,95 +72,68 @@ def _validate_power(power):
     return scalar
 
 
-def power_variogram(trajectory, lag, power: float = 2.0) -> torch.Tensor:
+def power_variogram(trajectory, lag, *, power: float = 2.0) -> torch.Tensor:
     """Power variogram ``V_p(l) = 1 / (2 * (n - l)) * sum_i |x_{i+l} - x_i|**p``.
 
-    Reference: Gneiting, Sevcikova & Percival (2012), Statist. Sci.
-    27(2), eq. (16) (see module docstring for the ``l`` vs ``l/n``
-    notational difference). The paper recommends fitting only
-    ``l = 1, 2`` (its eq. 18, ``L=2``); this function evaluates whatever
-    lags are given, same "caller picks the sweep" convention as
-    :func:`torchnlts.dimension.higuchi_length`.
+    Reference: Gneiting, Sevcikova & Percival (2012), Statist. Sci. 27(2), eq. (16). The paper recommends lags 1 and 2
+    (its eq. 18); this evaluates whatever lags are given.
 
-    Gradient class: depends on ``power`` -- see module docstring.
+    Gradient class: exact for ``power = 2``, piecewise for ``power <= 1`` (see module docstring).
 
     Args:
-        trajectory: Shape ``[T]`` or ``[T, 1]``/``[B, T, 1]`` (univariate
-            only). A tensor, numpy array, or pandas Series/DataFrame.
-        lag: Lag(s) ``l`` to evaluate ``V_p(l)`` at. A positive integer,
-            or a non-empty list/tensor of positive integers to sweep.
-            Every value must be integer-valued.
-        power: ``p`` in ``V_p(l)``, must be ``> 0``. Default ``2.0``
-            (variogram); ``1.0`` is the madogram.
+        trajectory: Shape ``[T]``, ``[T, 1]`` or ``[B, T, 1]``. A tensor, numpy array, or pandas Series/DataFrame.
+        lag: Lag ``l``, or a non-empty 1-D sweep of lags; integer-valued numbers ``>= 1`` (``4.0`` is accepted).
+        power: ``p`` in ``V_p(l)``, a finite real number ``> 0``. Default ``2.0`` (variogram); ``1.0`` is the madogram.
 
     Returns:
-        ``V_p(l)``, shape ``[]``/``[K]`` for an unbatched trajectory or
-        ``[B]``/``[K, B]`` for a batched one. ``NaN`` at any lag with
-        fewer than one valid term (``l >= n``). ``NaN`` for any row containing NaN/inf.
+        ``V_p(l)``, shape ``[]``/``[K]`` unbatched or ``[B]``/``[K, B]`` batched, in the trajectory's float dtype (the
+        default dtype for integer input). ``NaN`` at any lag ``l >= n`` (no valid term) and for any row containing
+        NaN/inf.
 
     Raises:
-        ValueError: If the feature dim is not 1, the trajectory is
-            complex, ``power`` is not a finite positive number, ``lag`` is
-            empty or complex, or any ``lag`` value is ``< 1`` or non-integer.
+        ValueError: If the feature dim is not 1, the trajectory is complex, ``power`` is not a finite positive number,
+            or ``lag`` is empty, complex, non-integer or ``< 1``.
     """
     tensor, ndim = _ensure_batched(trajectory)
-    _require_univariate(tensor)
-    if tensor.is_complex():
-        raise ValueError("power_variogram does not support complex input")
-    power = _validate_power(power)
+    _require_univariate(tensor, "power_variogram")
     dtype = _output_dtype(tensor)
-    # float64: after scaling by the largest increment, the small ones underflow in float32.
-    work_dtype = torch.float64
+    power = _validate_power(power)
+    # High precision: after scaling by the largest increment, the small ones underflow in float32.
+    work_dtype = _high_precision_dtype(tensor.device)
     values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(work_dtype))  # [B, T]
 
-    lag_list, swept = _as_positive_int_list(lag, "lag")
+    lag_list, swept = _as_int_list(lag, "lag")
 
     results = torch.stack([_variogram_single_lag(values, value, power) for value in lag_list], dim=0)  # [K, B]
     results = torch.where(nonfinite, float("nan"), results)
-    if not swept:
-        results = results.squeeze(0)
-    if ndim != 3:
-        results = results.squeeze(-1)
-    return results.to(dtype)
+    return _restore_sweep(results, swept, ndim).to(dtype)
 
 
-def variogram_dimension(lag, variogram: torch.Tensor, power: float = 2.0) -> torch.Tensor:
-    """Power-variation fractal dimension ``D = 2 - slope / p``, ``slope``
-    the OLS slope of ``log(V_p(l))`` against ``log(l)``.
+def variogram_dimension(lag, variogram: torch.Tensor, *, power: float = 2.0) -> torch.Tensor:
+    """Power-variation fractal dimension ``D = 2 - slope / p``, ``slope`` the OLS slope of ``log(V_p(l))`` vs
+    ``log(l)``.
 
-    Reference: Gneiting, Sevcikova & Percival (2012), Statist. Sci.
-    27(2), eq. (17)/(18). Matches the R package ``fractaldim``'s own
-    ``fd.estim.variogram``/``fd.estim.madogram`` (confirmed by reading
-    its source, see module docstring).
+    Reference: Gneiting, Sevcikova & Percival (2012), Statist. Sci. 27(2), eqs. (17)-(18). A plain regression over
+    every ``(lag, variogram)`` pair (the paper recommends lags 1 and 2); for automatic scaling-region detection use
+    :func:`torchnlts.scaling.scaling_slope` (pass ``log(lag)``, ``log(variogram)`` and apply ``2 - slope / power``).
 
-    Gradient class: exact (closed-form OLS slope; ordinary autodiff
-    through whatever produced ``variogram`` -- inherits
-    :func:`~torchnlts.dimension.power_variogram`'s own gradient class).
-
-    This is a plain regression over every ``(lag, variogram)`` pair
-    given (the paper itself recommends fitting only lags 1 and 2); see
-    :func:`torchnlts.scaling.scaling_slope` for automatic scaling-region
-    detection (pass ``log(lag)``, ``log(variogram)`` and apply
-    ``2 - slope / power``).
+    Gradient class: exact (closed-form OLS slope), with the gradient reaching ``variogram`` that of
+    :func:`~torchnlts.dimension.power_variogram`.
 
     Args:
         lag: Shape ``[K]``, the sweep ``variogram`` was evaluated at.
-        variogram: Shape ``[K]`` (unbatched) or ``[K, B]`` (batched), as
-            returned by :func:`~torchnlts.dimension.power_variogram` for the same sweep.
-        power: ``p`` used to compute ``variogram``; must be ``> 0`` and
-            match the ``power`` passed to :func:`~torchnlts.dimension.power_variogram`.
+        variogram: Shape ``[K]`` (unbatched) or ``[K, B]`` (batched), as returned by
+            :func:`~torchnlts.dimension.power_variogram` for the same sweep.
+        power: ``p`` used to compute ``variogram``; a finite real number ``> 0``.
 
     Returns:
-        ``D`` estimate(s), shape ``[]`` for an unbatched ``variogram``
-        or ``[B]`` for a batched one. ``NaN`` if ``lag`` has fewer than
-        two distinct values, or any ``variogram`` entry is non-positive
-        or itself ``NaN`` (e.g. a degenerate lag, see
-        :func:`~torchnlts.dimension.power_variogram`'s Returns section, or a constant series,
-        whose zero variogram gives ``log(0) = -inf``).
+        ``D``, shape ``[]`` for an unbatched ``variogram`` or ``[B]`` for a batched one, in its float dtype. ``NaN``
+        if ``lag`` has fewer than two distinct values or any ``variogram`` entry is non-positive or ``NaN`` (a
+        degenerate lag, or a constant series, whose zero variogram has ``log(0) = -inf``).
 
     Raises:
-        ValueError: If ``power`` is not a finite positive number, or ``lag``/``variogram`` do not
-            have the documented shapes with matching sweep lengths.
+        ValueError: If ``power`` is not a finite positive number, or ``lag``/``variogram`` do not have the documented
+            shapes with matching sweep lengths.
     """
     power = _validate_power(power)
     log_lag = _safe_log(_as_sweep(lag, variogram.device))

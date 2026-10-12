@@ -1,47 +1,26 @@
 """Tests for torchnlts.causality.transfer_entropy.
 
-Dual ground truth:
-  1. Paper: Frenzel & Pompe (2007) for the conditional-MI estimator
-     itself -- conditioning on a *constant* collapses
-     ``conditional_mutual_information(x, y, z)`` to plain
-     ``mutual_information(x, y)``, since ``max(dist_x, dist_z=0) ==
-     dist_x`` always (distances are non-negative), so ``count_xz``/
-     ``count_yz`` reduce to plain ``count_x``/``count_y`` exactly,
-     unconditionally. ``count_z`` reduces to "all points" (matching the
-     accumulated ``+digamma(N)`` a plain MI computation has) *only* when
-     every point's joint-space k-th-neighbor radius is strictly positive
-     -- if some point's radius is exactly ``0`` (an exact tie/duplicate
-     at the k-th-neighbor boundary in the (x,y) joint space), strict
-     ``<`` counting gives ``count_z = 1`` (self only) for that point
-     instead, and the collapse to plain MI no longer holds exactly.
-     ``mutual_information``'s own hand-derived 4-point test case has no
-     such tie (confirmed: every point's radius is a distinct positive
-     value), so reusing it here as a hand-derived check is valid for
-     that specific input, not a claim that the collapse holds
-     unconditionally for every input. Schreiber (2000) for the transfer-
-     entropy decomposition itself, checked via the causality-direction
-     sanity test (a synthetic unidirectionally-coupled logistic-map
-     pair, same system used for CCM's own validation).
-  2. Julia: CausalityTools.jl's ``FPVP``/``TEShannon``. This module's
-     strict marginal counting is a confirmed, deliberate deviation from
-     that estimator's inclusive convention -- the same disagreement
-     already locked in for ``mutual_information`` vs ``KSG1`` (both use
-     ``Neighborhood.jl``'s ``inrangecount``). Two kinds of Julia checks
-     below: a locked *disagreement* (default strict vs. Julia's
-     default inclusive, confirmed to differ) and a locked *match* (an
-     inclusive-counting variant computed independently here, without
-     calling this module's own strict implementation, matching Julia to
-     float64 precision) -- the match is what actually pins down that the
-     joint-radius/digamma formula and the marginal alignment are
-     correct, isolating the one known, deliberate difference; the
-     disagreement alone would pass even for an unrelated wrong answer.
+Ground truth:
+
+- Frenzel & Pompe (2007): conditioning on a constant reduces ``conditional_mutual_information(x, y, z)`` to
+  ``mutual_information(x, y)`` (``max(dist_x, 0) == dist_x``, so ``count_xz`` and ``count_yz`` are the plain marginal
+  counts). ``count_z`` equals the number of points only if every joint radius is positive, which holds for the
+  4-point example used here.
+- Schreiber (2000): ``transfer_entropy`` is larger in the direction of the coupling of a unidirectionally coupled
+  logistic-map pair, and near zero for independent noise.
+- CausalityTools.jl (``FPVP``, ``TEShannon`` through ``CMIDecomposition``): it counts marginal neighbors inclusively
+  (``<=``), this module strictly (``<``), so the default results differ. An inclusive-counting variant written here
+  without calling the module matches Julia to float64 precision, which pins the joint radius, the digamma terms and
+  the alignment of the marginals.
 """
 
 import math
-import subprocess
 
+import numpy
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.causality.transfer_entropy import conditional_mutual_information, transfer_entropy
 from torchnlts.entropy.mutual_information import mutual_information
 
@@ -60,7 +39,7 @@ def test_conditional_mutual_information_constant_z_matches_mutual_information():
 
 
 def test_conditional_mutual_information_matches_causalitytools_jl_fpvp_disagreement():
-    # Locked disagreement with CausalityTools.jl FPVP (inclusive marginal counting, as for KSG1); see module docstring.
+    # Strict marginal counting differs from FPVP's inclusive counting; see the module docstring.
     torch.manual_seed(1)
     x = torch.randn(50, dtype=torch.float64)
     y = torch.randn(50, dtype=torch.float64)
@@ -76,14 +55,8 @@ def test_conditional_mutual_information_matches_causalitytools_jl_fpvp_disagreem
     est = FPVP(CMIShannon(base=ℯ); k=3, w=0)
     println(association(est, x, y, z))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_inclusive = float(result.stdout.strip())
+    stdout = run_julia(julia_code, JULIA_PROJECT)
+    julia_inclusive = float(stdout.strip())
 
     assert not math.isclose(strict.item(), julia_inclusive, abs_tol=0.05)
 
@@ -128,14 +101,8 @@ def test_conditional_mutual_information_inclusive_variant_matches_causalitytools
     est = FPVP(CMIShannon(base=ℯ); k=3, w=0)
     println(association(est, x, y, z))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_inclusive = float(result.stdout.strip())
+    stdout = run_julia(julia_code, JULIA_PROJECT)
+    julia_inclusive = float(stdout.strip())
     assert math.isclose(inclusive.item(), julia_inclusive, abs_tol=1e-9)
 
 
@@ -143,16 +110,10 @@ def test_conditional_mutual_information_rejects_shape_and_param_issues():
     x = torch.randn(20, dtype=torch.float64)
     y = torch.randn(20, dtype=torch.float64)
     z = torch.randn(20, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         conditional_mutual_information(x, y, z, num_neighbors=0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
-    try:
+    with pytest.raises(ValueError):
         conditional_mutual_information(x, y, z, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_conditional_mutual_information_nan_on_insufficient_neighbors():
@@ -217,14 +178,8 @@ def test_transfer_entropy_matches_causalitytools_jl_disagreement():
     est = CMIDecomposition(TEShannon(base=ℯ), FPVP(CMIShannon(base=ℯ); k=3, w=0))
     println(association(est, x, y))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_inclusive = float(result.stdout.strip())
+    stdout = run_julia(julia_code, JULIA_PROJECT)
+    julia_inclusive = float(stdout.strip())
     assert not math.isclose(strict.item(), julia_inclusive, abs_tol=0.05)
 
 
@@ -243,14 +198,8 @@ def test_transfer_entropy_inclusive_variant_matches_causalitytools_jl():
     est = CMIDecomposition(TEShannon(base=ℯ), FPVP(CMIShannon(base=ℯ); k=3, w=0))
     println(association(est, x, y))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_inclusive = float(result.stdout.strip())
+    stdout = run_julia(julia_code, JULIA_PROJECT)
+    julia_inclusive = float(stdout.strip())
     assert math.isclose(inclusive.item(), julia_inclusive, abs_tol=1e-9)
 
 
@@ -283,23 +232,95 @@ def test_transfer_entropy_truncates_to_shorter_series():
 def test_transfer_entropy_rejects_bad_params():
     source = torch.randn(30, dtype=torch.float64)
     target = torch.randn(30, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         transfer_entropy(source, target, embedding_dim=0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
-    try:
+    with pytest.raises(ValueError):
         transfer_entropy(source, target, prediction_lag=0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_transfer_entropy_rejects_too_short_trajectory():
     source = torch.randn(3, dtype=torch.float64)
     target = torch.randn(3, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         transfer_entropy(source, target, embedding_dim=5, delay=1, prediction_lag=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
+
+
+@pytest.mark.parametrize("name", ["num_neighbors", "theiler_window"])
+def test_conditional_mutual_information_integer_arguments_raise_value_error(name):
+    series = torch.randn(30, dtype=torch.float64)
+    for bad in (3.0, 1.5, "3", None, torch.tensor([1, 2])):
+        with pytest.raises(ValueError, match=name):
+            conditional_mutual_information(series, series.flip(0), series.roll(3), **{name: bad})
+
+
+def test_conditional_mutual_information_accepts_numpy_integers():
+    torch.manual_seed(12)
+    x, y, z = (torch.randn(40, dtype=torch.float64) for _ in range(3))
+    result = conditional_mutual_information(x, y, z, num_neighbors=numpy.int64(2), theiler_window=numpy.int32(1))
+    assert torch.equal(result, conditional_mutual_information(x, y, z, num_neighbors=2, theiler_window=1))
+
+
+@pytest.mark.parametrize("name", ["embedding_dim", "delay", "prediction_lag", "num_neighbors", "theiler_window"])
+def test_transfer_entropy_integer_arguments_raise_value_error(name):
+    series = torch.randn(40, dtype=torch.float64)
+    for bad in (2.0, 1.5, "2", None, torch.tensor([1, 2])):
+        with pytest.raises(ValueError, match=name):
+            transfer_entropy(series, series.flip(0), **{name: bad})
+
+
+def test_transfer_entropy_accepts_numpy_integers():
+    torch.manual_seed(13)
+    source, target = torch.randn(60, dtype=torch.float64), torch.randn(60, dtype=torch.float64)
+    result = transfer_entropy(
+        source,
+        target,
+        embedding_dim=numpy.int64(2),
+        delay=numpy.int32(1),
+        prediction_lag=numpy.int64(2),
+        num_neighbors=numpy.int16(2),
+        theiler_window=numpy.int8(1),
+    )
+    expected = transfer_entropy(
+        source, target, embedding_dim=2, delay=1, prediction_lag=2, num_neighbors=2, theiler_window=1
+    )
+    assert torch.equal(result, expected)
+
+
+@pytest.mark.parametrize("variable", ["x", "y", "z"])
+@pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), -float("inf")])
+def test_conditional_mutual_information_nonfinite_point_gives_nan_for_that_element_only(variable, bad_value):
+    torch.manual_seed(14)
+    arguments = {name: torch.randn(3, 40, 1, dtype=torch.float64) for name in "xyz"}
+    clean = conditional_mutual_information(**arguments, theiler_window=2)
+    arguments[variable] = arguments[variable].clone()
+    arguments[variable][1, 7, 0] = bad_value
+    result = conditional_mutual_information(**arguments, theiler_window=2)
+    assert torch.isnan(result[1]) and torch.isfinite(clean[1])
+    assert torch.equal(result[[0, 2]], clean[[0, 2]])
+
+
+def test_conditional_mutual_information_huge_theiler_window_excludes_every_neighbor():
+    torch.manual_seed(20)
+    x, y, z = (torch.randn(30, dtype=torch.float64) for _ in range(3))
+    for window in (29, 2**63 - 1, 2**63, 2**64, 10**30):
+        assert torch.isnan(conditional_mutual_information(x, y, z, theiler_window=window))
+        assert torch.isnan(transfer_entropy(x, y, theiler_window=window))
+
+
+def test_conditional_mutual_information_and_transfer_entropy_work_under_vmap():
+    torch.manual_seed(21)
+    x, y, z = (torch.randn(3, 40, 1, dtype=torch.float64) for _ in range(3))
+    x[1, 5, 0] = float("nan")
+    expected = conditional_mutual_information(x, y, z, theiler_window=1)
+    assert torch.isnan(expected[1]) and torch.isfinite(expected[[0, 2]]).all()
+    torch.testing.assert_close(
+        torch.vmap(lambda a, b, c: conditional_mutual_information(a, b, c, theiler_window=1))(x, y, z),
+        expected,
+        equal_nan=True,
+    )
+    expected = transfer_entropy(x, y, embedding_dim=2, theiler_window=1)
+    torch.testing.assert_close(
+        torch.vmap(lambda a, b: transfer_entropy(a, b, embedding_dim=2, theiler_window=1))(x, y),
+        expected,
+        equal_nan=True,
+    )

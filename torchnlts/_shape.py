@@ -57,6 +57,14 @@ def _restore_shape_preserving(tensor: torch.Tensor, ndim: int) -> torch.Tensor:
     raise ValueError(f"ndim must be 1, 2, or 3, got {ndim}")
 
 
+def _restore_sweep(result: torch.Tensor, swept: bool, ndim: int) -> torch.Tensor:
+    """Undo the axes of a ``[K, B]`` sweep result: drop ``K`` unless ``swept``,
+    and ``B`` unless the input was ``[B, T, D]`` (``ndim == 3``)."""
+    if not swept:
+        result = result.squeeze(0)
+    return result if ndim == 3 else result.squeeze(-1)
+
+
 def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.Tensor:
     """Reshape a scalar or ``[R]`` radius/temperature sweep to broadcast
     against ``matrix``'s trailing ``[..., T, T]`` dims as a leading ``R``
@@ -82,6 +90,11 @@ def _work_dtype(dtype: torch.dtype) -> torch.dtype:
     return torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
 
 
+def _high_precision_dtype(device) -> torch.dtype:
+    """float64, or float32 on Apple MPS (which has no float64). ``device`` is a ``torch.device`` or string."""
+    return torch.float32 if torch.device(device).type == "mps" else torch.float64
+
+
 def _is_complex(value) -> bool:
     """Whether ``value`` (tensor, numpy array, or Python number/sequence) is complex."""
     return value.is_complex() if torch.is_tensor(value) else numpy.iscomplexobj(value)
@@ -91,40 +104,51 @@ def _as_sweep(value, device) -> torch.Tensor:
     """Sweep points (radii, strides, lags, ...) as a floating tensor.
 
     A floating tensor keeps its own dtype (casting it to the values' dtype
-    could merge distinct points); anything else becomes float64.
+    could merge distinct points); anything else becomes
+    :func:`_high_precision_dtype` of ``device``.
 
     Raises:
-        ValueError: If ``value`` is complex.
+        ValueError: If ``value`` is complex or not numeric.
     """
     if _is_complex(value):
         raise ValueError(f"sweep must be real, got {value!r}")
+    dtype = _high_precision_dtype(device)
     if torch.is_tensor(value):
-        return value.to(device) if value.is_floating_point() else value.to(device=device, dtype=torch.float64)
-    return torch.as_tensor(value, dtype=torch.float64, device=device)
+        return value.to(device) if value.is_floating_point() else value.to(device=device, dtype=dtype)
+    try:
+        return torch.as_tensor(value, dtype=dtype, device=device)
+    except (TypeError, ValueError, RuntimeError, OverflowError):
+        raise ValueError(f"sweep must be real numbers, got {value!r}") from None
 
 
-def _as_positive_int_list(value, name: str) -> tuple[list[int], bool]:
-    """Validate a positive-integer scalar or non-empty sweep.
+def _as_int_list(value, name: str, minimum: int = 1) -> tuple[list[int], bool]:
+    """Validate an integer scalar or non-empty 1-D sweep of integers ``>= minimum``.
 
     Returns:
         The values as Python ints, and whether ``value`` was a sweep.
 
     Raises:
         ValueError: If ``value`` is complex, empty, non-finite,
-            non-integer, or has a value ``< 1``.
+            non-integer, has more than one dimension, or has a value
+            ``< minimum``.
     """
     if _is_complex(value):
         raise ValueError(f"{name} must be integer-valued, got complex {value!r}")
     # float64 so a Python float like 1.00000001 is not rounded to an integer in float32.
-    value_tensor = torch.as_tensor(value, dtype=torch.float64)
+    try:
+        value_tensor = torch.as_tensor(value, dtype=torch.float64)
+    except (TypeError, ValueError, RuntimeError, OverflowError):
+        raise ValueError(f"{name} must be integer-valued, got {value!r}") from None
+    if value_tensor.dim() > 1:
+        raise ValueError(f"{name} must be a scalar or a 1-D sequence, got shape {tuple(value_tensor.shape)}")
     flat = value_tensor.reshape(-1)
     if flat.numel() == 0:
         raise ValueError(f"{name} must not be empty")
     if not torch.isfinite(flat).all() or not torch.equal(flat, flat.round()):
         raise ValueError(f"{name} must be integer-valued, got {flat.tolist()}")
     items = [int(item) for item in flat.tolist()]
-    if any(item < 1 for item in items):
-        raise ValueError(f"{name} must be >= 1, got {items}")
+    if any(item < minimum for item in items):
+        raise ValueError(f"{name} must be >= {minimum}, got {items}")
     return items, value_tensor.dim() > 0
 
 
@@ -151,6 +175,16 @@ def _as_int(value, name: str) -> int:
         return operator.index(value)
     except (TypeError, ValueError, RuntimeError):
         raise ValueError(f"{name} must be an integer, got {value!r}") from None
+
+
+def _real_scalar(value, name: str) -> float:
+    """``value`` as a Python float; ``ValueError`` for strings, ``None``, complex or non-scalars."""
+    if isinstance(value, (str, bytes)) or value is None or _is_complex(value):
+        raise ValueError(f"{name} must be a real number, got {value!r}")
+    try:
+        return float(value)
+    except (TypeError, ValueError, RuntimeError, OverflowError):
+        raise ValueError(f"{name} must be a real number, got {value!r}") from None
 
 
 def _mask_nonfinite_rows(values: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -327,6 +361,12 @@ def _validate_matching_batch(
         )
 
 
+def _require_univariate(tensor: torch.Tensor, name: str) -> None:
+    """Raise ``ValueError`` unless the ``[B, T, D]`` ``tensor`` has ``D == 1``; ``name`` is the caller's."""
+    if tensor.shape[-1] != 1:
+        raise ValueError(f"{name} only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
+
+
 def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
     """Detached per-row power of two within a factor of two of the largest
     finite magnitude (scaled magnitudes are below 2), else 1; shape
@@ -342,3 +382,36 @@ def _power_of_two_scale(*tensors: torch.Tensor) -> torch.Tensor:
     scale = functools.reduce(torch.maximum, magnitudes)
     scale = torch.where(torch.isfinite(scale) & (scale > 0), scale, torch.ones_like(scale))
     return torch.exp2(torch.floor(torch.log2(scale)))
+
+
+def _shannon_entropy(probability: torch.Tensor) -> torch.Tensor:
+    """Shannon entropy in nats over the last dim, in ``probability``'s dtype.
+
+    Zero entries contribute 0 with a zero gradient; a row containing NaN gives NaN.
+    """
+    safe = torch.where(probability > 0, probability, torch.ones_like(probability))
+    return -(probability * torch.log(safe)).sum(-1)
+
+
+def _pattern_counts(
+    codes: torch.Tensor, num_patterns: int, weights: torch.Tensor | None = None, dtype: torch.dtype | None = None
+) -> torch.Tensor:
+    """Occurrences of each code in ``[0, num_patterns)`` along the last dim, by ``scatter_add``.
+
+    Memory is ``O(prod(batch) * (N + num_patterns))``, and ``torch.vmap`` works.
+
+    Args:
+        codes: Int64 tensor ``[..., N]`` with values in ``[0, num_patterns)``.
+        num_patterns: Number of distinct codes.
+        weights: Optional tensor shaped like ``codes``; each code then adds its weight instead of 1.
+            Gradients flow to ``weights``.
+        dtype: Result dtype; default ``weights.dtype``, else the default dtype.
+
+    Returns:
+        Counts (or weight sums) of shape ``[..., num_patterns]``.
+    """
+    if dtype is None:
+        dtype = torch.get_default_dtype() if weights is None else weights.dtype
+    source = torch.ones_like(codes, dtype=dtype) if weights is None else weights.to(dtype)
+    counts = torch.zeros((*codes.shape[:-1], num_patterns), dtype=dtype, device=codes.device)
+    return counts.scatter_add(-1, codes, source)

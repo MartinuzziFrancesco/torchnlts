@@ -39,7 +39,7 @@ result = surrogate_test(
     signal,
     entropy,
     iaaft_surrogate,
-    num_surrogates,
+    num_surrogates=num_surrogates,
     tail="left",
     generator=torch.Generator().manual_seed(0),
     max_iterations=50,

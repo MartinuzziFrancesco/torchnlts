@@ -13,15 +13,14 @@ Dual ground truth:
 """
 
 import math
-import subprocess
 
+import numpy
 import pytest
 import torch
 
-from tests.conftest import logistic_map_trajectory
+from tests.conftest import logistic_map_trajectory, run_julia
 from torchnlts.chaos.zero_one import zero_one_growth_rate, zero_one_test
 
-JULIA_PROJECT = "juliaenv"
 FREQUENCIES = torch.linspace(math.pi / 5, 4 * math.pi / 5, 7, dtype=torch.float64)
 SWEEP = torch.linspace(math.pi / 5, 4 * math.pi / 5, 100, dtype=torch.float64)
 
@@ -72,11 +71,7 @@ def _julia_growth_rates(series: torch.Tensor, frequencies: torch.Tensor, max_lag
         println(ChaosTools.testchaos01(series, frequency, {max_lag}))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=300
-    )
-    assert result.returncode == 0, result.stderr
-    return torch.tensor([float(line) for line in result.stdout.split()], dtype=torch.float64)
+    return torch.tensor([float(line) for line in run_julia(julia_code).split()], dtype=torch.float64)
 
 
 def test_hand_derived_three_samples():
@@ -182,11 +177,19 @@ def test_invalid_arguments_raise():
             zero_one_growth_rate(series, bad)
     with pytest.raises(ValueError):
         zero_one_growth_rate(series, torch.tensor([1.0 + 0j]))
-    for bad in (1, 0, -3, 2.5, [5, 6], float("nan")):
-        with pytest.raises(ValueError):
+    for bad in (1, 0, -3, 2.5, 6.0, [5, 6], [6], "6", float("nan")):
+        with pytest.raises(ValueError, match="max_lag"):
             zero_one_growth_rate(series, FREQUENCIES, max_lag=bad)
+        with pytest.raises(ValueError, match="max_lag"):
+            zero_one_test(series, FREQUENCIES, max_lag=bad)
     with pytest.raises(ValueError):
         zero_one_growth_rate(torch.randn(2, 2, 2, 2), FREQUENCIES)
+
+
+def test_max_lag_accepts_numpy_integers():
+    series = _logistic(3.9, 100)
+    expected = zero_one_growth_rate(series, FREQUENCIES, max_lag=12)
+    assert torch.equal(zero_one_growth_rate(series, FREQUENCIES, max_lag=numpy.int64(12)), expected)
 
 
 def test_degenerate_inputs_are_nan():

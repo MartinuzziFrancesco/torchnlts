@@ -10,13 +10,11 @@ Dual ground truth:
   2. Julia: RecurrenceAnalysis.jl's `CrossRecurrenceMatrix` (hard variant only).
 """
 
-import subprocess
-
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.recurrence.cross_recurrence import hard_cross_recurrence_matrix, soft_cross_recurrence_matrix
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_hard_cross_recurrence_matrix_hand_derived():
@@ -47,11 +45,8 @@ def test_hard_cross_recurrence_matrix_rejects_batch_mismatch():
     # Regression: batch/feature-dim mismatches must surface here as in pairwise_distance (test_distance.py).
     unbatched = torch.randn(3)
     batched = torch.randn(2, 5, 1)
-    try:
+    with pytest.raises(ValueError):
         hard_cross_recurrence_matrix(unbatched, batched, epsilon=0.5)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for a batched/unbatched mismatch")
 
 
 def test_hard_cross_recurrence_matrix_batched():
@@ -92,15 +87,9 @@ def test_hard_cross_recurrence_matrix_matches_recurrenceanalysis_jl():
         println(join(Int.(row), ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
+    stdout = run_julia(julia_code)
     julia_matrix = torch.tensor(
-        [[int(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()],
+        [[int(v) for v in line.split(",")] for line in stdout.strip().splitlines()],
         dtype=torch.bool,
     )
     torch_matrix = hard_cross_recurrence_matrix(x, y, epsilon=epsilon)
@@ -146,3 +135,9 @@ def test_soft_cross_recurrence_matrix_gradcheck():
         return soft_cross_recurrence_matrix(x, y, temperature=0.5)
 
     assert torch.autograd.gradcheck(soft, (x, y))
+
+
+@pytest.mark.parametrize("temperature", [0.0, -1.0, float("nan"), torch.tensor([0.5, 0.0])])
+def test_soft_cross_recurrence_matrix_rejects_invalid_temperature(temperature):
+    with pytest.raises(ValueError, match="temperature"):
+        soft_cross_recurrence_matrix(torch.randn(8), torch.randn(5), temperature)

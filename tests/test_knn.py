@@ -9,13 +9,12 @@ Dual ground truth:
      for phase-space neighbor search.
 """
 
-import subprocess
-
+import numpy
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.neighbors.knn import knn_search
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_knn_search_hand_derived():
@@ -61,6 +60,19 @@ def test_knn_search_sorted_ascending():
     assert torch.all(dist[:, :-1] <= dist[:, 1:])
 
 
+@pytest.mark.parametrize("bad", [0, -1, 1.5, 2.0, "2", None, float("nan")])
+def test_knn_search_rejects_invalid_num_neighbors(bad):
+    with pytest.raises(ValueError, match="num_neighbors"):
+        knn_search(torch.randn(10), bad)
+
+
+def test_knn_search_accepts_numpy_integer_num_neighbors():
+    trajectory = torch.randn(12, 2)
+    distances, indices = knn_search(trajectory, 3)
+    numpy_distances, numpy_indices = knn_search(trajectory, numpy.int64(3))
+    assert torch.equal(distances, numpy_distances) and torch.equal(indices, numpy_indices)
+
+
 def test_knn_search_gradcheck():
     # Well-separated points avoid ties at the k-th/(k+1)-th boundary (the non-differentiable point).
     torch.manual_seed(0)
@@ -90,14 +102,9 @@ def test_knn_search_matches_neighborhood_jl():
         println(join(idxs[i] .- 1, ","), "|", join(dists[i], ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    for i, line in enumerate(result.stdout.strip().splitlines()):
+    lines = run_julia(julia_code).strip().splitlines()
+    assert len(lines) == len(x)
+    for i, line in enumerate(lines):
         idx_part, dist_part = line.split("|")
         julia_idx = [int(v) for v in idx_part.split(",")]
         julia_dist = [float(v) for v in dist_part.split(",")]

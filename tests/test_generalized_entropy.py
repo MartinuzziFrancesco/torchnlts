@@ -8,25 +8,21 @@ Dual ground truth:
      against one worked example.
   2. Julia: ComplexityMeasures.jl's `Renyi`/`Tsallis`. Exact match
      across the full parameter range tested, including negative q for
-     Tsallis and an explicit zero-probability outcome -- except one
-     confirmed deviation, a genuine discontinuity across Julia's own
-     `q ≈ 1` tolerance window when k != 1 (see module docstring), locked
-     in below.
+     Tsallis and an explicit zero-probability outcome -- except that
+     Julia's `Tsallis` drops k inside its `q ≈ 1` tolerance window when
+     k != 1 (see the module docstring); a test below pins the difference.
 
-Also locks in regressions for numerical-stability bugs in earlier versions
-of this module (exact-equality-only order-1 special casing, and direct
-power-sum computation instead of `logsumexp`), plus a composition gap (NaN
-silently read as zero probability).
+Also covers numerical stability near order 1 and at extreme orders, and
+propagation of NaN rows.
 """
 
 import math
-import subprocess
 
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.entropy.generalized import renyi_entropy, tsallis_entropy
-
-JULIA_PROJECT = "juliaenv"
 
 
 def _shannon(probability):
@@ -80,11 +76,8 @@ def test_renyi_entropy_is_nonincreasing_in_alpha():
 
 def test_renyi_entropy_rejects_negative_alpha():
     probability = torch.tensor([0.5, 0.5], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         renyi_entropy(probability, -1.0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_tsallis_entropy_allows_negative_q():
@@ -284,13 +277,10 @@ def test_renyi_entropy_matches_complexitymeasures_jl():
         println(information(Renyi(q=q, base=ℯ), p))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_values = [float(v) for v in result.stdout.strip().splitlines()]
+    stdout = run_julia(julia_code)
+    julia_values = [float(v) for v in stdout.strip().splitlines()]
     torch_probability = torch.tensor(probability, dtype=torch.float64)
-    for julia_value, alpha in zip(julia_values, (0.0, 0.5, 1.0, 2.0, 5.0, float("inf"))):
+    for julia_value, alpha in zip(julia_values, (0.0, 0.5, 1.0, 2.0, 5.0, float("inf")), strict=True):
         torch_value = renyi_entropy(torch_probability, alpha)
         assert torch.isclose(torch_value, torch.tensor(julia_value, dtype=torch.float64), atol=1e-9, rtol=0)
 
@@ -305,13 +295,10 @@ def test_tsallis_entropy_matches_complexitymeasures_jl_including_negative_q():
         println(information(Tsallis(q=q, k=1.0, base=ℯ), p))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_values = [float(v) for v in result.stdout.strip().splitlines()]
+    stdout = run_julia(julia_code)
+    julia_values = [float(v) for v in stdout.strip().splitlines()]
     torch_probability = torch.tensor(probability, dtype=torch.float64)
-    for julia_value, q in zip(julia_values, (-2.0, -0.5, 0.0, 0.5, 1.0, 2.0)):
+    for julia_value, q in zip(julia_values, (-2.0, -0.5, 0.0, 0.5, 1.0, 2.0), strict=True):
         torch_value = tsallis_entropy(torch_probability, q)
         assert torch.isclose(torch_value, torch.tensor(julia_value, dtype=torch.float64), atol=1e-9, rtol=0)
 
@@ -324,11 +311,8 @@ def test_tsallis_entropy_disagrees_with_complexitymeasures_jl_at_q_1_k_not_1():
     println(information(Tsallis(q=1.0, k=2.0, base=ℯ), p))
     println(information(Tsallis(q=1.0000001, k=2.0, base=ℯ), p))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_at_exactly_1, julia_near_1 = (float(v) for v in result.stdout.strip().splitlines())
+    stdout = run_julia(julia_code)
+    julia_at_exactly_1, julia_near_1 = (float(v) for v in stdout.strip().splitlines())
 
     probability = torch.tensor([0.5, 0.3, 0.2], dtype=torch.float64)
     torch_at_exactly_1 = tsallis_entropy(probability, 1.0, k=2.0).item()
@@ -336,3 +320,12 @@ def test_tsallis_entropy_disagrees_with_complexitymeasures_jl_at_q_1_k_not_1():
     # Julia's near-1 evaluation scales with k; only its exact-1 branch disagrees.
     assert math.isclose(julia_near_1, torch_at_exactly_1, rel_tol=1e-6)
     assert not math.isclose(julia_at_exactly_1, torch_at_exactly_1, rel_tol=1e-3)
+
+
+def test_order_one_gradient_is_the_shannon_gradient_with_zero_at_zero_probability():
+    probability = torch.tensor([0.5, 0.3, 0.2, 0.0], dtype=torch.float64, requires_grad=True)
+    expected = torch.cat([-(probability[:3].detach().log() + 1), torch.zeros(1, dtype=torch.float64)])
+    (renyi_gradient,) = torch.autograd.grad(renyi_entropy(probability, 1.0), probability)
+    (tsallis_gradient,) = torch.autograd.grad(tsallis_entropy(probability, 1.0, k=2.0), probability)
+    assert torch.allclose(renyi_gradient, expected)
+    assert torch.allclose(tsallis_gradient, 2.0 * expected)

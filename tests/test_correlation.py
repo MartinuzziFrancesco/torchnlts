@@ -10,13 +10,10 @@ Dual ground truth:
   2. Julia: FractalDimensions.jl's `correlationsum` (hard variant only).
 """
 
-import subprocess
-
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.dimension.correlation import correlation_dimension, correlation_sum, soft_correlation_sum
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_correlation_sum_hand_derived():
@@ -73,14 +70,8 @@ def test_correlation_sum_matches_fractaldimensions_jl():
         cs = correlationsum(X, {radii}; w={theiler_window})
         println(join(cs, ","))
         """
-        result = subprocess.run(
-            ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        assert result.returncode == 0, result.stderr
-        julia_cs = torch.tensor([float(v) for v in result.stdout.strip().split(",")], dtype=torch.float64)
+        stdout = run_julia(julia_code)
+        julia_cs = torch.tensor([float(v) for v in stdout.strip().split(",")], dtype=torch.float64)
         torch_cs = correlation_sum(
             trajectory, radius=torch.tensor(radii, dtype=torch.float64), theiler_window=theiler_window
         )
@@ -245,14 +236,8 @@ def test_correlation_dimension_matches_fractaldimensions_jl_linear_regression():
     slope, _, _ = slopefit(log2.({radii}), log2.(cs), LinearRegression(); ignore_saturation=false)
     println(slope)
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_dimension = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_dimension = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     radius = torch.tensor(radii, dtype=torch.float64)
     torch_dimension = correlation_dimension(radius, correlation_sum(trajectory, radius=radius))
     # atol=1e-9: both sides do closed-form OLS in float64; the residual is parsed-string and log-base conversion noise.

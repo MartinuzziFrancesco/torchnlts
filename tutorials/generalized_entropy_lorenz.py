@@ -5,10 +5,9 @@ Rényi's own theorem that its entropy is non-increasing in that order
 -- checked here not on a synthetic probability vector, but on the
 *real* ordinal-pattern distribution the Lorenz system's x-coordinate
 produces, reusing `torchnlts.entropy.ordinal_pattern_probabilities`
-directly rather than recomputing it. This is the "pluggable probability
-estimator" idea the gap survey flagged: `torchnlts.entropy.generalized`
-knows nothing about ordinal patterns, delay embedding, or the Lorenz
-system -- it just takes whatever probability distribution it's handed.
+directly rather than recomputing it. `renyi_entropy` and `tsallis_entropy`
+know nothing about ordinal patterns, delay embedding, or the Lorenz
+system: they take whatever probability distribution they are handed.
 """
 
 import torch

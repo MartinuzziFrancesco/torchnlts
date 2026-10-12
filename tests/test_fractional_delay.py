@@ -13,6 +13,7 @@ integer lags -- checked directly), so this validates against:
 
 import math
 
+import pytest
 import torch
 
 from torchnlts.embedding.delay import delay_embedding
@@ -34,7 +35,7 @@ def test_fractional_delay_embedding_matches_integer_delay_embedding():
     torch.manual_seed(0)
     trajectory = torch.randn(20, 2, dtype=torch.float64)
     embedding_dim, delay = 4, 3
-    exact = delay_embedding(trajectory, embedding_dim, delay)
+    exact = delay_embedding(trajectory, embedding_dim, delay=delay)
     fractional = fractional_delay_embedding(trajectory, delays=torch.arange(embedding_dim, dtype=torch.float64) * delay)
     assert torch.allclose(exact, fractional, atol=1e-10)
 
@@ -48,19 +49,20 @@ def test_fractional_delay_embedding_shapes():
 
 
 def test_fractional_delay_embedding_rejects_negative_delays():
-    try:
+    with pytest.raises(ValueError):
         fractional_delay_embedding(torch.randn(10), delays=torch.tensor([0.0, -1.0]))
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for a negative delay")
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_fractional_delay_embedding_rejects_non_finite_delays(bad):
+    # Regression: an infinite delay escaped as an OverflowError from math.floor, NaN as an unrelated ValueError.
+    with pytest.raises(ValueError, match="finite"):
+        fractional_delay_embedding(torch.randn(10), delays=torch.tensor([0.0, bad]))
 
 
 def test_fractional_delay_embedding_rejects_empty_delays():
-    try:
+    with pytest.raises(ValueError):
         fractional_delay_embedding(torch.randn(10), delays=torch.tensor([]))
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for empty delays")
 
 
 def test_fractional_delay_embedding_float64_trajectory_integer_delays_full_precision():
@@ -99,11 +101,8 @@ def test_fractional_delay_embedding_bfloat16_default_dtype_no_index_corruption()
 
 
 def test_fractional_delay_embedding_too_short_raises():
-    try:
+    with pytest.raises(ValueError):
         fractional_delay_embedding(torch.randn(5), delays=torch.tensor([0.0, 10.0]))
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for a too-short trajectory")
 
 
 def test_fractional_delay_embedding_integer_trajectory_preserves_fraction():

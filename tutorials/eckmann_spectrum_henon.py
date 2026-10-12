@@ -41,7 +41,7 @@ print(f"{'embedding_dim':>13} {'matrix_dim':>10} {'neighbors':>9}   exponents (p
 settings = [(2, 2, None), (2, 2, 12), (3, 3, None), (4, 4, None), (5, 3, None), (7, 4, None)]
 results = {}
 for embedding_dim, matrix_dim, num_neighbors in settings:
-    exponents = eckmann_spectrum(series, embedding_dim, matrix_dim, num_neighbors)
+    exponents = eckmann_spectrum(series, embedding_dim, matrix_dim, num_neighbors=num_neighbors)
     results[(embedding_dim, matrix_dim, num_neighbors)] = exponents
     label = "default" if num_neighbors is None else num_neighbors
     print(

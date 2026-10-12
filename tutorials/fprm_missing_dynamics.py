@@ -80,7 +80,7 @@ def pearson_and_rmse(prediction, target):
 
 
 def run_system(name, x, y, z, embedding_dim, delay):
-    full_reconstruction = delay_embedding(x, embedding_dim, delay)
+    full_reconstruction = delay_embedding(x, embedding_dim, delay=delay)
     num_rows = full_reconstruction.shape[0]
     y, z = y[:num_rows], z[:num_rows]
 

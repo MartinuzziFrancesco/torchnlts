@@ -15,13 +15,15 @@ Dual ground truth:
      `-0.0` rather than this module's `NaN`, locked in below.
 """
 
-import subprocess
+import math
 
+import numpy as np
+import pytest
 import torch
 
-from torchnlts.entropy.dispersion import dispersion_entropy
-
-JULIA_PROJECT = "juliaenv"
+from tests.conftest import pseudo_random_series, run_julia
+from torchnlts.embedding.delay import delay_embedding
+from torchnlts.entropy.dispersion import _gaussian_cdf_classes, dispersion_entropy
 
 
 def test_dispersion_entropy_hand_derived():
@@ -62,20 +64,14 @@ def test_dispersion_entropy_shape_conventions_agree():
 
 def test_dispersion_entropy_rejects_multivariate():
     trajectory = torch.randn(30, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         dispersion_entropy(trajectory)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_dispersion_entropy_rejects_too_few_classes():
     trajectory = torch.randn(30, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         dispersion_entropy(trajectory, num_classes=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_dispersion_entropy_constant_trajectory_is_nan():
@@ -94,11 +90,16 @@ def test_dispersion_entropy_near_constant_float32_is_finite_not_nan():
 
 def test_dispersion_entropy_pattern_codes_do_not_collide_at_large_scale():
     # Regression: float pattern codes collided once num_classes**embedding_dim exceeded float32's 2**24.
-    # Checked at the int64 arithmetic level; the full function would need gigabytes at this size.
-    weights = 2 ** torch.arange(24, -1, -1, dtype=torch.int64)
-    pattern_a = torch.tensor([1] + [0] * 24, dtype=torch.int64)
-    pattern_b = torch.tensor([1] + [0] * 23 + [1], dtype=torch.int64)
-    assert (pattern_a * weights).sum() != (pattern_b * weights).sum()
+    # The first and last of the 26 windows share their first 24 classes and differ only in the last one.
+    torch.manual_seed(10)
+    block = torch.sign(torch.randn(24))
+    block[0] = 1.0
+    trajectory = torch.cat([block, torch.tensor([-1.0]), block, torch.tensor([1.0])])
+    classes = _gaussian_cdf_classes(trajectory.view(1, -1, 1), 2).view(-1)
+    windows = delay_embedding(classes, 25)
+    assert windows.shape[0] == 26 and torch.unique(windows, dim=0).shape[0] == 26
+    result = dispersion_entropy(trajectory, num_classes=2, embedding_dim=25)
+    assert torch.isclose(result, torch.tensor(math.log(26)))
 
 
 def test_dispersion_entropy_mixed_batch_nan_does_not_poison_other_rows():
@@ -129,11 +130,8 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_hand_example():
     est = Dispersion(c=3, m=2, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_entropy = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_entropy = dispersion_entropy(
         torch.tensor(trajectory, dtype=torch.float64), num_classes=3, embedding_dim=2, delay=1
     )
@@ -150,11 +148,8 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_at_exact_rounding_tie(
     est = Dispersion(c=4, m=2, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_entropy = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_entropy = dispersion_entropy(
         torch.tensor(trajectory, dtype=torch.float64), num_classes=4, embedding_dim=2, delay=1
     )
@@ -169,11 +164,8 @@ def test_dispersion_entropy_disagrees_with_complexitymeasures_jl_on_constant_inp
     est = Dispersion(c=4, m=2, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_entropy = float(result.stdout.strip())
+    stdout = run_julia(julia_code)
+    julia_entropy = float(stdout.strip())
     assert julia_entropy == 0.0
 
     torch_entropy = dispersion_entropy(torch.full((20,), 3.0, dtype=torch.float64), num_classes=4, embedding_dim=2)
@@ -191,10 +183,79 @@ def test_dispersion_entropy_matches_complexitymeasures_jl_random():
     est = Dispersion(c=6, m=3, τ=1)
     println(information(Shannon(base=ℯ), est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_entropy = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_entropy = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_entropy = dispersion_entropy(trajectory, num_classes=6, embedding_dim=3, delay=1)
     assert torch.isclose(torch_entropy, julia_entropy, atol=1e-9, rtol=0)
+
+
+def test_dispersion_entropy_large_pattern_space_needs_no_length_by_patterns_array():
+    # Regression: 6**7 = 279936 patterns over 20000 windows; a one-hot count needs tens of GB.
+    torch.manual_seed(0)
+    trajectory = torch.randn(20000, dtype=torch.float64)
+    num_classes, embedding_dim = 6, 7
+    classes = _gaussian_cdf_classes(trajectory.view(1, -1, 1), num_classes).view(-1)
+    _, counts = torch.unique(delay_embedding(classes, embedding_dim), dim=0, return_counts=True)
+    probability = counts.to(torch.float64) / counts.sum()
+    expected = -(probability * probability.log()).sum()
+    result = dispersion_entropy(trajectory, num_classes=num_classes, embedding_dim=embedding_dim)
+    assert torch.isclose(result, expected, rtol=1e-12, atol=0)
+
+
+def test_dispersion_entropy_integer_input_matches_default_float_dtype():
+    # Regression: integer input raised in mean().
+    torch.manual_seed(5)
+    series = torch.randint(0, 12, (200,))
+    result = dispersion_entropy(series, num_classes=4, embedding_dim=2)
+    assert result.dtype == torch.get_default_dtype()
+    assert torch.equal(result, dispersion_entropy(series.to(torch.get_default_dtype()), num_classes=4, embedding_dim=2))
+    batch = torch.randint(0, 12, (3, 200, 1))
+    assert dispersion_entropy(batch, num_classes=4, embedding_dim=2).shape == (3,)
+
+
+@pytest.mark.parametrize(
+    "dtype, num_classes, series",
+    [(torch.float16, 4, (300, 1, 20.0, 1e4)), (torch.bfloat16, 3, (100, 2, 20.0, 3000.0))],
+)
+def test_dispersion_entropy_half_precision_matches_float32_then_cast(dtype, num_classes, series):
+    # A large offset with a small spread: the mean and standard deviation are inexact in half arithmetic.
+    values = pseudo_random_series(*series).to(dtype)
+    result = dispersion_entropy(values, num_classes=num_classes, embedding_dim=3)
+    assert result.dtype == dtype and torch.isfinite(result)
+    expected = dispersion_entropy(values.float(), num_classes=num_classes, embedding_dim=3).to(dtype)
+    assert torch.equal(result, expected)
+
+
+def test_dispersion_entropy_nonfinite_rows_are_nan():
+    torch.manual_seed(6)
+    batch = torch.randn(4, 60, 1, dtype=torch.float64)
+    batch[1, 3] = float("nan")
+    batch[2, 5] = float("inf")
+    batch[3, 7] = -float("inf")
+    result = dispersion_entropy(batch, num_classes=4, embedding_dim=2)
+    assert torch.isnan(result[1:]).all()
+    assert torch.equal(result[0], dispersion_entropy(batch[0], num_classes=4, embedding_dim=2))
+
+
+@pytest.mark.parametrize("bad", [2.0, 2.5, "4", None, float("nan"), 1, 0, -2])
+def test_dispersion_entropy_rejects_invalid_num_classes(bad):
+    with pytest.raises(ValueError):
+        dispersion_entropy(torch.randn(30, dtype=torch.float64), num_classes=bad)
+
+
+def test_dispersion_entropy_accepts_numpy_integer_num_classes():
+    trajectory = torch.randn(40, dtype=torch.float64)
+    expected = dispersion_entropy(trajectory, num_classes=4, embedding_dim=2)
+    assert torch.equal(dispersion_entropy(trajectory, num_classes=np.int64(4), embedding_dim=2), expected)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf")])
+def test_dispersion_entropy_nan_for_nonfinite_sample_outside_every_window(bad):
+    # With embedding_dim=2 and delay=30 on 50 samples, samples 20-29 enter no window; the class thresholds still see them.
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = bad
+    values = dispersion_entropy(batch, num_classes=4, embedding_dim=2, delay=30)
+    assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
+    mapped = torch.vmap(lambda series: dispersion_entropy(series, num_classes=4, embedding_dim=2, delay=30))(batch)
+    assert torch.allclose(values, mapped, equal_nan=True)

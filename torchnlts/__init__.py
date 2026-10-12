@@ -14,6 +14,7 @@ from torchnlts import (
     matrixprofile,
     neighbors,
     recurrence,
+    scaling,
     sciml,
     surrogate,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "matrixprofile",
     "neighbors",
     "recurrence",
+    "scaling",
     "sciml",
     "surrogate",
 ]

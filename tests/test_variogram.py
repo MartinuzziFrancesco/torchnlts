@@ -407,7 +407,7 @@ def test_half_input_sums_in_float32():
 def test_small_increment_gradients_do_not_underflow():
     # Scaled by the largest increment, (1e-10)**6 underflows float32.
     values = torch.tensor([0.0, 1e-5, 0.0, 1e5], requires_grad=True)
-    (actual,) = torch.autograd.grad(power_variogram(values, 1, 6.0), values)
+    (actual,) = torch.autograd.grad(power_variogram(values, 1, power=6.0), values)
     reference = (values[1:] - values[:-1]).double().abs().pow(6).sum() / 6
     (expected,) = torch.autograd.grad(reference, values)
     assert torch.allclose(actual[:2].double(), expected[:2].double(), rtol=1e-5, atol=0)
@@ -432,6 +432,6 @@ def test_power_validation_edge_cases():
 def test_degenerate_column_keeps_power_gradient_finite():
     power = torch.tensor(2.0, dtype=torch.float64, requires_grad=True)
     variogram = torch.tensor([[0.0, 1.0], [0.0, 4.0]], dtype=torch.float64)
-    dimension = variogram_dimension([1, 2], variogram, power)
+    dimension = variogram_dimension([1, 2], variogram, power=power)
     (gradient,) = torch.autograd.grad(dimension[1], power)
     assert dimension[0].isnan() and torch.isclose(gradient, torch.tensor(0.5, dtype=torch.float64))

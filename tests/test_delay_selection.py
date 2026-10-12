@@ -7,27 +7,17 @@ documented differences from ``selfmutualinfo``).
 """
 
 import math
-import subprocess
 
 import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.embedding.delay_selection import auto_mutual_information, autocorrelation, estimate_delay
-
-JULIA_PROJECT = "juliaenv"
-
-
-def _julia(code):
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=120
-    )
-    assert result.returncode == 0, result.stderr
-    return result.stdout.strip()
 
 
 def _julia_vector(trajectory, body):
     values = ", ".join(f"{v:.17g}" for v in trajectory.tolist())
-    return _julia(f"using DelayEmbeddings\nx = [{values}]\n{body}")
+    return run_julia(f"using DelayEmbeddings\nx = [{values}]\n{body}").strip()
 
 
 def _parse(text):
@@ -81,22 +71,22 @@ def test_ami_sine_minimum_plateau_contains_quarter_period():
     ami = auto_mutual_information(_sine(), 30)
     assert ami[10] <= ami[1:].min() + 0.035
     assert ami[10] < ami[1] - 0.35
-    assert 6 <= estimate_delay(_sine(), 30, "mi_min").item() <= 10
+    assert 6 <= estimate_delay(_sine(), 30, method="mi_min").item() <= 10
 
 
 def test_estimate_delay_autocorrelation_methods_on_sine():
     sine = _sine()
-    assert abs(estimate_delay(sine, 30, "ac_zero").item() - 10) <= 1
-    assert abs(estimate_delay(sine, 30, "ac_min").item() - 20) <= 1
+    assert abs(estimate_delay(sine, 30, method="ac_zero").item() - 10) <= 1
+    assert abs(estimate_delay(sine, 30, method="ac_min").item() - 20) <= 1
     # cos(2 pi k / 40) < 1/e first at k = 10 * 0.69... -> 8 (arccos(1/e) = 1.1944 rad)
-    assert estimate_delay(sine, 30, "ac_1/e").item() == math.ceil(1.1944 / (2 * math.pi) * 40)
+    assert estimate_delay(sine, 30, method="ac_1/e").item() == math.ceil(1.1944 / (2 * math.pi) * 40)
 
 
 def test_estimate_delay_hand_derived_search_rules():
     # Strictly decaying exponential: no zero crossing -> max_delay; 1/e found.
     decay = torch.exp(-torch.arange(100, dtype=torch.float64) / 10)
-    assert estimate_delay(decay, 5, "ac_zero").item() == 5
-    assert estimate_delay(decay, 5, "ac_min").item() == 5
+    assert estimate_delay(decay, 5, method="ac_zero").item() == 5
+    assert estimate_delay(decay, 5, method="ac_min").item() == 5
 
 
 def test_ami_matches_julia_at_delay_zero_and_periodic_window():
@@ -127,7 +117,9 @@ def test_estimate_delay_matches_julia_for_each_method():
         trajectory, 'println([estimate_delay(x, m, 1:30; nbins=8) for m in ["mi_min", "ac_zero", "ac_min"]])'
     )
     expected = [int(value) for value in _parse(julia)]
-    actual = [estimate_delay(trajectory, 30, method, num_bins=8).item() for method in ("mi_min", "ac_zero", "ac_min")]
+    actual = [
+        estimate_delay(trajectory, 30, method=method, num_bins=8).item() for method in ("mi_min", "ac_zero", "ac_min")
+    ]
     assert actual == expected
 
 
@@ -142,12 +134,25 @@ def test_autocorrelation_matches_julia():
 def test_shapes_agree_and_batch_matches_loop():
     rows = torch.stack([_mixed(), _sine(200)])
     batched = auto_mutual_information(rows[..., None], 10)
-    assert batched.shape == (2, 11)
+    assert batched.shape == (11, 2)
     for index in range(2):
-        assert torch.allclose(batched[index], auto_mutual_information(rows[index], 10))
-        assert torch.allclose(auto_mutual_information(rows[index][:, None], 10), batched[index])
+        assert torch.allclose(batched[:, index], auto_mutual_information(rows[index], 10))
+        assert torch.allclose(auto_mutual_information(rows[index][:, None], 10), batched[:, index])
     assert torch.equal(estimate_delay(rows[..., None], 20), torch.stack([estimate_delay(row, 20) for row in rows]))
-    assert autocorrelation(rows[..., None], 10).shape == (2, 11)
+    assert autocorrelation(rows[..., None], 10).shape == (11, 2)
+
+
+@pytest.mark.parametrize("function", [autocorrelation, auto_mutual_information])
+def test_sweep_axis_comes_first(function):
+    # Regression: batched input returned [B, max_delay + 1] while every other sweep function returns [K, B].
+    rows = torch.stack([_mixed(), _sine(200), _mixed().flip(0)])[..., None]
+    assert function(rows[0, :, 0], 10).shape == (11,)
+    assert function(rows[0], 10).shape == (11,)
+    assert function(rows, 10).shape == (11, 3)
+    assert function(rows, 1).shape == (2, 3)
+    assert function(rows[:1], 10).shape == (11, 1)
+    for index in range(3):
+        assert torch.allclose(function(rows, 10)[:, index], function(rows[index], 10))
 
 
 def test_nonfinite_row_is_nan_and_does_not_poison_others():
@@ -155,16 +160,18 @@ def test_nonfinite_row_is_nan_and_does_not_poison_others():
     rows[1, 7] = float("nan")
     ami = auto_mutual_information(rows[..., None], 10)
     corr = autocorrelation(rows[..., None], 10)
-    assert torch.isnan(ami[1]).all() and torch.isnan(corr[1]).all()
-    assert torch.allclose(ami[0], auto_mutual_information(rows[0], 10))
-    assert estimate_delay(rows[..., None], 20, "mi_min").tolist()[1] == -1
-    assert estimate_delay(rows[..., None], 20, "ac_zero")[0] >= 1
+    assert torch.isnan(ami[:, 1]).all() and torch.isnan(corr[:, 1]).all()
+    assert torch.isfinite(ami[:, 0]).all() and torch.isfinite(corr[:, 0]).all()
+    assert torch.allclose(ami[:, 0], auto_mutual_information(rows[0], 10))
+    assert estimate_delay(rows[..., None], 20, method="mi_min").tolist()[1] == -1
+    assert estimate_delay(rows[..., None], 20, method="ac_zero")[0] >= 1
 
 
 def test_constant_row_autocorrelation_is_nan():
     assert torch.isnan(autocorrelation(torch.ones(20), 3)).all()
     assert all(
-        estimate_delay(torch.ones(20), 5, method).item() == -1 for method in ("mi_min", "ac_zero", "ac_min", "ac_1/e")
+        estimate_delay(torch.ones(20), 5, method=method).item() == -1
+        for method in ("mi_min", "ac_zero", "ac_min", "ac_1/e")
     )
 
 
@@ -176,7 +183,7 @@ def test_constant_row_autocorrelation_is_nan():
         lambda: auto_mutual_information(torch.randn(20), 20),
         lambda: auto_mutual_information(torch.randn(20), 3, num_bins=1),
         lambda: autocorrelation(torch.randn(20), 2.5),
-        lambda: estimate_delay(torch.randn(20), 3, "nope"),
+        lambda: estimate_delay(torch.randn(20), 3, method="nope"),
     ],
 )
 def test_invalid_arguments_raise(call):
@@ -186,17 +193,17 @@ def test_invalid_arguments_raise(call):
 
 def test_vmap_compatible():
     rows = torch.stack([_mixed(), _sine(200)])
-    mapped = torch.vmap(lambda row: autocorrelation(row, 5))(rows)
-    assert torch.allclose(mapped, autocorrelation(rows[..., None], 5))
+    mapped = torch.vmap(lambda row: autocorrelation(row, 5))(rows)  # vmap stacks the batch on dim 0
+    assert torch.allclose(mapped, autocorrelation(rows[..., None], 5).T)
 
 
 def test_estimate_delay_hand_derived_ties_and_zero():
     # AMI of an alternating series is identical at every delay: a tie counts as
     # "not decreasing", so the first delay is returned.
     alternating = torch.tensor([0.0, 1.0] * 8, dtype=torch.float64)
-    assert estimate_delay(alternating, 4, "mi_min", num_bins=2).item() == 1
+    assert estimate_delay(alternating, 4, method="mi_min", num_bins=2).item() == 1
     # autocorrelation [1, 0, -0.5]: exactly zero at delay 1 counts as a crossing.
-    assert estimate_delay(torch.tensor([1.0, 2.0, 3.0]), 2, "ac_zero").item() == 1
+    assert estimate_delay(torch.tensor([1.0, 2.0, 3.0]), 2, method="ac_zero").item() == 1
 
 
 def test_ami_range_uses_only_the_pair_window():
@@ -254,27 +261,28 @@ def test_estimate_delay_half_precision_matches_float32(method):
     ]
     half = torch.tensor(values, dtype=torch.float16)
     assert (
-        estimate_delay(half, 6, method, num_bins=4).item() == estimate_delay(half.float(), 6, method, num_bins=4).item()
+        estimate_delay(half, 6, method=method, num_bins=4).item()
+        == estimate_delay(half.float(), 6, method=method, num_bins=4).item()
     )
-    assert estimate_delay(half, 6, "ac_min").item() == 6
+    assert estimate_delay(half, 6, method="ac_min").item() == 6
 
 
 def test_estimate_delay_short_search_matches_julia():
     trajectory = torch.tensor([0.0, 1.0] * 4, dtype=torch.float64)
     julia = _julia_vector(trajectory, 'println(estimate_delay(x, "mi_min", 1:2; nbins=2))')
-    assert int(julia) == 1 == estimate_delay(trajectory, 2, "mi_min", num_bins=2).item()
+    assert int(julia) == 1 == estimate_delay(trajectory, 2, method="mi_min", num_bins=2).item()
 
 
 def test_estimate_delay_ignores_minimum_at_penultimate_delay():
     sine = _sine()
-    minimum = estimate_delay(sine, 30, "ac_min").item()
-    assert estimate_delay(sine, minimum + 1, "ac_min").item() == minimum + 1
-    assert estimate_delay(sine, minimum + 2, "ac_min").item() == minimum
+    minimum = estimate_delay(sine, 30, method="ac_min").item()
+    assert estimate_delay(sine, minimum + 1, method="ac_min").item() == minimum + 1
+    assert estimate_delay(sine, minimum + 2, method="ac_min").item() == minimum
 
 
 def test_estimate_delay_threshold_is_one_over_e():
     # cos(2 pi k / 70) is about 0.394 at k = 13 (above 1/e, below 0.4) and 0.309 at k = 14.
-    assert estimate_delay(_sine(2000, 70), 30, "ac_1/e").item() == 14
+    assert estimate_delay(_sine(2000, 70), 30, method="ac_1/e").item() == 14
 
 
 def test_ami_sample_on_interior_edge_goes_to_lower_bin():
@@ -287,11 +295,11 @@ def test_estimate_delay_mi_min_half_uses_float32_curve():
     # Regression: rounding the AMI curve to half before the search changes the selected delay.
     torch.manual_seed(17)
     series = torch.randn(1000, 20).half()[..., None]
-    expected = estimate_delay(series.float(), 10, "mi_min", 4)
-    assert torch.equal(estimate_delay(series, 10, "mi_min", 4), expected)
+    expected = estimate_delay(series.float(), 10, method="mi_min", num_bins=4)
+    assert torch.equal(estimate_delay(series, 10, method="mi_min", num_bins=4), expected)
 
 
 def test_estimate_delay_short_search_fallbacks():
     increasing = torch.arange(1.0, 9.0)
-    assert estimate_delay(increasing, 1, "ac_min").item() == 1
-    assert estimate_delay(increasing, 2, "ac_min").item() == 2
+    assert estimate_delay(increasing, 1, method="ac_min").item() == 1
+    assert estimate_delay(increasing, 2, method="ac_min").item() == 2

@@ -7,13 +7,11 @@ Dual ground truth:
   2. Julia: FractalDimensions.jl's ``higuchi_length``/``higuchi_dim``.
 """
 
-import subprocess
-
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.dimension.higuchi import higuchi_dimension, higuchi_length
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_higuchi_length_hand_derived():
@@ -41,30 +39,21 @@ def test_higuchi_length_degenerate_k_is_nan_not_crash():
 
 def test_higuchi_length_zero_k_raises():
     trajectory = torch.arange(1.0, 11.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         higuchi_length(trajectory, [0])
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_higuchi_length_fractional_k_raises():
     # k is a stride, so non-integer values are rejected rather than truncated.
     trajectory = torch.arange(1.0, 21.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         higuchi_length(trajectory, [1.9, 2.9])
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_higuchi_length_empty_k_raises():
     trajectory = torch.arange(1.0, 11.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         higuchi_length(trajectory, [])
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_higuchi_length_empty_trajectory_is_nan_not_crash():
@@ -76,11 +65,8 @@ def test_higuchi_length_empty_trajectory_is_nan_not_crash():
 
 def test_higuchi_length_multivariate_raises():
     trajectory = torch.randn(10, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         higuchi_length(trajectory, 2)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_higuchi_length_batched_and_sweep_shapes():
@@ -160,14 +146,8 @@ def test_higuchi_matches_fractaldimensions_jl():
     d = higuchi_dim(x, {ks})
     println(d)
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    lines = result.stdout.strip().split("\n")
+    stdout = run_julia(julia_code)
+    lines = stdout.strip().split("\n")
     julia_length = torch.tensor([float(v) for v in lines[0].split(",")], dtype=torch.float64)
     julia_dimension = torch.tensor(float(lines[1]), dtype=torch.float64)
 
@@ -193,8 +173,6 @@ def test_higuchi_dimension_in_expected_range_for_known_signals():
 
 
 def test_higuchi_length_invalid_trajectory_raises():
-    import pytest
-
     for bad in (torch.tensor([0j, 1 + 2j, 2j, 3j]),):
         with pytest.raises(ValueError):
             higuchi_length(bad, 1)

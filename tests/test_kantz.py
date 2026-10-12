@@ -1,30 +1,20 @@
 """Tests for torchnlts.lyapunov.kantz.
 
-Dual ground truth:
-  1. Paper: Kantz (1994) -- a hand-derived divergence example (log of
-     the mean neighborhood distance, computed by hand and independently
-     re-derived as "mean of logs" to precisely pin down the Julia
-     disagreement below) plus the same natural analytic benchmark used
-     for Rosenstein: the logistic map's known ln(2) Lyapunov exponent.
-  2. Julia: ChaosTools.jl's `lyapunov_from_data` with `ntype=WithinRange`
-     is a confirmed, deliberate mismatch, not a match -- reading its
-     source shows it averages the *log* of each neighbor's distance
-     (mean of logs), not the log of the *mean* distance the cited paper
-     defines. Locked in as a disagreement regression below, same
-     playbook as sample_entropy/mutual_information/approximate_entropy's
-     own confirmed Julia deviations.
+Ground truth: a hand-derived divergence curve (the log of the mean neighborhood distance, re-derived as a mean of logs
+to pin the ChaosTools.jl difference); the logistic map at r = 4, whose largest Lyapunov exponent is exactly ln(2); and
+ChaosTools.jl's ``lyapunov_from_data`` with ``ntype=WithinRange``, which averages the log of each neighbor's distance
+rather than the log of the mean distance, so the two are asserted to differ.
 """
 
 import math
-import subprocess
 
+import numpy
+import pytest
 import torch
 
-from tests.conftest import logistic_map_trajectory
+from tests.conftest import logistic_map_trajectory, run_julia
 from torchnlts.lyapunov.kantz import kantz_divergence
 from torchnlts.lyapunov.rosenstein import rosenstein_divergence, rosenstein_lyapunov
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_kantz_divergence_hand_derived():
@@ -90,76 +80,52 @@ def test_kantz_divergence_zero_mean_distance_is_neg_inf_not_clamped():
 
 def test_kantz_divergence_rejects_negative_k():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=-1, radius=1.0, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_rejects_fractional_k():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=1.5, radius=1.0, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_rejects_empty_k_values():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=torch.tensor([]), radius=1.0, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_rejects_multidim_k_values():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=torch.tensor([[1.0, 2.0]]), radius=1.0, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_rejects_infinite_k():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=float("inf"), radius=1.0, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_k_validation_survives_float32_rounding():
     trajectory = torch.arange(5.0, dtype=torch.float64)
     for bad_k in (-1e-50, 1.00000001):
-        try:
+        with pytest.raises(ValueError):
             kantz_divergence(trajectory, k_values=bad_k, radius=1.0, embedding_dim=1)
-            assert False, f"expected ValueError for k_values={bad_k}"
-        except ValueError:
-            pass
 
 
 def test_kantz_divergence_rejects_negative_theiler_window():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=1, radius=1.0, embedding_dim=1, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_delay_0_still_validated_at_embedding_dim_1():
     # The large-delay OverflowError workaround must not swallow an invalid delay.
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         kantz_divergence(trajectory, k_values=0, radius=1.0, embedding_dim=1, delay=0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_kantz_divergence_one_copy_embedding_ignores_large_delay():
@@ -252,7 +218,15 @@ def test_kantz_divergence_matches_independent_loop_for_delays_and_norms():
                         distances = [(embedded[i + step] - embedded[j + step]).norm(p=norm_order) for j in neighbors]
                         logs[position].append(torch.stack(distances).mean().log())
                 expected.append(torch.stack([oracle_mean(values) for values in logs]))
-            result = kantz_divergence(trajectory, k_values, radius, embedding_dim, delay, theiler_window, norm_order)
+            result = kantz_divergence(
+                trajectory,
+                k_values,
+                radius,
+                embedding_dim=embedding_dim,
+                delay=delay,
+                theiler_window=theiler_window,
+                norm_order=norm_order,
+            )
             assert torch.allclose(result, torch.stack(expected, dim=1), atol=1e-12, rtol=0, equal_nan=True)
 
 
@@ -299,14 +273,8 @@ def test_kantz_divergence_disagrees_with_chaostools_jl():
     E = lyapunov_from_data(R, 1:1; w=0, ntype=WithinRange(1.5), distance=Euclidean())
     println(E[1])
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_divergence = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_divergence = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_divergence = kantz_divergence(
         torch.tensor(trajectory, dtype=torch.float64),
         k_values=1,
@@ -342,8 +310,6 @@ def test_kantz_zero_distance_row_keeps_shared_gradient():
 
 
 def test_kantz_invalid_arguments_raise_value_error():
-    import pytest
-
     series = torch.arange(10.0)
     for override in (
         {"k_values": torch.tensor(1 + 2j)},
@@ -359,8 +325,6 @@ def test_kantz_invalid_arguments_raise_value_error():
 
 
 def test_kantz_radius_and_theiler_window_validation():
-    import pytest
-
     series = torch.arange(5.0)
     for radius in ("2", 10**400):
         with pytest.raises(ValueError):
@@ -371,3 +335,69 @@ def test_kantz_radius_and_theiler_window_validation():
             kantz_divergence(series, 0, 2.0, embedding_dim=1, theiler_window=window)
         with pytest.raises(ValueError):
             rosenstein_divergence(series, 0, embedding_dim=1, theiler_window=window)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_kantz_divergence_half_precision_is_computed_in_float32_and_cast_back(dtype):
+    torch.manual_seed(16)
+    trajectory = torch.randn(60, dtype=torch.float32).to(dtype)
+    for batch in (trajectory, trajectory.reshape(2, 30, 1)):
+        result = kantz_divergence(batch, [1, 2], radius=1.0, embedding_dim=2)
+        assert result.dtype == dtype
+        assert torch.isfinite(result).all()
+        expected = kantz_divergence(batch.float(), [1, 2], radius=1.0, embedding_dim=2).to(dtype)
+        assert torch.equal(result, expected)
+
+
+def test_kantz_divergence_integer_input_uses_the_default_dtype():
+    trajectory = torch.tensor([0, 3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5])
+    result = kantz_divergence(trajectory, [0, 1], radius=3.0, embedding_dim=1)
+    assert result.dtype == torch.get_default_dtype()
+    assert torch.isfinite(result).all()
+    expected = kantz_divergence(trajectory.to(torch.get_default_dtype()), [0, 1], radius=3.0, embedding_dim=1)
+    assert torch.equal(result, expected)
+
+
+def test_kantz_divergence_rejects_complex_trajectory():
+    with pytest.raises(ValueError, match="complex"):
+        kantz_divergence(torch.randn(20, dtype=torch.complex64), 1, radius=1.0, embedding_dim=1)
+
+
+def test_kantz_divergence_accepts_any_integer_valued_k_sequence():
+    trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0, 3.0, 8.0, 2.0, 9.0, 4.0], dtype=torch.float64)
+    expected = kantz_divergence(trajectory, [0, 1, 2], radius=5.0, embedding_dim=1)
+    assert torch.isfinite(expected).all()
+    for k_values in (numpy.array([0, 1, 2]), numpy.array([0.0, 1.0, 2.0]), torch.tensor([0, 1, 2]), (0, 1, 2)):
+        assert torch.equal(kantz_divergence(trajectory, k_values, radius=5.0, embedding_dim=1), expected)
+    expected_scalar = kantz_divergence(trajectory, 1, radius=5.0, embedding_dim=1)
+    for k_values in (numpy.int64(1), numpy.array(1), torch.tensor(1), 1.0):
+        scalar = kantz_divergence(trajectory, k_values, radius=5.0, embedding_dim=1)
+        assert scalar.shape == () and torch.equal(scalar, expected_scalar)
+
+
+def test_kantz_divergence_k_values_error_conditions():
+    trajectory = torch.arange(8.0)
+    bad_values = (
+        torch.tensor([[1, 2]]),
+        [],
+        [0, 1.5],
+        [0, -1],
+        [0, float("nan")],
+        [0, float("inf")],
+        "a",
+        None,
+        [0, 1j],
+    )
+    for k_values in bad_values:
+        with pytest.raises(ValueError, match="k_values"):
+            kantz_divergence(trajectory, k_values, radius=1.0, embedding_dim=1)
+
+
+def test_kantz_divergence_radius_accepts_numpy_and_tensor_scalars():
+    trajectory = torch.tensor([0.0, 1.0, 2.0, 10.0, 11.0, 12.0], dtype=torch.float64)
+    expected = kantz_divergence(trajectory, 1, radius=1.5, embedding_dim=1)
+    for radius in (numpy.float32(1.5), numpy.float64(1.5), torch.tensor(1.5), numpy.array(1.5)):
+        assert torch.equal(kantz_divergence(trajectory, 1, radius=radius, embedding_dim=1), expected)
+    for radius in ("1.5", None, 1j, [1.0, 2.0], -1.0, float("nan"), 10**400):
+        with pytest.raises(ValueError, match="radius"):
+            kantz_divergence(trajectory, 1, radius=radius, embedding_dim=1)

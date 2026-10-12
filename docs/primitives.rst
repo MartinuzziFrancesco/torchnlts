@@ -6,6 +6,30 @@ class (*exact*, *smooth*, *piecewise*,
 *implicit*, or *none*) and the reference(s) it's validated against.
 Updated in the same commit that adds or changes a primitive.
 
+Conventions. Trajectories are ``[T]``, ``[T, D]`` or ``[B, T, D]`` tensors, numpy arrays or pandas objects.
+Integer input is computed in the default floating dtype; float16 and bfloat16 are computed in float32 and, unless a
+docstring says otherwise, cast back; complex input raises ``ValueError``. Exceptions:
+:func:`~torchnlts.embedding.delay_embedding`, :func:`~torchnlts.surrogate.random_shuffle_surrogate` and
+:func:`~torchnlts.surrogate.random_shift_surrogate` only index their input, so they keep any dtype, integer and complex
+included; :func:`~torchnlts.lyapunov.lyapunov_spectrum` needs a float32 or float64 state (QR has no half-precision
+kernel) and :func:`~torchnlts.lyapunov.step_jacobian` a real floating one. Parameters with a default value are
+keyword-only. Scalar integer parameters such as ``embedding_dim``, ``delay`` and ``theiler_window`` must be integers: a
+float (even ``2.0``) or a string raises ``ValueError``, and so does ``None`` unless it is the parameter's default, where
+it selects the default behavior (``max_lag`` of :func:`~torchnlts.chaos.zero_one_growth_rate`, ``num_exponents`` of
+:func:`~torchnlts.lyapunov.lyapunov_spectrum`, ``library_size`` of :func:`~torchnlts.causality.cross_map_estimate`,
+``exclusion_zone`` of :func:`~torchnlts.matrixprofile.matrix_profile`, ``num_neighbors`` of
+:func:`~torchnlts.lyapunov.eckmann_spectrum`). The swept integer parameters (``k``
+of :func:`~torchnlts.dimension.higuchi_length`, ``lag`` of :func:`~torchnlts.dimension.power_variogram`,
+``window_size`` of :func:`~torchnlts.fluctuations.dfa_fluctuation`, ``k_values`` of the Rosenstein and Kantz
+estimators) take a number or a 1-D sequence of integer-valued numbers: ``[4.0, 8.0]`` is accepted, ``[4.5]`` raises
+``ValueError``; the ``scales`` of the multiscale entropies are integers. A result evaluated over a swept parameter
+(radii, scales, window sizes, lags, ...) has the sweep on its first axis: ``[K]`` for one trajectory, ``[K, B]`` for a
+batch (so
+:func:`~torchnlts.embedding.autocorrelation` and :func:`~torchnlts.embedding.auto_mutual_information` give
+``[max_delay + 1]`` or ``[max_delay + 1, B]``). :func:`~torchnlts.causality.cross_map_estimate` returns one estimate
+per embedded point with the rank of its estimated series (``[N]``, ``[N, D]`` or ``[B, N, D]``), and
+:func:`~torchnlts.causality.ccm_skill` reduces the time axis (``[]``, ``[D]`` or ``[B, D]``).
+
 Numerical range limits. Outside these, results or gradients can be
 ``inf``, ``NaN`` or inaccurate even when the exact answer is representable:
 
@@ -27,22 +51,38 @@ Numerical range limits. Outside these, results or gradients can be
 - Absolute accuracy is about the working dtype's epsilon times the
   series' largest magnitude. A result far smaller than that and resolved
   only by cancellation (e.g. a DFA residual of ``0.5`` next to a ``1e20``
-  spike in float64) is not accurate. Katz, DFA, the variogram and the 0-1 test always
-  compute in float64.
+  spike in float64) is not accurate. Katz, DFA, the variogram and the 0-1 test compute in float64, or in
+  float32 on Apple MPS (which has no float64), where the limits above are those of float32.
 
 Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test,
 :func:`~torchnlts.scaling.scaling_slope`, Rosenstein, Kantz, Eckmann, the correlation sums (and so sample entropy,
 multiscale and composite multiscale entropy), approximate, fuzzy,
-permutation and dispersion entropy, and mutual information (both estimators) return ``NaN`` for any batch row
+permutation and dispersion entropy, mutual information (both estimators), conditional mutual information, transfer
+entropy, :func:`~torchnlts.embedding.hard_fnn`, :func:`~torchnlts.embedding.cao_e1`,
+:func:`~torchnlts.embedding.cao_e2`, :func:`~torchnlts.embedding.autocorrelation` and
+:func:`~torchnlts.embedding.auto_mutual_information` return ``NaN`` for any batch row
 containing ``NaN`` or ``inf`` instead of raising, so they work under
-``torch.vmap``. Lempel-Ziv complexity returns an integer count and is the
-exception. :func:`~torchnlts.surrogate.surrogate_test` returns a
+``torch.vmap``. :func:`~torchnlts.embedding.estimate_delay` returns ``-1`` for such a row. Lempel-Ziv complexity
+marks such a row too, with ``-1`` for the integer count (``NaN`` with ``normalize=True``), but it runs a Python loop
+per row and does not work under ``torch.vmap``. The entropy functions check the whole row, including samples that
+enter no embedded window (a large ``delay``) or that ``coarse_grain`` drops; ``mutual_information`` ignores samples
+beyond the common length of its two inputs.
+:func:`~torchnlts.causality.cross_map_estimate` marks single estimates instead: an estimate is ``NaN`` when its
+embedded point has a non-finite coordinate, when fewer than ``embedding_dim + 1`` neighbors are left by the Theiler
+window and ``library_size``, or when a neighbor's target is non-finite.
+:func:`~torchnlts.causality.ccm_skill` is ``NaN`` for each ``[B, D]`` entry whose estimate or actual is constant or
+non-finite. :func:`~torchnlts.lyapunov.lyapunov_spectrum` and :func:`~torchnlts.lyapunov.step_jacobian` give ``NaN``
+for a state, or a row of a batched state, containing ``NaN`` or ``inf``; ``step_fn`` is evaluated at the zero state in
+its place. The ``torchnlts.sciml`` losses give a ``NaN`` loss for a
+batch row whose predicted or target trajectory (``LyapunovLoss``: initial state) contains ``NaN`` or ``inf``, so the
+``"mean"`` and ``"sum"`` reductions are ``NaN`` too.
+:func:`~torchnlts.surrogate.surrogate_test` returns a
 ``NaN`` p-value for a row whose trajectory has a non-finite entry or whose
 data or any surrogate statistic is non-finite (``NaN`` or ``inf``); the shuffle and shift surrogates move non-finite values like any
 other.
 :func:`~torchnlts.neighbors.pairwise_distance` returns ``NaN`` for
 every pair involving a point with a ``NaN``/``inf`` coordinate. Other rows
-(or pairs) and their gradients are unaffected, and a non-finite row
+(or pairs, or estimates) and their gradients are unaffected, and a non-finite row
 receives a zero gradient. Exceptions: Petrosian has no gradient at all, and
 a result that is ``NaN`` for another reason (e.g. a series too short for
 the requested sweep) is not connected to the input's graph. The hard
@@ -88,7 +128,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`trajectory_kernel <generated/torchnlts.neighbors.trajectory_kernel>`
      - smooth
      - `Judd (1992) <https://doi.org/10.1016/0167-2789(92)90028-B>`__ (gaussian); `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__ (exponential)
-     - none (see module docstring)
+     - none (no Julia package implements these kernels; hand-derived values from Judd (1992) and Sugihara et al. (2012), and a gradcheck)
 
    * - :doc:`complexity_estimate <generated/torchnlts.neighbors.complexity_estimate>`
      - exact (zero subgradient at a constant series)
@@ -108,7 +148,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`fractional_delay_embedding <generated/torchnlts.embedding.fractional_delay_embedding>`
      - piecewise
      - `Laakso et al. (1996) <https://doi.org/10.1109/79.482137>`__ (linear-interpolation fractional delay)
-     - none (see module docstring; consistency-checked against ``delay_embedding``)
+     - none (DelayEmbeddings.jl's ``embed`` takes integer lags only; at integer lags the result equals ``delay_embedding`` exactly, which is checked)
 
    * - :doc:`hard_fnn <generated/torchnlts.embedding.hard_fnn>`
      - none
@@ -122,8 +162,8 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
 
    * - :doc:`cao_e2 <generated/torchnlts.embedding.cao_e2>`
      - none
-     - `Cao (1997) <https://doi.org/10.1016/S0167-2789(97)00118-8>`__, eq. 5
-     - none (see module docstring: ``stochastic_indicator`` has indexing quirks that don't match eq. 5 cleanly)
+     - `Cao (1997) <https://doi.org/10.1016/S0167-2789(97)00118-8>`__, eq. 4-5
+     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``stochastic_indicator``; agrees to about 0.5% at 500 points and 5% at 100, the gap shrinking as 1/N, because Julia divides each E* by the embedded length instead of the number of summed terms and leaves the last ``delay + 1`` points out of its neighbor search)
 
    * - :doc:`autocorrelation <generated/torchnlts.embedding.autocorrelation>`
      - exact
@@ -133,7 +173,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`auto_mutual_information <generated/torchnlts.embedding.auto_mutual_information>`
      - none
      - `Fraser & Swinney (1986) <https://doi.org/10.1103/PhysRevA.33.1134>`__
-     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``selfmutualinfo``, ``nbins``; exact at delay 0 and for a series periodic over the pair window, otherwise within ~0.01 nats because the delayed marginal is counted from the delayed samples -- see module docstring)
+     - `DelayEmbeddings.jl <https://github.com/JuliaDynamics/DelayEmbeddings.jl>`__ (``selfmutualinfo``, ``nbins``; exact at delay 0 and for a series periodic over the pair window, otherwise within ~0.01 nats at 200 points and ~0.001 at 500, because the delayed marginal is counted from the delayed samples)
 
    * - :doc:`estimate_delay <generated/torchnlts.embedding.estimate_delay>`
      - none
@@ -148,7 +188,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`soft_recurrence_matrix <generated/torchnlts.recurrence.soft_recurrence_matrix>`
      - smooth
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, eq. 1 (kernel-relaxed via ``trajectory_kernel``)
-     - none (see module docstring; consistency-checked against ``hard_recurrence_matrix``'s epsilon=0 limit)
+     - none (consistency-checked against ``hard_recurrence_matrix``'s epsilon=0 limit as the temperature goes to 0)
 
    * - :doc:`hard_cross_recurrence_matrix <generated/torchnlts.recurrence.hard_cross_recurrence_matrix>`
      - none
@@ -158,17 +198,17 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`soft_cross_recurrence_matrix <generated/torchnlts.recurrence.soft_cross_recurrence_matrix>`
      - smooth
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.3 (kernel-relaxed via ``trajectory_kernel``)
-     - none (see module docstring; consistency-checked against ``hard_cross_recurrence_matrix``'s epsilon=0 limit)
+     - none (consistency-checked against ``hard_cross_recurrence_matrix``'s epsilon=0 limit as the temperature goes to 0)
 
    * - :doc:`hard_joint_recurrence_matrix <generated/torchnlts.recurrence.hard_joint_recurrence_matrix>`
      - none
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.4
-     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``JointRecurrenceMatrix``'s definition, via element-wise AND of two ``RecurrenceMatrix``; rate-based and scaled thresholds are computed per trajectory after truncation to the common length, as in Julia; see module docstring)
+     - `RecurrenceAnalysis.jl <https://github.com/JuliaDynamics/RecurrenceAnalysis.jl>`__ (``JointRecurrenceMatrix``'s definition, via element-wise AND of two ``RecurrenceMatrix`` because the two-argument ``JointRecurrenceMatrix(R1, R2)`` constructor errors in the tested version; rate-based and scaled thresholds are computed per trajectory after truncation to the common length, as in Julia)
 
    * - :doc:`soft_joint_recurrence_matrix <generated/torchnlts.recurrence.soft_joint_recurrence_matrix>`
      - smooth
      - `Marwan et al. (2007) <https://doi.org/10.1016/j.physrep.2006.11.001>`__, Sec. 3.4 (kernel-relaxed via ``trajectory_kernel``)
-     - none (see module docstring; consistency-checked against ``hard_joint_recurrence_matrix``'s epsilon=0 limit)
+     - none (consistency-checked against ``hard_joint_recurrence_matrix``'s epsilon=0 limit as the temperature goes to 0)
 
    * - :doc:`recurrence_rate <generated/torchnlts.recurrence.recurrence_rate>`
      - exact
@@ -243,7 +283,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`soft_correlation_sum <generated/torchnlts.dimension.soft_correlation_sum>`
      - smooth
      - `Grassberger & Procaccia (1983) <https://doi.org/10.1016/0167-2789(83)90298-1>`__, eq. 1 (kernel-relaxed via ``trajectory_kernel``)
-     - none (see module docstring; consistency-checked against ``correlation_sum``'s radius=0 limit)
+     - none (consistency-checked against ``correlation_sum``'s radius=0 limit as the temperature goes to 0)
 
    * - :doc:`correlation_dimension <generated/torchnlts.dimension.correlation_dimension>`
      - exact
@@ -253,7 +293,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`box_occupation_probabilities <generated/torchnlts.dimension.box_occupation_probabilities>`
      - none
      - `Russell, Hanson & Ott (1980) <https://doi.org/10.1103/PhysRevLett.45.1175>`__
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``probabilities(ValueHistogram(ε), X)``; exact match confirmed, including box occupancy on a multivariate point set -- an earlier version of the cross-check test itself scrambled Julia's column-major ``reshape`` against torch's row-major flatten, giving a spurious-looking mismatch traced to every single point's box index before concluding it wasn't a real deviation)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``probabilities(ValueHistogram(ε), X)``; exact match, including box occupancy on a multivariate point set)
 
    * - :doc:`box_counting_entropy <generated/torchnlts.dimension.box_counting_entropy>`
      - none
@@ -263,17 +303,17 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`generalized_dimension <generated/torchnlts.dimension.generalized_dimension>`
      - exact
      - `Russell, Hanson & Ott (1980) <https://doi.org/10.1103/PhysRevLett.45.1175>`__
-     - none directly (this codebase doesn't replicate FractalDimensions.jl's ``estimate_boxsizes``/``slopefit`` automatic scaling-region detection, same "caller picks the sizes" convention as ``correlation_dimension``); validated instead against a p-weighted binary cascade's known strongly non-increasing-in-``q`` D_q spectrum (Rényi's own theorem) and a uniform interval's known D_q=1 for every ``q``
+     - none directly (FractalDimensions.jl's ``generalized_dim`` picks the box sizes and the scaling region automatically, while here the caller supplies the sizes and every point is fitted, as in ``correlation_dimension``); validated instead against a p-weighted binary cascade's known strongly non-increasing-in-``q`` D_q spectrum (Rényi's own theorem) and a uniform interval's known D_q=1 for every ``q``
 
    * - :doc:`higuchi_length <generated/torchnlts.dimension.higuchi_length>`
      - piecewise
      - `Higuchi (1988) <https://doi.org/10.1016/0167-2789(88)90081-4>`__
-     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``higuchi_length``; exact match confirmed, including its ``k**2`` (not ``k``) normalization, verified against Higuchi's own equation via a secondary source, not just carried over from Julia uncritically)
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``higuchi_length``; exact match, including its ``k**2`` (not ``k``) normalization, which is Higuchi's own formula)
 
    * - :doc:`higuchi_dimension <generated/torchnlts.dimension.higuchi_dimension>`
      - exact
      - `Higuchi (1988) <https://doi.org/10.1016/0167-2789(88)90081-4>`__
-     - none directly (this codebase doesn't replicate FractalDimensions.jl's ``higuchi_dim``'s own automatic linear-region selection, same "caller picks the sweep" convention as ``correlation_dimension``/``generalized_dimension`` -- confirmed both functions can genuinely disagree, e.g. a sine wave over strides 1-20 gives 1.274 here against Julia's own region-restricted 1.052); ``higuchi_length`` itself is validated against Julia's own ``higuchi_length`` above, and this module's OLS-slope formula is validated directly on hand-derived power-law examples
+     - none directly (FractalDimensions.jl's ``higuchi_dim`` selects a linear region of the sweep automatically, while here every given ``k`` is fitted, as in ``correlation_dimension``; the two can differ, e.g. a sine wave over strides 1-20 gives 1.274 here against Julia's 1.052); ``higuchi_length`` itself is validated against Julia's above, and the OLS-slope formula against hand-derived power-law examples
 
    * - :doc:`katz_dimension <generated/torchnlts.dimension.katz_dimension>`
      - piecewise
@@ -288,12 +328,12 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`power_variogram <generated/torchnlts.dimension.power_variogram>`
      - exact (``power=2``), piecewise (``power<=1``)
      - `Gneiting, Ševčíková & Percival (2012) <https://doi.org/10.1214/11-STS370>`__, eq. 16
-     - `fractaldim <https://github.com/cran/fractaldim>`__ (``fd.Variation``; normalization checked by reading its R source, R not available to run); hand-derived example; no Python/Julia equivalent
+     - `fractaldim <https://github.com/cran/fractaldim>`__ (``fd.Variation``; the normalization follows its R source, which was not run); hand-derived example; no Python/Julia equivalent
 
    * - :doc:`variogram_dimension <generated/torchnlts.dimension.variogram_dimension>`
      - exact
      - `Gneiting, Ševčíková & Percival (2012) <https://doi.org/10.1214/11-STS370>`__, eqs. 17-18
-     - `fractaldim <https://github.com/cran/fractaldim>`__ (``fd.estim.variogram``/``fd.estim.madogram``, source read); validated on a straight line (D=1), Brownian motion (D near 1.5) and exact Davies-Harte fBm (D near 2 - H for H in 0.2-0.8)
+     - `fractaldim <https://github.com/cran/fractaldim>`__ (``fd.estim.variogram``/``fd.estim.madogram``, formulas from the R source, which was not run); validated on a straight line (D=1), Brownian motion (D near 1.5) and exact Davies-Harte fBm (D near 2 - H for H in 0.2-0.8)
 
    * - :doc:`dfa_fluctuation <generated/torchnlts.fluctuations.dfa_fluctuation>`
      - exact
@@ -308,22 +348,22 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`sample_entropy <generated/torchnlts.entropy.sample_entropy>`
      - none
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``SampleEntropy``; only loosely comparable -- its B(r) has a confirmed boundary-handling deviation from the paper, neutralized rather than replicated in one test and locked in as a regression in another; it also returns ``NaN`` rather than ``inf`` when A(r)=0)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``SampleEntropy``; its B(r) counts one extra neighbour taken from the untruncated embedding at ``delay=1``, so the values agree only when no such match exists, which the test arranges with far outliers at the end of the series; it also returns ``NaN`` rather than ``inf`` when A(r)=0)
 
    * - :doc:`soft_sample_entropy <generated/torchnlts.entropy.soft_sample_entropy>`
      - smooth (except at exact Chebyshev-distance ties, see docstring)
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3 (kernel-relaxed via ``trajectory_kernel``)
-     - none (see module docstring; consistency built on ``soft_correlation_sum``, already validated against its own radius=0 hard limit)
+     - none (built on ``soft_correlation_sum``, which is validated against its radius=0 hard limit)
 
    * - :doc:`approximate_entropy <generated/torchnlts.entropy.approximate_entropy>`
      - none
      - `Pincus (1991) <https://doi.org/10.1073/pnas.88.6.2297>`__, eq. 1-4
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``ApproximateEntropy``; matches at ``embedding_dim >= 2`` only -- confirmed to special-case ``m=1`` to a different, non-Pincus definition, locked in as a regression)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``ApproximateEntropy``; matches at ``embedding_dim >= 2``. At ``embedding_dim=1`` that package returns ``phi(1)`` alone, a non-Pincus definition, and a test pins the disagreement)
 
    * - :doc:`soft_approximate_entropy <generated/torchnlts.entropy.soft_approximate_entropy>`
      - smooth (except at exact Chebyshev-distance ties, see docstring)
      - `Pincus (1991) <https://doi.org/10.1073/pnas.88.6.2297>`__, eq. 1-4 (kernel-relaxed via ``trajectory_kernel``)
-     - none (see module docstring; consistency-checked against ``approximate_entropy``'s radius=0 hard limit)
+     - none (checked against ``approximate_entropy``'s radius=0 hard limit)
 
    * - :doc:`ordinal_pattern_probabilities <generated/torchnlts.entropy.ordinal_pattern_probabilities>`
      - none; piecewise smooth with ``weighting="variance"``/``"amplitude"`` (pattern assignment piecewise constant, weights smooth; jumps at ties, kinks at zero differences)
@@ -338,22 +378,22 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`mutual_information <generated/torchnlts.entropy.mutual_information>`
      - none
      - `Kraskov, Stogbauer & Grassberger (2004) <https://doi.org/10.1103/PhysRevE.69.066138>`__, eq. 6-8 (KSG1) and the second estimator I^(2) (``estimator="ksg2"``)
-     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``: confirmed inclusive-vs-strict marginal-counting deviation from the paper, locked in as a regression; ``KSG2``: agrees at ``k=1`` for data at ordinary scales; deviates for ``k>1`` (uses only the k-th neighbour's marginal distance and ``1`` in place of ``1/k``) and at any ``k`` for data near 1e-16 (adds ``10*eps()`` to each marginal radius), locked in as regressions -- see module docstring)
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``KSG1``: counts marginal neighbours inclusively where this function follows the paper's strict count; ``KSG2``: agrees at ``k=1`` for data at ordinary scales, differs for ``k>1`` (uses only the k-th neighbour's marginal distance and ``1`` in place of ``1/k``) and at any ``k`` for data near 1e-16 (adds ``10*eps()`` to each marginal radius). Tests pin these differences; see the module docstring)
 
    * - :doc:`coarse_grain <generated/torchnlts.entropy.coarse_grain>`
      - exact
      - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (their eq. 1 is Shannon entropy, not this)
-     - none (validated directly via hand-derived examples; its only consumer, ``multiscale_entropy``, is cross-checked below)
+     - none (hand-derived examples; ``multiscale_entropy`` and ``composite_multiscale_entropy``, which use it, are cross-checked below)
 
    * - :doc:`multiscale_entropy <generated/torchnlts.entropy.multiscale_entropy>`
      - none (inherits ``sample_entropy``'s)
      - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``multiscale(RegularDownsampling, SampleEntropy)``; inherits ``sample_entropy``'s own confirmed boundary-handling deviation, neutralized the same way at every scale)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``multiscale(RegularDownsampling, SampleEntropy)``; inherits ``sample_entropy``'s boundary-handling deviation, neutralized the same way at every scale)
 
    * - :doc:`soft_multiscale_entropy <generated/torchnlts.entropy.soft_multiscale_entropy>`
      - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
      - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (kernel-relaxed via ``soft_sample_entropy``)
-     - none (no direct test of this function's own hard-limit behavior -- inherits ``soft_sample_entropy``'s own correctness story instead, which traces to ``soft_correlation_sum``'s radius=0 hard-limit validation, see that row above; gradcheck-verified for both temperature and trajectory)
+     - none (built on ``soft_sample_entropy`` and ``coarse_grain``; gradcheck on both temperature and trajectory)
 
    * - :doc:`composite_multiscale_entropy <generated/torchnlts.entropy.composite_multiscale_entropy>`
      - none (inherits ``sample_entropy``'s)
@@ -363,47 +403,47 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`soft_composite_multiscale_entropy <generated/torchnlts.entropy.soft_composite_multiscale_entropy>`
      - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
      - `Wu, Wu, Lin, Wang & Lee (2013) <https://doi.org/10.3390/e15031069>`__ (kernel-relaxed via ``soft_sample_entropy``)
-     - none (composition of ``coarse_grain`` offsets and ``soft_sample_entropy``; gradcheck-verified for both temperature and trajectory)
+     - none (composition of ``coarse_grain`` offsets and ``soft_sample_entropy``; gradcheck on both temperature and trajectory)
 
    * - :doc:`lempel_ziv_complexity <generated/torchnlts.entropy.lempel_ziv_complexity>`
-     - none (sequential incremental-parsing algorithm, no soft variant -- see module docstring)
-     - `Lempel & Ziv (1976) <https://doi.org/10.1109/TIT.1976.1055501>`__ (complexity c(n)); `Kaspar & Schuster (1987) <https://doi.org/10.1103/PhysRevA.36.842>`__ (the algorithm actually implemented -- not linear time despite the reputation, see module docstring)
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``LempelZiv76``; a direct port of the same algorithm, exact match confirmed -- no known deviation, unlike this subpackage's other Julia comparisons)
+     - none (sequential incremental-parsing algorithm, no soft variant)
+     - `Lempel & Ziv (1976) <https://doi.org/10.1109/TIT.1976.1055501>`__ (complexity c(n)); `Kaspar & Schuster (1987) <https://doi.org/10.1103/PhysRevA.36.842>`__ (the algorithm implemented; its comparison-based parsing is closer to quadratic than linear in the length)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``LempelZiv76``; the same algorithm, identical counts)
 
    * - :doc:`dispersion_entropy <generated/torchnlts.entropy.dispersion_entropy>`
-     - none (Gaussian-CDF classification + histogram-based Shannon entropy, no soft variant -- same reasoning as ``permutation_entropy``); fully ``torch.vmap``-compatible, confirmed directly
+     - none (Gaussian-CDF classification + histogram-based Shannon entropy, no soft variant -- same reasoning as ``permutation_entropy``); works under ``torch.vmap``
      - `Rostaghi & Azami (2016) <https://doi.org/10.1109/LSP.2016.2542880>`__, eqs. as restated in `Azami, Rostaghi, Abasolo & Escudero (2017) <https://doi.org/10.1109/TBME.2017.2679136>`__, eqs. 2-4
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Dispersion`` + ``Shannon``; exact float64-precision match confirmed on ordinary input, including at an exact tie in the class-rounding step -- but a confirmed deviation for an exactly-constant trajectory, where Julia returns ``-0.0`` rather than this function's ``NaN``, locked in as a regression test)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Dispersion`` + ``Shannon``; exact float64-precision match on ordinary input, including an exact tie in the class-rounding step. For an exactly constant trajectory Julia returns ``-0.0`` where this function returns ``NaN``; a test pins the difference)
 
    * - :doc:`renyi_entropy <generated/torchnlts.entropy.renyi_entropy>`
-     - smooth, except at ``alpha=0`` (no gradient path) and, for every ``alpha``, only on a fixed support (see module docstring for both)
+     - smooth, except at ``alpha=0`` (no gradient path) and, for every ``alpha``, only on a fixed support (an exactly zero probability gets gradient 0 by convention)
      - `Rényi (1961) <https://projecteuclid.org/euclid.bsmsp/1200512181>`__
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Renyi``; exact match across the full parameter range tested, ``alpha`` in ``{0, 0.5, 1, 2, 5, inf}``, including near its own ``alpha ≈ 1`` tolerance window, not only exactly at it -- see module docstring for the precise tolerance conventions, which differ between ``alpha ≈ 0`` and ``alpha ≈ 1``)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Renyi``; exact match for ``alpha`` in ``{0, 0.5, 1, 2, 5, inf}``, including near its ``alpha ≈ 1`` tolerance window, not only exactly at 1. The tolerance conventions at ``alpha ≈ 0`` and ``alpha ≈ 1`` differ; see the module docstring)
 
    * - :doc:`tsallis_entropy <generated/torchnlts.entropy.tsallis_entropy>`
-     - smooth, only on a fixed support (see module docstring)
+     - smooth, only on a fixed support (an exactly zero probability gets gradient 0 by convention)
      - `Tsallis (1988) <https://doi.org/10.1007/BF01016429>`__
-     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Tsallis``; exact match including negative ``q`` -- but a confirmed deviation across Julia's own ``q ≈ 1`` tolerance window (not only exactly at ``q=1``) with ``k!=1``, where Julia's own special case silently drops ``k`` throughout that window unlike its own general-formula branch just outside it, locked in as a regression test)
+     - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Tsallis``; exact match including negative ``q``. Inside Julia's ``q ≈ 1`` tolerance window with ``k!=1``, Julia drops ``k``, unlike its general-formula branch just outside the window; this function returns ``k`` times Shannon entropy there. A test pins the difference)
 
    * - :doc:`fuzzy_entropy <generated/torchnlts.entropy.fuzzy_entropy>`
-     - smooth, except a systematic (not measure-zero) Chebyshev-distance tie for any flattened length-2 template, and (outside the always-zero univariate ``embedding_dim=1`` short-template case, handled exactly) an inherent singularity at exactly coincident templates for ``0 < fuzzy_power < 1`` -- see module docstring
+     - smooth, except a systematic (not measure-zero) Chebyshev-distance tie for any flattened length-2 template, and (outside the always-zero univariate ``embedding_dim=1`` short-template case, handled exactly) an inherent singularity at exactly coincident templates for ``0 < fuzzy_power < 1`` -- see docstring
      - `Chen, Wang, Xie & Yu (2007) <https://doi.org/10.1109/TNSRE.2007.897025>`__, eq. 2-10
-     - `EntropyHub <https://github.com/MattWillFlood/EntropyHub>`__ (``FuzzEn``, ``Fx='default'``; exact match confirmed, including a hand re-derivation of the paper's own formula from first principles, not just against EntropyHub's source -- no Julia comparison available, ``ComplexityMeasures.jl`` has no fuzzy entropy estimator)
+     - `EntropyHub <https://github.com/MattWillFlood/EntropyHub>`__ (``FuzzEn``, ``Fx='default'``; exact match, and a test re-derives the paper's formula by hand. No Julia comparison exists: ``ComplexityMeasures.jl`` has no fuzzy entropy estimator)
 
    * - :doc:`rosenstein_divergence <generated/torchnlts.lyapunov.rosenstein_divergence>`
      - piecewise
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__
-     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=NeighborNumber(1)``, ``distance=Euclidean()``; matches to float64 precision, including its reference-set-fixed-by-max(k) convention, confirmed by reading its source)
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=NeighborNumber(1)``, ``distance=Euclidean()``; matches to float64 precision, including its reference set fixed by the largest ``k``)
 
    * - :doc:`rosenstein_lyapunov <generated/torchnlts.lyapunov.rosenstein_lyapunov>`
      - exact
      - `Rosenstein, Collins & De Luca (1993) <https://doi.org/10.1016/0167-2789(93)90009-P>`__, eq. 12-13 and surrounding discussion
-     - none (closed-form OLS slope; validated against the logistic map's analytically known ln(2) Lyapunov exponent instead, see module docstring)
+     - none (closed-form OLS slope; checked against the logistic map's exact exponent ln 2)
 
    * - :doc:`kantz_divergence <generated/torchnlts.lyapunov.kantz_divergence>`
      - piecewise
      - `Kantz (1994) <https://doi.org/10.1016/0375-9601(94)90991-1>`__, eq. 1-2
-     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=WithinRange``; confirmed mean-of-logs-vs-log-of-mean deviation from the paper, locked in as a regression rather than reconciled -- see module docstring). Its Lyapunov-exponent slope reuses ``rosenstein_lyapunov`` directly.
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=WithinRange``; it averages the log of each neighbor distance where the paper takes the log of the mean, so the two differ -- see module docstring). The slope is taken with ``rosenstein_lyapunov``.
 
    * - :doc:`step_jacobian <generated/torchnlts.lyapunov.step_jacobian>`
      - exact
@@ -413,12 +453,12 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`lyapunov_spectrum <generated/torchnlts.lyapunov.lyapunov_spectrum>`
      - exact
      - `Benettin, Galgani, Giorgilli & Strelcyn (1980) <https://doi.org/10.1007/BF02128236>`__; Geist, Parlitz & Lauterborn (1990), *Prog. Theor. Phys.* 83(5), 875-893 (QR "H2" variant)
-     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunovspectrum``, run live via subprocess in the test suite, not hardcoded; matches ``PredefinedDynamicalSystems.henon()`` to float64 precision, including its ``Ttr`` transient convention; confirmed to share this method's non-generic non-descending-order edge case on an unsorted diagonal linear map rather than diverge from it -- see module docstring)
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunovspectrum`` on ``PredefinedDynamicalSystems.henon()``; matches to float64 precision, including its ``Ttr`` transient convention; shares the non-descending order for a linear map with an unsorted diagonal -- see module docstring)
 
    * - :doc:`zero_one_growth_rate <generated/torchnlts.chaos.zero_one_growth_rate>`
      - smooth
      - `Gottwald & Melbourne (2009) <https://doi.org/10.1137/080718851>`__ (correlation method on the modified mean square displacement); first version: `Gottwald & Melbourne (2004) <https://doi.org/10.1098/rspa.2003.1183>`__
-     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``testchaos01(x, c, N0)``, run live via subprocess in the test suite; exact match per frequency when ChaosTools is given ``[x[2:N]; x[1]]``, because it starts its sums at ``p(1) = 0`` and never uses the last sample while this module follows the paper's window convention -- see module docstring)
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``testchaos01(x, c, N0)``, run via subprocess; exact match per frequency when ChaosTools is given ``[x[2:N]; x[1]]``, because it starts its sums at ``p(1) = 0`` and never uses the last sample while this module follows the paper's window convention -- see module docstring)
 
    * - :doc:`zero_one_test <generated/torchnlts.chaos.zero_one_test>`
      - piecewise
@@ -428,7 +468,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`eckmann_spectrum <generated/torchnlts.lyapunov.eckmann_spectrum>`
      - piecewise
      - `Eckmann, Kamphorst, Ruelle & Ciliberto (1986) <https://doi.org/10.1103/PhysRevA.34.4971>`__
-     - `nolds <https://github.com/CSchoel/nolds>`__ (``lyap_e``, run live in the test suite; matches to float64 precision for matrix step 1 on well-conditioned fits. For matrix step > 1 nolds composes the fitted maps at every consecutive point where the paper's Sec. 2c composes them at stride ``m``, so this follows the paper instead, checked against an independent NumPy implementation; degenerate/rank-deficient rows are ``NaN``, ties beyond ``num_neighbors`` are dropped -- see module docstring); no Julia equivalent
+     - `nolds <https://github.com/CSchoel/nolds>`__ (``lyap_e``; matches to float64 precision for matrix step 1 on well-conditioned fits. For matrix step > 1 nolds composes the fitted maps at every consecutive point where the paper's Sec. 2c composes them at stride ``m``, so this follows the paper, checked against an independent NumPy implementation; degenerate or rank-deficient rows are ``NaN`` and ties beyond ``num_neighbors`` are dropped -- see module docstring); no Julia equivalent
 
    * - :doc:`kaplan_yorke_dimension <generated/torchnlts.lyapunov.kaplan_yorke_dimension>`
      - piecewise (continuous, with kinks where a partial sum crosses zero or sorted exponents tie; jumps where the largest exponent crosses zero)
@@ -438,17 +478,17 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`phase_randomized_surrogate <generated/torchnlts.surrogate.phase_randomized_surrogate>`
      - none
      - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
-     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``RandomFourier``, run live via subprocess; confirmed to share this algorithm's literal-recipe quirk of not preserving the Nyquist bin's magnitude for even-length input, rather than diverge from it -- see module docstring)
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``RandomFourier``, run via subprocess; both implementations share the literal recipe's property of not preserving the Nyquist magnitude for even-length input -- see module docstring)
 
    * - :doc:`aaft_surrogate <generated/torchnlts.surrogate.aaft_surrogate>`
      - none
      - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
-     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``AAFT``; confirmed live, not just by reading source, to skip the paper's Gaussian-rank-matching step and reduce to ``RandomFourier`` on the raw data plus rank-restoration -- locked in as a disagreement rather than reconciled, same playbook as ``kantz_divergence``'s Julia deviation -- see module docstring)
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``AAFT``, run via subprocess; Julia skips the paper's Gaussian rank-matching step and equals ``RandomFourier`` on the raw data followed by rank restoration, so the two differ for non-Gaussian data. This implementation follows the paper -- see module docstring)
 
    * - :doc:`iaaft_surrogate <generated/torchnlts.surrogate.iaaft_surrogate>`
      - none
      - `Schreiber & Schmitz (1996) <https://doi.org/10.1103/PhysRevLett.77.635>`__
-     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``IAAFT``, run live via subprocess; confirmed to share this method's seed-dependent convergence-quality spread on the same input, rather than a fixed always-tiny error -- deliberate, documented differences in initial condition and iteration-count/early-stopping convention, see module docstring)
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``IAAFT``, run via subprocess; both show the same seed-dependent spread of the converged spectral error. Differences: a random-permutation start instead of resampling with replacement, and a fixed iteration count instead of early stopping -- see module docstring)
 
    * - :doc:`random_shuffle_surrogate <generated/torchnlts.surrogate.random_shuffle_surrogate>`
      - none
@@ -463,52 +503,62 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`surrogate_test <generated/torchnlts.surrogate.surrogate_test>`
      - none (rank count)
      - `Theiler et al. (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__; `Schreiber & Schmitz (2000) <https://doi.org/10.1016/S0167-2789(00)00043-9>`__
-     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``pvalue(SurrogateTest(...))``, run live; Julia returns k/M, here (1+k)/(M+1) with the same k; two-sided 2(1+min)/(M+1) clipped to 1)
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``pvalue(SurrogateTest(...))``, run via subprocess; Julia returns k/M, here (1+k)/(M+1) with the same k; two-sided 2(1+min)/(M+1) clipped to 1)
 
    * - :doc:`cross_map_estimate <generated/torchnlts.causality.cross_map_estimate>`
      - piecewise
      - `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__
-     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``ConvergentCrossMapping``/``predict``, run live via subprocess in the ``juliaenv_causality`` project; matches to float64 precision (~1e-16 max per-point difference) once a confirmed off-by-one in its own ``w`` Theiler-window parameter is accounted for (``theiler_window = w + 1``, not ``w`` directly) -- see module docstring)
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``ConvergentCrossMapping``/``predict`` in the ``juliaenv_causality`` project; matches to float64 precision (~1e-16 per point) with ``theiler_window = w + 1`` for Julia's ``w``, whose Theiler window excludes ``|i - j| <= w + 1`` -- see module docstring)
 
    * - :doc:`ccm_skill <generated/torchnlts.causality.ccm_skill>`
      - exact
      - `Sugihara et al. (2012) <https://doi.org/10.1126/science.1227079>`__
-     - none (a direct Pearson correlation, not a published algorithm of its own; validated via ``cross_map_estimate``'s own Julia cross-check, which compares the resulting correlation too)
+     - none (a Pearson correlation, not a published algorithm of its own; the Julia comparison of ``cross_map_estimate`` includes the correlation)
 
    * - :doc:`conditional_mutual_information <generated/torchnlts.causality.conditional_mutual_information>`
      - none
      - `Frenzel & Pompe (2007) <https://doi.org/10.1103/PhysRevLett.99.204101>`__
-     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``FPVP``; confirmed inclusive-vs-strict marginal-counting deviation from the paper, same underlying ``Neighborhood.jl`` primitive as ``mutual_information``'s own confirmed ``KSG1`` deviation -- locked in as a regression rather than reconciled, see module docstring)
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``FPVP``; it counts marginal neighbors with ``<=`` where Frenzel & Pompe use ``<``, the same ``Neighborhood.jl`` primitive behind ``mutual_information``'s ``KSG1`` difference, so the estimates differ -- see module docstring)
 
    * - :doc:`transfer_entropy <generated/torchnlts.causality.transfer_entropy>`
      - none
      - `Schreiber (2000) <https://doi.org/10.1103/PhysRevLett.85.461>`__
-     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``TEShannon`` decomposed via ``CMIDecomposition``/``FPVP``, run live via subprocess; confirmed to match once the same (inclusive) marginal-counting convention is used on both sides, isolating the source/target-past and target-future alignment as independently verified correct -- see module docstring)
+     - `CausalityTools.jl <https://github.com/JuliaDynamics/CausalityTools.jl>`__ (``TEShannon`` through ``CMIDecomposition``/``FPVP``; matches to float64 precision when both count inclusively, which checks the alignment of the source past, target past and target future -- see module docstring)
 
    * - :doc:`LyapunovLoss <generated/torchnlts.sciml.LyapunovLoss>`
      - exact
-     - none (composes ``lyapunov_spectrum``, already dual-validated -- see module docstring)
-     - none (validated by direct comparison against calling ``lyapunov_spectrum`` outside the loss, not independently re-validated against Julia)
+     - none (wraps ``lyapunov_spectrum``)
+     - none (compared with a direct call of ``lyapunov_spectrum``; the gradient inherits its exploding-variance caveat for chaotic maps)
 
    * - :doc:`CorrelationDimensionLoss <generated/torchnlts.sciml.CorrelationDimensionLoss>`
      - smooth
-     - none (composes ``soft_correlation_sum`` + ``correlation_dimension``, already dual-validated -- see module docstring)
-     - none (validated by direct comparison against calling those functions outside the loss)
+     - none (wraps ``soft_correlation_sum`` and ``correlation_dimension``)
+     - none (compared with a direct call of those functions)
 
    * - :doc:`RecurrenceLoss <generated/torchnlts.sciml.RecurrenceLoss>`
      - smooth
-     - none (composes ``soft_recurrence_matrix`` + ``recurrence_rate``, already dual-validated -- see module docstring)
-     - none (validated by direct comparison against calling those functions outside the loss)
+     - none (wraps ``soft_recurrence_matrix`` and ``recurrence_rate``)
+     - none (compared with a direct call of those functions)
 
    * - :doc:`AttractorLoss <generated/torchnlts.sciml.AttractorLoss>`
      - smooth
      - `Gretton et al. (2012) <https://jmlr.org/papers/v13/gretton12a.html>`__ (Maximum Mean Discrepancy)
-     - none (composes ``trajectory_kernel``, already dual-validated; the MMD combination itself is validated by direct comparison against an independent computation, not against a published MMD reference implementation -- see module docstring)
+     - none (composes ``trajectory_kernel``; the biased MMD estimator is compared with an independent computation, not with a published MMD implementation)
 
-   * - :doc:`scaling_slope <generated/torchnlts.scaling.scaling_slope>` / :doc:`largest_linear_region <generated/torchnlts.scaling.largest_linear_region>` / :doc:`linear_regions <generated/torchnlts.scaling.linear_regions>`
+   * - :doc:`SinkhornLoss <generated/torchnlts.sciml.SinkhornLoss>`
+     - smooth
+     - `Feydy et al. (2019) <https://proceedings.mlr.press/v89/feydy19a.html>`__ (Sinkhorn divergence); `Jiang, Lu, Orlova & Willett (2023) <https://arxiv.org/abs/2306.01187>`__ (applied to chaotic attractors)
+     - none (entropic optimal transport is not implemented elsewhere in the library). As the regularization shrinks, the cost converges to the exact optimal transport cost between two equal-size uniform point clouds, computed with ``scipy.optimize.linear_sum_assignment``; the regularized objective also matches a brute-force computation from the explicit transport plan.
+
+   * - :doc:`linear_regions <generated/torchnlts.scaling.linear_regions>` / :doc:`largest_linear_region <generated/torchnlts.scaling.largest_linear_region>`
+     - none (integer labels and indices)
+     - none (sequential ``dxi = 1`` linear-region scan of FractalDimensions.jl)
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``linear_regions``, ``linear_region`` with ``LargestLinearRegion``; regions and largest region match exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve). Not implemented: ``dxi`` stride, ``:overlap`` method.
+
+   * - :doc:`scaling_slope <generated/torchnlts.scaling.scaling_slope>`
      - exact (the region choice is piecewise constant and carries no gradient)
      - none (sequential ``dxi = 1`` linear-region scan of FractalDimensions.jl)
-     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``linear_regions``, ``linear_region``, ``slopefit`` with ``LargestLinearRegion``; regions, largest region and slope match exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve). Not implemented: ``dxi`` stride, ``:overlap`` method.
+     - `FractalDimensions.jl <https://github.com/JuliaDynamics/FractalDimensions.jl>`__ (``slopefit`` with ``LargestLinearRegion``; the slope matches exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve)
 
    * - :doc:`matrix_profile <generated/torchnlts.matrixprofile.matrix_profile>`
      - piecewise (the index has none)

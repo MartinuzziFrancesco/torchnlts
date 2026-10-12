@@ -2,14 +2,11 @@ SciML Reference
 =================
 
 Invariant-matching training losses for differentiable dynamics models --
-the ``torchnlts.sciml`` subpackage. Most of these losses compose
-primitives already validated elsewhere in the library; see the module
-docstring for why those don't need their own fresh paper/Julia
-validation, for :class:`~torchnlts.sciml.LyapunovLoss`'s
-inherited gradient-stability caveat, and for why
-:class:`~torchnlts.sciml.SinkhornLoss` -- introducing entropic
-optimal transport, not reused from elsewhere in this codebase -- is
-validated differently, against an independent ground truth.
+the ``torchnlts.sciml`` subpackage. The Lyapunov, correlation-dimension and
+recurrence losses match a statistic of a model rollout to a target value;
+:class:`~torchnlts.sciml.AttractorLoss` (maximum mean discrepancy) and
+:class:`~torchnlts.sciml.SinkhornLoss` (optimal transport) compare the
+state-space point clouds of two trajectories. They are added to an MSE term.
 
 .. autosummary::
    :toctree: ../generated/

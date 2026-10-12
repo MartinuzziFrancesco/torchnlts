@@ -35,15 +35,18 @@ def _prepare(profile, window: int, num_picks: int, exclusion_zone: int | None):
     num_picks = _as_int(num_picks, "num_picks")
     if num_picks < 1:
         raise ValueError(f"num_picks must be >= 1, got {num_picks}")
+    window = _as_int(window, "window")
+    if window < 1:
+        raise ValueError(f"window must be >= 1, got {window}")
     if exclusion_zone is None:
-        exclusion_zone = math.ceil(_as_int(window, "window") / 4)
+        exclusion_zone = math.ceil(window / 4)
     exclusion_zone = _as_int(exclusion_zone, "exclusion_zone")
     if exclusion_zone < 0:
         raise ValueError(f"exclusion_zone must be >= 0, got {exclusion_zone}")
     return profile.detach().reshape(-1, profile.shape[-1]), num_picks, exclusion_zone
 
 
-def motifs(profile, index, window: int, num_picks: int = 1, exclusion_zone: int | None = None):
+def motifs(profile, index, window: int, *, num_picks: int = 1, exclusion_zone: int | None = None):
     """Top motif pairs of a self-join matrix profile, most similar first.
 
     Reference: Yeh et al. (2016), IEEE ICDM (Matrix Profile I).
@@ -64,6 +67,11 @@ def motifs(profile, index, window: int, num_picks: int = 1, exclusion_zone: int 
         ``[B, num_picks]``) and int64 ``pairs`` of shape ``[num_picks, 2]``
         (or ``[B, num_picks, 2]``) holding ``(i, index[i])``. Missing picks
         (no finite profile value left) are ``nan`` and ``-1``.
+
+    Raises:
+        ValueError: If ``profile`` is not of shape ``[n]`` or ``[B, n]`` (``n >= 1``), ``index`` is not an integer
+            tensor of the same shape with entries in ``[-1, n - 1]``, ``window`` or ``num_picks`` is not an integer
+            ``>= 1``, or ``exclusion_zone`` is not an integer ``>= 0``.
     """
     original = torch.as_tensor(profile)
     flat, num_picks, exclusion_zone = _prepare(profile, window, num_picks, exclusion_zone)
@@ -92,7 +100,7 @@ def motifs(profile, index, window: int, num_picks: int = 1, exclusion_zone: int 
     return distances, pairs
 
 
-def discords(profile, window: int, num_picks: int = 1, exclusion_zone: int | None = None):
+def discords(profile, window: int, *, num_picks: int = 1, exclusion_zone: int | None = None):
     """Top discords (largest finite profile values), most anomalous first.
 
     Reference: Yeh et al. (2016), IEEE ICDM (Matrix Profile I).
@@ -109,6 +117,10 @@ def discords(profile, window: int, num_picks: int = 1, exclusion_zone: int | Non
     Returns:
         ``(values, indices)``, each of shape ``[num_picks]`` (or
         ``[B, num_picks]``); indices are int64. Missing picks are ``nan`` and ``-1``.
+
+    Raises:
+        ValueError: If ``profile`` is not of shape ``[n]`` or ``[B, n]`` (``n >= 1``), ``window`` or ``num_picks`` is
+            not an integer ``>= 1``, or ``exclusion_zone`` is not an integer ``>= 0``.
     """
     original = torch.as_tensor(profile)
     flat, num_picks, exclusion_zone = _prepare(profile, window, num_picks, exclusion_zone)

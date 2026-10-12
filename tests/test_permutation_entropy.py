@@ -12,13 +12,13 @@ Dual ground truth:
 
 import itertools
 import math
-import subprocess
 
+import pytest
 import torch
 
+from tests.conftest import run_julia
+from torchnlts.embedding.delay import delay_embedding
 from torchnlts.entropy.permutation import _ordinal_pattern_codes, ordinal_pattern_probabilities, permutation_entropy
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_permutation_entropy_hand_derived():
@@ -108,11 +108,8 @@ def test_permutation_entropy_batch_size_one_matches_unbatched():
 
 def test_permutation_entropy_rejects_multivariate():
     trajectory = torch.randn(10, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         permutation_entropy(trajectory)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_permutation_entropy_nan_input_gives_nan_output():
@@ -131,11 +128,8 @@ def test_permutation_entropy_vmap_compatible():
 
 def test_permutation_entropy_too_short_raises():
     trajectory = torch.tensor([1.0, 2.0], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         permutation_entropy(trajectory, embedding_dim=3, delay=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_permutation_entropy_embedding_dim_one():
@@ -163,14 +157,7 @@ def _run_julia_ordinal_entropy(trajectory: torch.Tensor, embedding_dim: int, del
     est = OrdinalPatterns(m={embedding_dim}, τ={delay})
     println(entropy(Shannon(base=MathConstants.e), est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    return torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    return torch.tensor(float(run_julia(julia_code).strip()), dtype=torch.float64)
 
 
 def test_permutation_entropy_matches_complexitymeasures_jl():
@@ -215,3 +202,58 @@ def test_permutation_entropy_nan_for_inf_rows():
     batch[1, 3] = float("inf")
     values = permutation_entropy(batch)
     assert torch.isnan(values[1]) and torch.isfinite(values[0])
+
+
+def test_permutation_entropy_large_pattern_space_needs_no_length_by_patterns_array():
+    # Regression: 9! = 362880 patterns over 20000 windows; a one-hot count needs tens of GB.
+    torch.manual_seed(0)
+    trajectory = torch.randn(20000, dtype=torch.float64)
+    embedding_dim = 9
+    codes = _ordinal_pattern_codes(delay_embedding(trajectory, embedding_dim))
+    counts = torch.bincount(codes, minlength=math.factorial(embedding_dim)).to(torch.float64)
+    probability = counts[counts > 0] / codes.numel()
+    expected = -(probability * probability.log()).sum()
+    assert torch.isclose(permutation_entropy(trajectory, embedding_dim=embedding_dim), expected, rtol=1e-12, atol=0)
+    patterns = ordinal_pattern_probabilities(trajectory, embedding_dim=embedding_dim)
+    assert patterns.shape == (math.factorial(embedding_dim),)
+
+
+def test_ordinal_pattern_probabilities_dtype_follows_input():
+    series = torch.randn(30, dtype=torch.float64)
+    for dtype in (torch.float64, torch.float32, torch.float16):
+        assert ordinal_pattern_probabilities(series.to(dtype)).dtype == dtype
+    assert ordinal_pattern_probabilities(torch.arange(30)).dtype == torch.get_default_dtype()
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf")])
+def test_permutation_entropy_nan_for_nonfinite_sample_outside_every_window(bad):
+    # Regression: with embedding_dim=2 and delay=30 on 50 samples, samples 20-29 enter no window, so a bad value
+    # there used to leave the row finite.
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = bad
+    values = permutation_entropy(batch, embedding_dim=2, delay=30)
+    assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
+    for row in (0, 2):
+        assert torch.equal(values[row], permutation_entropy(batch[row], embedding_dim=2, delay=30))
+    probability = ordinal_pattern_probabilities(batch, embedding_dim=2, delay=30)
+    assert torch.isnan(probability[1]).all() and torch.isfinite(probability[[0, 2]]).all()
+    assert torch.isnan(permutation_entropy(batch[1], embedding_dim=2, delay=30))
+    assert torch.isnan(ordinal_pattern_probabilities(batch[1, :, 0], embedding_dim=2, delay=30)).all()
+
+
+def test_permutation_entropy_vmap_with_nonfinite_sample_outside_every_window():
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = float("nan")
+    direct = permutation_entropy(batch, embedding_dim=2, delay=30)
+    mapped = torch.vmap(lambda series: permutation_entropy(series, embedding_dim=2, delay=30))(batch)
+    assert torch.allclose(direct, mapped, equal_nan=True) and torch.isnan(mapped[1]) and torch.isfinite(mapped[0])
+
+
+def test_univariate_error_names_the_called_function():
+    trajectory = torch.randn(10, 2, dtype=torch.float64)
+    with pytest.raises(ValueError, match="^permutation_entropy only supports"):
+        permutation_entropy(trajectory)
+    with pytest.raises(ValueError, match="^ordinal_pattern_probabilities only supports"):
+        ordinal_pattern_probabilities(trajectory)

@@ -1,29 +1,19 @@
 """Rosenstein's largest Lyapunov exponent estimator, from observed data.
 
-Reference: Rosenstein, M.T., Collins, J.J. & De Luca, C.J. (1993), "A
-practical method for calculating largest Lyapunov exponents from small
-data sets", Physica D 65(1-2), 117-134: delay-embed the trajectory, find
-each point's single nearest neighbor (excluding temporally correlated
-points via a Theiler window), then track the average log-divergence
-E(k) = <ln ||X_{i+k} - X_{j(i)+k}||>_i as the pair is evolved forward k
-steps. For a chaotic system this grows linearly, E(k) ~ lambda_1 * k +
-E(0), over a well-defined early-k region; the largest Lyapunov exponent
-is the slope of that region (:func:`~torchnlts.lyapunov.rosenstein_lyapunov` fits the
-range given; :func:`torchnlts.scaling.scaling_slope` detects it).
+Reference: Rosenstein, M.T., Collins, J.J. & De Luca, C.J. (1993), "A practical method for calculating largest
+Lyapunov exponents from small data sets", Physica D 65(1-2), 117-134. The trajectory is delay-embedded, each point's
+single nearest neighbor is found outside a Theiler window, and the average log-divergence
+``E(k) = <ln ||X_{i+k} - X_{j(i)+k}||>_i`` is tracked as the pair is evolved ``k`` steps. For a chaotic system ``E(k)``
+grows linearly, ``E(k) ~ lambda_1 * k + E(0)``, over an early range of ``k``; the largest Lyapunov exponent is the
+slope there (:func:`~torchnlts.lyapunov.rosenstein_lyapunov` fits a given range,
+:func:`torchnlts.scaling.scaling_slope` detects one).
 
-Matches ChaosTools.jl's more general ``lyapunov_from_data`` at
-``ntype=NeighborNumber(1)``, ``distance=Euclidean()``. That function's
-Parlitz-due generalization also accepts a radius-neighborhood
-(``ntype=WithinRange``) in place of a single nearest neighbor, structurally
-resembling Kantz's method -- but it is *not* a match for Kantz's own
-1994 formula even there (it averages the log of each neighbor's distance
-rather than the log of the mean neighbor distance the paper defines; see
-:func:`torchnlts.lyapunov.kantz_divergence`'s module docstring for
-the confirmed disagreement). This codebase keeps Rosenstein and Kantz as
-separate functions, ``rosenstein_divergence`` here and ``kantz_divergence``
-there, matching this repo's package layout and the two papers' distinct
-presentations. ``rosenstein_lyapunov`` below fits either curve -- the OLS
-slope step doesn't care which method produced ``divergence``.
+Matches ChaosTools.jl's ``lyapunov_from_data`` at ``ntype=NeighborNumber(1)``, ``distance=Euclidean()``. For a sweep of
+``k`` the reference points are fixed by the largest ``k`` (ChaosTools.jl's default
+``refstates = 1:(length(R) - ks[end])``), so every point of the curve averages over the same population. Its radius
+neighborhood (``ntype=WithinRange``) is not Kantz's estimator; see :func:`~torchnlts.lyapunov.kantz_divergence`.
+
+Gradient class: piecewise (the nearest neighbor is a discrete choice; the evolved distances are smooth once it is made).
 """
 
 from __future__ import annotations
@@ -32,12 +22,13 @@ import torch
 
 from torchnlts._shape import (
     _as_int,
+    _as_int_list,
     _as_sweep,
     _ensure_batched,
-    _is_complex,
     _mask_nonfinite_rows,
     _ols_slope,
     _output_dtype,
+    _restore_sweep,
     _work_dtype,
 )
 from torchnlts.embedding.delay import delay_embedding
@@ -49,93 +40,53 @@ from torchnlts.neighbors.theiler import _require_self_exclusion
 def rosenstein_divergence(
     trajectory,
     k_values,
+    *,
     embedding_dim: int = 2,
     delay: int = 1,
     theiler_window: int = 0,
     norm_order: float = 2.0,
 ) -> torch.Tensor:
-    """Rosenstein's average log-divergence curve E(k).
+    """Rosenstein's average log-divergence curve ``E(k)``.
 
-    Gradient class: piecewise (built on :func:`torchnlts.neighbors.knn_search`'s
-    nearest-neighbor selection: the evolved-point distances differentiate
-    normally w.r.t. the trajectory once a neighbor is picked, but the
-    pick itself is a discrete, non-differentiable decision that can flip
-    at an infinitesimal perturbation).
+    Reference: Rosenstein, Collins & De Luca (1993), Physica D 65(1-2), 117-134.
+
+    Gradient class: piecewise (see the module docstring).
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A
-            tensor, numpy array, or pandas Series/DataFrame.
-        k_values: Evolution steps to evaluate E(k) at. Scalar or ``[K]``
-            tensor to sweep.
+        trajectory: Shape ``[T]``, ``[T, D]`` or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        k_values: Evolution steps ``k >= 0`` to evaluate at: an integer-valued number or a 1-D sequence of them
+            (``[4.0, 8.0]`` is accepted).
         embedding_dim: Delay-embedding dimension.
         delay: Embedding lag.
-        theiler_window: Theiler window over embedded-point start indices,
-            for the nearest-neighbor search only (see
-            :func:`torchnlts.neighbors.theiler_window_mask`). The
-            paper recommends excluding points within the series' mean
-            period; this generalizes that into a plain window, left to
-            the caller to size appropriately (default ``0`` excludes
-            only the self-match).
-        norm_order: Minkowski norm order for both the neighbor search and
-            the evolved-point divergence.
+        theiler_window: Embedded points with ``|i - j| <= theiler_window`` are not neighbors (the paper suggests the
+            mean period). Must be ``>= 0``, or a point would be its own nearest neighbor.
+        norm_order: Minkowski norm order of the neighbor search and of the evolved-point divergence.
 
     Returns:
-        E(k), shape ``[]``/``[K]`` for an unbatched trajectory or
-        ``[B]``/``[K, B]`` for a batched one. ``NaN`` if no reference
-        point has both a valid nearest neighbor (Theiler window didn't
-        exclude every candidate) and enough remaining trajectory length
-        for both to evolve ``max(k_values)`` steps forward -- the same
-        reference-point set, sized by the *largest* requested ``k``, is
-        used for every entry of a swept ``k_values`` (matching
-        ChaosTools.jl's ``lyapunov_from_data``, whose default
-        ``refstates = 1:(length(R) - ks[end])`` does the same, confirmed
-        by reading its source): this keeps every point of the E(k) curve
-        comparable, evaluated over one consistent population of
-        reference points, rather than a population that changes (grows)
-        as ``k`` shrinks. ``-inf`` at a ``k`` where any valid
-        reference point's evolved divergence happens to be exactly
-        ``0`` (e.g. exact duplicate points in ``trajectory``), matching
-        ``log(0)`` rather than silently flooring it to a large finite
-        value. ``NaN`` for any row containing NaN/inf.
+        ``E(k)`` with shape ``[]`` or ``[K]`` for an unbatched trajectory, ``[B]`` or ``[K, B]`` for a batched one
+        (``[K]`` and ``[K, B]`` when ``k_values`` is a sequence), in the input's floating dtype (the default dtype for
+        integer input; half precision is computed in float32). The reference points are those that have a neighbor
+        and, with it, can be evolved ``max(k_values)`` steps; the set is the same for every ``k``, and ``NaN`` if it is
+        empty. ``-inf`` at a ``k`` where a reference point's evolved divergence is exactly 0 (e.g. duplicate points),
+        as ``log(0)``. ``NaN`` for a row containing NaN/inf.
 
     Raises:
-        ValueError: If ``k_values`` is complex, empty, has more than one
-            dimension, or contains a negative, non-finite, or
-            non-integer-valued entry, or if ``theiler_window < 0``
-            (self-matches must be excluded unconditionally, or the
-            "nearest neighbor" is always the point itself at distance 0,
-            evolving trivially with it), or if ``norm_order`` is not a
-            real number >= 0.
+        ValueError: If ``k_values`` is not a non-negative integer or a non-empty 1-D sequence of them,
+            ``theiler_window`` is negative or not an integer, ``embedding_dim`` or ``delay`` is not a positive
+            integer or too large for the trajectory, ``norm_order`` is not a real number ``>= 0``, or the trajectory
+            is complex.
     """
-    # float64, not the float32 default, so Python float arguments keep their precision until validated.
-    if _is_complex(k_values):
-        raise ValueError(f"k_values must be real, got {k_values!r}")
-    k_values_tensor = torch.as_tensor(k_values, dtype=torch.float64)
-    if k_values_tensor.numel() == 0:
-        raise ValueError("k_values must not be empty")
-    if k_values_tensor.dim() > 1:
-        raise ValueError(f"k_values must be scalar or 1D, got shape {tuple(k_values_tensor.shape)}")
-    if torch.any(~torch.isfinite(k_values_tensor)):
-        raise ValueError("k_values must be finite")
-    if torch.any(k_values_tensor < 0):
-        raise ValueError("k_values must be non-negative (evolution steps forward in time)")
-    if torch.any(k_values_tensor != k_values_tensor.round()):
-        raise ValueError("k_values must be integer-valued (they index discrete time steps)")
-    theiler_window = _as_int(theiler_window, "theiler_window")
-    _require_self_exclusion(theiler_window, "Rosenstein's Lyapunov estimator")
+    k_list, swept = _as_int_list(k_values, "k_values", minimum=0)
+    theiler_window = _require_self_exclusion(theiler_window, "Rosenstein's Lyapunov estimator")
     norm_order = _validate_norm_order(norm_order)
 
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     delay = _as_int(delay, "delay")
-    # Limitation: delay_embedding raises OverflowError for a huge int delay at embedding_dim=1; guard it there.
-    embedding_delay = 1 if embedding_dim == 1 and delay >= 1 else delay
     # Masked before embedding: samples outside every embedded point can hold NaN/inf, which make a row NaN.
     raw, ndim = _ensure_batched(trajectory)
     dtype = _output_dtype(raw)
     raw, nonfinite = _mask_nonfinite_rows(raw.to(_work_dtype(dtype)))
-    batched = delay_embedding(raw, embedding_dim, embedding_delay)
-    # Limitation: theiler_window_mask overflows on a huge int window; clamped to num_points, same excluded pairs.
-    theiler_window = min(theiler_window, batched.shape[-2])
+    batched = delay_embedding(raw, embedding_dim, delay=delay)
     _, neighbor_index = knn_search(batched, num_neighbors=1, theiler_window=theiler_window, norm_order=norm_order)
     neighbor_index = neighbor_index[..., 0]
     neighbor_found = neighbor_index >= 0
@@ -143,9 +94,7 @@ def rosenstein_divergence(
 
     batch_size, num_points = batched.shape[0], batched.shape[-2]
     start_index = torch.arange(num_points, device=batched.device)
-
-    k_list = k_values_tensor.reshape(-1).tolist()
-    max_k = int(max(k_list))
+    max_k = max(k_list)
 
     # One reference mask sized by max_k; max_k >= num_points is separate since start_index + max_k can overflow int64.
     if max_k >= num_points:
@@ -159,7 +108,7 @@ def rosenstein_divergence(
     curve = []
     for k in k_list:
         # Out-of-range sweeps have an all-false mask; keep their unused gather indices in integer range.
-        k = min(int(k), num_points)
+        k = min(k, num_points)
         reference_index = (start_index + k).expand(batch_size, -1)
         neighbor_target_index = safe_neighbor_index + k
         reference_evolved = _gather_neighbors(batched, reference_index, valid)
@@ -182,49 +131,33 @@ def rosenstein_divergence(
         masked_log_divergence = torch.where(valid, log_divergence, torch.zeros_like(log_divergence))
         curve.append(masked_log_divergence.sum(dim=-1) / valid_count)
 
-    result = torch.stack(curve, dim=0) if k_values_tensor.dim() > 0 else curve[0]
-    result = torch.where(nonfinite, float("nan"), result)
-    # Not _restore_batch: a swept result is [K, B], so the batch axis to drop is the last one.
-    return (result.squeeze(-1) if ndim != 3 else result).to(dtype)
+    result = torch.where(nonfinite, float("nan"), torch.stack(curve, dim=0))  # [K, B]
+    return _restore_sweep(result, swept, ndim).to(dtype)
 
 
 def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> torch.Tensor:
-    """Largest Lyapunov exponent: OLS slope of E(k) vs k.
+    """Largest Lyapunov exponent: the ordinary-least-squares slope of ``E(k)`` against ``k``.
 
-    Gradient class: exact (closed-form OLS slope; ordinary autodiff
-    through whatever produced ``divergence`` -- it inherits
-    :func:`~torchnlts.lyapunov.rosenstein_divergence`'s ``piecewise`` from there).
+    The fit uses every ``(k, E(k))`` pair given (FractalDimensions.jl's ``slopefit`` with
+    ``ignore_saturation=false``); :func:`torchnlts.scaling.scaling_slope` detects the scaling range instead. It
+    also fits a :func:`~torchnlts.lyapunov.kantz_divergence` curve. The slope is per sample step: divide by the
+    sampling interval ``dt`` for a per-unit-time exponent.
 
-    This is a plain regression over every ``(k, E(k))`` pair given
-    (FractalDimensions.jl's ``slopefit`` with ``ignore_saturation=false``);
-    see :func:`torchnlts.scaling.scaling_slope` for automatic
-    scaling-region detection (pass ``k_values``, ``divergence``).
+    Reference: Rosenstein, Collins & De Luca (1993), Physica D 65(1-2), 117-134, eq. 12-13.
 
-    The slope is w.r.t. the raw ``k`` (sample steps), not ``k * dt``: if
-    ``trajectory`` was sampled at interval ``dt``, divide the result by
-    ``dt`` to convert to a per-unit-time Lyapunov exponent (the paper's
-    ``E(k) ~ lambda_1 * k * dt + E(0)``, see the module docstring).
-
-    Reference: Rosenstein, Collins & De Luca (1993), eq. 12-13 and
-    surrounding discussion (the logarithmic divergence and its
-    least-squares slope; eq. 4 is the earlier trajectory-matrix
-    reconstruction step, not this formula).
+    Gradient class: exact (closed-form slope; autodiff continues through whatever produced ``divergence``, so
+    :func:`~torchnlts.lyapunov.rosenstein_divergence`'s piecewise class carries over).
 
     Args:
-        k_values: Shape ``[K]``, the sweep ``divergence`` was evaluated
-            at (see :func:`~torchnlts.lyapunov.rosenstein_divergence`).
-        divergence: Shape ``[K]`` (unbatched trajectory) or ``[K, B]``
-            (batched), as returned by :func:`~torchnlts.lyapunov.rosenstein_divergence` for
-            the same sweep.
+        k_values: Shape ``[K]``, the sweep ``divergence`` was evaluated at.
+        divergence: Shape ``[K]`` (unbatched trajectory) or ``[K, B]`` (batched), as returned by
+            :func:`~torchnlts.lyapunov.rosenstein_divergence` for the same sweep.
 
     Returns:
-        Largest Lyapunov exponent estimate(s), shape ``[]`` for an
-        unbatched ``divergence`` or ``[B]`` for a batched one. ``NaN`` if
-        ``k_values`` has fewer than two distinct values, or
-        propagated from any ``NaN`` in ``divergence`` itself.
+        The exponent(s), shape ``[]`` or ``[B]``. ``NaN`` if ``k_values`` has fewer than two distinct values or
+        ``divergence`` contains a ``NaN``.
 
     Raises:
-        ValueError: If the inputs do not have the documented shapes
-            with matching sweep lengths.
+        ValueError: If the inputs do not have the documented shapes with matching sweep lengths.
     """
     return _ols_slope(_as_sweep(k_values, divergence.device), divergence)

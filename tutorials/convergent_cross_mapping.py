@@ -32,13 +32,13 @@ print(f"{'library':>7}  {'recover X from Y':>18}  {'recover Y from X':>18}")
 # The API restricts neighbors to a leading prefix; all query points stay fixed.
 for library_size in (50, 100, 200, 400, 800, num_points - offset):
     estimated_x = cross_map_estimate(
-        y, x, embedding_dim, delay, library_size=library_size, theiler_window=theiler_window
+        y, x, embedding_dim, delay=delay, library_size=library_size, theiler_window=theiler_window
     )
-    skill_recovering_x_from_y = ccm_skill(estimated_x, x[offset:].unsqueeze(-1))
+    skill_recovering_x_from_y = ccm_skill(estimated_x, x[offset:])
     estimated_y = cross_map_estimate(
-        x, y, embedding_dim, delay, library_size=library_size, theiler_window=theiler_window
+        x, y, embedding_dim, delay=delay, library_size=library_size, theiler_window=theiler_window
     )
-    skill_recovering_y_from_x = ccm_skill(estimated_y, y[offset:].unsqueeze(-1))
+    skill_recovering_y_from_x = ccm_skill(estimated_y, y[offset:])
     print(f"{library_size:>7}  {skill_recovering_x_from_y.item():>18.3f}  {skill_recovering_y_from_x.item():>18.3f}")
 
 print("\nIncreasing skill recovering X from Y is consistent with the known X -> Y coupling.")

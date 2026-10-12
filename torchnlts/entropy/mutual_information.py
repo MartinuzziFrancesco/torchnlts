@@ -1,53 +1,34 @@
-"""Kraskov-Stogbauer-Grassberger (KSG1 and KSG2) mutual information estimators.
+"""Kraskov-Stogbauer-Grassberger (KSG) mutual information estimators.
 
-Reference: Kraskov, A., Stogbauer, H. & Grassberger, P. (2004),
-"Estimating mutual information", Phys. Rev. E 69, 066138, eq. 6-8 (their
-first estimator, I^(1)): for paired samples (x_i, y_i), find each
-point's distance to its k-th nearest neighbor in the joint space under
-the Chebyshev (max) norm -- excluding temporally correlated points via
-a Theiler window -- then count, independently in each marginal space
-(no Theiler exclusion there), how many *other* points lie strictly
-closer than that same radius (eq. 6-7's ``n_x(i)``/``n_y(i)``, j != i).
-Averaging digamma(n_x(i) + 1) + digamma(n_y(i) + 1) over all points
-gives a bias-corrected Shannon mutual information estimate, in nats
-(eq. 8). For positive radii, including self in the strict count supplies
-the formula's ``+ 1``. At zero radius, self must still contribute that
-``+ 1`` explicitly, even though no distance is strictly less than zero.
+Reference: Kraskov, Stogbauer & Grassberger (2004), Phys. Rev. E 69, 066138.
 
-Gradient class: none (k-th-nearest-neighbor selection and the
-threshold counts are discrete; :func:`torch.digamma` is itself smooth,
-but that doesn't rescue the discrete steps feeding it).
+``estimator="ksg1"`` (eq. 6-8, their I^(1)): for each point, take the distance to its k-th nearest neighbor in the
+joint space (the larger of the two marginal distances), excluding temporally correlated points with a Theiler window.
+Then count, in each marginal space and without Theiler exclusion, the other points (j != i) strictly closer than that
+radius (``n_x(i)``, ``n_y(i)``). Averaging ``digamma(n_x(i) + 1) + digamma(n_y(i) + 1)`` gives the estimate
+``digamma(k) + digamma(N) - mean(...)`` in nats (eq. 8). The point itself is counted (the formula's ``+ 1``), also at
+zero radius, where no distance is strictly smaller.
 
-Like :mod:`torchnlts.recurrence.joint_recurrence`, ``x`` and ``y`` need
-not share a feature space, only a time axis -- unequal lengths are
-truncated to the shorter one.
+``estimator="ksg2"`` (eq. 9, their I^(2)): per point, the marginal radii are the extents of its ``k`` nearest joint
+neighbors in each marginal (``eps_x(i) / 2``, ``eps_y(i) / 2``), the other points within those radii are counted
+inclusively (``<=``, as the paper specifies), and the estimate is ``psi(k) - 1/k - <psi(n_x) + psi(n_y)> + psi(N)``.
+Ties among equidistant joint neighbors are broken by :func:`torch.topk`'s order.
 
-Known, confirmed deviation from CausalityTools.jl's ``KSG1``: that
-estimator counts marginal neighbors with an *inclusive* (``<=``) radius
-query (`Neighborhood.jl`'s ``inrangecount``, confirmed by direct
-probing -- not a documented convention in its own docstring), rather
-than eq. 6-7's strict ``<``. This isn't a rare floating-point tie: by
-construction, the point achieving the joint radius always sits exactly
-at that radius in at least one marginal, so the two conventions differ
-on essentially every point, not just at coincidental ties (see
-``tests/test_mutual_information.py``'s locked-in regression comparing
-both conventions on the same input). This module implements the
-paper's own strict definition; see that test for the confirmed,
-quantified disagreement rather than an attempt to reconcile the two.
+Like :mod:`torchnlts.recurrence.joint_recurrence`, ``trajectory`` and ``other`` need not share a feature space, only
+a time axis; unequal lengths are truncated to the shorter one. One ``norm_order`` is shared by both marginals and the
+joint metric (the elementwise max of the marginal distances, which is the Chebyshev distance of their concatenation
+only for ``norm_order=inf``); CausalityTools.jl instead fixes the joint metric to Chebyshev.
 
-The second estimator (``estimator="ksg2"``, I^(2), eq. 9) instead sets, per
-point, the marginal radii to the extents of its ``k`` nearest joint
-neighbors in each marginal (``eps_x(i)/2``, ``eps_y(i)/2``), counts the
-other points within those radii *inclusively* (``<=``, as the paper
-specifies for I^(2)) and returns
-``psi(k) - 1/k - <psi(n_x) + psi(n_y)> + psi(N)``. Ties among equidistant
-joint neighbors are broken by :func:`torch.topk`'s order. CausalityTools.jl's
-``KSG2`` agrees at ``k=1`` at ordinary data scales but deviates for ``k>1``
-(it uses only the ``k``-th neighbor's marginal distance and subtracts ``1``
-for ``1/k``) and, at any ``k``, adds ``10*eps()`` to each marginal radius,
-which changes counts for data near 1e-16 (``[0,1,4,10]*1e-16`` gives -1/6
-here, -13/6 there). This module follows the paper; see
-``tests/test_mutual_information.py``.
+Deviations from CausalityTools.jl, which this module does not reproduce (it follows the paper):
+
+- ``KSG1`` counts marginal neighbors with an inclusive (``<=``) radius instead of eq. 6-7's strict ``<``. The two
+  differ on essentially every point, because the point that sets the joint radius lies exactly at that radius in one
+  marginal.
+- ``KSG2`` agrees at ``k=1`` at ordinary data scales but differs for ``k>1`` (it uses only the ``k``-th neighbor's
+  marginal distance and subtracts ``1`` for ``1/k``), and at any ``k`` it adds ``10*eps()`` to each marginal radius,
+  which changes counts for data near 1e-16 (``[0, 1, 4, 10] * 1e-16`` gives -1/6 here and -13/6 there).
+
+Gradient class: none (neighbor selection and threshold counts are discrete).
 """
 
 from __future__ import annotations
@@ -62,6 +43,7 @@ from torchnlts.neighbors.theiler import _require_self_exclusion, apply_theiler_w
 def mutual_information(
     trajectory,
     other,
+    *,
     num_neighbors: int = 3,
     theiler_window: int = 0,
     norm_order: float = float("inf"),
@@ -69,82 +51,45 @@ def mutual_information(
 ) -> torch.Tensor:
     """KSG Shannon mutual information estimate between two paired trajectories.
 
-    Gradient class: none (see module docstring).
+    Reference: Kraskov, Stogbauer & Grassberger (2004), eq. 6-8 (KSG1) or eq. 9 (KSG2). Unlike CausalityTools.jl,
+    ``KSG1`` counts marginal neighbors strictly (the paper's ``<``; that package uses ``<=``), and ``KSG2`` uses the
+    paper's ``1/k`` term and all ``k`` joint neighbors (that package uses only the k-th and ``1`` for ``k > 1``, and
+    adds ``10*eps()`` to each marginal radius, which changes counts for data near 1e-16).
 
-    Reference: Kraskov, Stogbauer & Grassberger (2004), eq. 6-8 (KSG1) or
-    eq. 9 (KSG2). For KSG1, see the
-    module docstring for a confirmed, deliberate deviation from
-    CausalityTools.jl's ``KSG1`` (strict vs. that package's inclusive
-    marginal-counting radius) -- Julia ground truth here is a locked
-    disagreement test with hand-verified expected values on both sides,
-    not a numerical match, and its Theiler-window handling (applied only
-    to the joint-space k-th-neighbor search, never to marginal counting)
-    is separately confirmed to match CausalityTools.jl's ``KSG1`` source.
-
-    ``norm_order`` sets a single Minkowski order shared by both marginals
-    *and* the joint metric (the joint radius is always the elementwise
-    max of the two marginal distances, which equals Chebyshev distance on
-    their concatenation only when both marginals also use the default
-    ``norm_order=inf``). This differs from CausalityTools.jl's ``KSG1``,
-    whose joint metric is hardcoded to Chebyshev independent of its
-    separately configurable ``metric_marginals`` -- this function instead
-    keeps the single shared ``norm_order`` convention used throughout
-    this codebase, at the cost of that independence.
+    Gradient class: none.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
-            numpy array, or pandas Series/DataFrame. A ``NaN`` anywhere in
-            a given time point NaNs that whole point's contribution (see
-            Returns) rather than raising -- a raise would need a
-            data-dependent Python ``if`` on the tensor's contents, which
-            rejects ``torch.vmap``'s ``BatchedTensor`` inputs outright.
-        other: Second trajectory, same batched-ness as ``trajectory`` (see
-            :func:`torchnlts.recurrence.hard_joint_recurrence_matrix`);
-            its time length and feature dimensionality may otherwise differ.
-        num_neighbors: k, the neighbor rank whose joint-space distance sets
-            each point's marginal counting radius.
-        theiler_window: Theiler window, applied only when searching for
-            each point's k-th joint-space neighbor (see
-            :func:`torchnlts.neighbors.theiler_window_mask`) --
-            not applied to the marginal counting step, matching
-            CausalityTools.jl's KSG1. Must be ``>= 0`` (self-matches must
-            be excluded unconditionally, or the "nearest neighbor" is
-            always the point itself at distance 0).
-        norm_order: Shared Minkowski norm order for the marginal distance
-            matrices and, through them, the joint metric (``inf`` for the
-            paper's and CausalityTools.jl's default Chebyshev choice).
-        estimator: ``"ksg1"`` (default; strict marginal counts) or ``"ksg2"``
-            (inclusive counts within the marginal extents of the ``k``
-            joint neighbors). Marginal counts exclude only the point itself,
-            never Theiler neighbors, for both.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        other: Second trajectory with the same batched-ness (see
+            :func:`torchnlts.recurrence.hard_joint_recurrence_matrix`); its time length and feature dimension may
+            differ, and unequal lengths are truncated to the shorter.
+        num_neighbors: k, the neighbor rank whose joint-space distance sets each point's marginal counting radius.
+        theiler_window: Theiler window for the joint-space k-th neighbor search only, not for the marginal counts (as
+            in CausalityTools.jl's ``KSG1``); must be ``>= 0``, since the point itself must always be excluded.
+        norm_order: Minkowski norm order shared by both marginal distance matrices and, through them, the joint metric
+            (``inf`` for the paper's Chebyshev choice).
+        estimator: ``"ksg1"`` (default; strict marginal counts) or ``"ksg2"`` (inclusive counts within the marginal
+            extents of the ``k`` joint neighbors). Marginal counts exclude only the point itself, never Theiler
+            neighbors, for both.
 
     Returns:
-        Scalar (unbatched trajectories) or ``[B]`` (batched) mutual
-        information estimate, in nats. Can be negative or exceed the
-        true value -- this is a finite-sample estimator, not a
-        probability, and is only asymptotically unbiased (and, like any
-        continuous-data estimator, has no special handling for exact
-        duplicate points: a radius of exactly 0 is well-defined by the
-        formula above but not statistically meaningful). ``NaN`` for any
-        batch element where some point has fewer than ``num_neighbors``
-        eligible neighbors after Theiler exclusion (including when
-        ``num_neighbors >= length``) -- the honest answer for an
-        undefined k-th-neighbor radius rather than a silently-wrong
-        finite number from treating a missing neighbor as infinitely far
-        -- or where some point contains ``NaN`` (see Args).
+        Scalar (unbatched trajectories) or ``[B]`` estimate in nats. As a finite-sample estimator it can be negative
+        or exceed the true value, and it has no special handling of duplicate points (a radius of exactly 0 is
+        defined by the formula but not statistically meaningful). ``NaN`` for a batch element where some point has
+        fewer than ``num_neighbors`` eligible neighbors after Theiler exclusion (including ``num_neighbors >= T``)
+        or contains ``NaN`` or ``inf`` (only the first ``min(T, T')`` points count).
 
     Raises:
-        ValueError: If ``estimator`` is not ``"ksg1"`` or ``"ksg2"``,
-            ``num_neighbors < 1``, ``theiler_window < 0``, or
-            ``trajectory``/``other`` disagree on batched-ness or batch
-            size (see :func:`torchnlts._shape._validate_matching_batch`).
+        ValueError: If ``estimator`` is not ``"ksg1"`` or ``"ksg2"``, ``num_neighbors`` is not an integer ``>= 1``,
+            ``theiler_window`` is not an integer ``>= 0``, or ``trajectory`` and ``other`` disagree on batched-ness or
+            batch size.
     """
     if estimator not in ("ksg1", "ksg2"):
         raise ValueError(f"estimator must be 'ksg1' or 'ksg2', got {estimator!r}")
     num_neighbors = _as_int(num_neighbors, "num_neighbors")
     if num_neighbors < 1:
         raise ValueError(f"num_neighbors must be >= 1, got {num_neighbors}")
-    _require_self_exclusion(theiler_window, "KSG mutual information")
+    theiler_window = _require_self_exclusion(theiler_window, "KSG mutual information")
 
     x, x_ndim = _ensure_batched(trajectory)
     y, y_ndim = _ensure_batched(other)

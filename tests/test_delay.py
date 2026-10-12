@@ -7,13 +7,12 @@ Dual ground truth:
      exactly (same forward-offset convention).
 """
 
-import subprocess
-
+import numpy as np
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.embedding.delay import delay_embedding
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_delay_embedding_hand_derived():
@@ -47,11 +46,33 @@ def test_delay_embedding_multivariate_and_batched():
 
 
 def test_delay_embedding_too_short_raises():
-    try:
+    with pytest.raises(ValueError):
         delay_embedding(torch.randn(5), embedding_dim=4, delay=2)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for a too-short trajectory")
+
+
+@pytest.mark.parametrize(
+    "embedding_dim, delay",
+    [(2.0, 1), (2, 1.0), (2.5, 1), ("2", 1), (2, "1"), (None, 1), (0, 1), (2, 0), (-1, 1), (2, -3)],
+)
+def test_delay_embedding_rejects_invalid_integer_arguments(embedding_dim, delay):
+    # Regression: a float argument failed with an IndexError from inside torch, a string with a TypeError.
+    with pytest.raises(ValueError):
+        delay_embedding(torch.randn(10), embedding_dim, delay=delay)
+
+
+@pytest.mark.parametrize("dtype", [torch.int64, torch.bool, torch.complex64, torch.float16])
+def test_delay_embedding_only_indexes_so_it_keeps_any_dtype(dtype):
+    series = torch.tensor([1, 0, 1, 1, 0, 1]).to(dtype)
+    embedded = delay_embedding(series, 3, delay=2)
+    assert embedded.dtype == dtype
+    expected = torch.stack([series[:2], series[2:4], series[4:]]).T
+    assert torch.equal(embedded, expected)
+
+
+def test_delay_embedding_accepts_numpy_integers():
+    series = torch.randn(12)
+    expected = delay_embedding(series, 3, delay=2)
+    assert torch.equal(delay_embedding(series, np.int64(3), delay=np.int32(2)), expected)
 
 
 def test_delay_embedding_gradcheck():
@@ -74,13 +95,12 @@ def test_delay_embedding_matches_delayembeddings_jl():
         println(join(row, ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_rows = [[float(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()]
+    stdout = run_julia(julia_code)
+    julia_rows = [[float(v) for v in line.split(",")] for line in stdout.strip().splitlines()]
     julia_y = torch.tensor(julia_rows, dtype=torch.float64)
     assert torch.allclose(y, julia_y, atol=1e-10)
+
+
+def test_delay_embedding_single_copy_ignores_a_huge_delay():
+    trajectory = torch.arange(6.0)
+    assert torch.equal(delay_embedding(trajectory, 1, delay=10**30), trajectory.unsqueeze(-1))

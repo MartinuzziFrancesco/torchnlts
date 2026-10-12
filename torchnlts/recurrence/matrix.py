@@ -1,20 +1,18 @@
 """Recurrence matrix: hard threshold and smooth kernel-weighted variants.
 
-Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6),
-237-329, eq. 1: R_ij = Theta(epsilon - ||x_i - x_j||).
+Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6), 237-329, eq. 1:
+``R_ij = Theta(epsilon - ||x_i - x_j||)``.
 
-The hard variant reuses :func:`torchnlts.neighbors.pairwise_distance`
-and is validated against RecurrenceAnalysis.jl's ``RecurrenceMatrix``. The
-soft variant reuses :func:`torchnlts.neighbors.trajectory_kernel` as
-its base primitive -- ``temperature`` plays the role of
-``epsilon``'s smooth analogue, not a relaxed threshold at a fixed epsilon.
+The hard variant is validated against RecurrenceAnalysis.jl's ``RecurrenceMatrix``. The soft variant weights pairs
+with :func:`~torchnlts.neighbors.trajectory_kernel`; ``temperature`` is the smooth analogue of ``epsilon``, not a
+relaxed threshold at a fixed ``epsilon``.
 """
 
 from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _is_complex
+from torchnlts._shape import _high_precision_dtype, _power_of_two_scale, _real_scalar
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 
@@ -22,18 +20,17 @@ _SCALES = ("max", "mean", "std")
 
 
 def _nan_quantile(values: torch.Tensor, probability: float, dim: int, diagonal: bool = False) -> torch.Tensor:
-    """Linear-interpolation quantile (R type 7, Julia's default) of ``values``
-    along ``dim``, ignoring NaN; ``NaN`` where nothing is finite. With
-    ``diagonal``, the probability is raised by one over the finite count (a
-    self-distance column has one guaranteed zero) and capped at 1. Sort and
-    gather only, so ``torch.vmap`` works.
+    """Linear-interpolation quantile (R type 7, Julia's default) of ``values`` along ``dim``, ignoring NaN.
 
-    Limitation: index arithmetic in float64, float32 on devices without it
-    (MPS), where it can pick the wrong neighbour above ~1e6 entries; upgrade
-    path: exact integer arithmetic on the probability's binary fraction."""
+    ``NaN`` where nothing is finite. With ``diagonal`` the probability is raised by one over the finite count (a
+    self-distance column has one guaranteed zero) and capped at 1. Sort and gather only, so ``torch.vmap`` works.
+
+    Limitation: index arithmetic is float64 but float32 on MPS, where it can pick the wrong neighbour above ~1e6
+    entries; upgrade path: exact integer arithmetic on the probability's binary fraction.
+    """
     ordered = values.movedim(dim, -1).sort(dim=-1).values
     count = (~torch.isnan(ordered)).sum(dim=-1, keepdim=True)
-    work = torch.float32 if values.device.type == "mps" else torch.float64
+    work = _high_precision_dtype(values.device)
     count_work = count.to(work)
     probability = torch.full_like(count_work, probability)
     if diagonal:
@@ -51,15 +48,14 @@ def _nan_quantile(values: torch.Tensor, probability: float, dim: int, diagonal: 
 
 
 def _distance_scale(distance: torch.Tensor, scale: str, self_distance: bool) -> torch.Tensor:
-    """``max`` / ``mean`` / ``std`` of the finite entries of ``distance`` ``[..., T, T']``,
-    shape ``[..., 1, 1]``. As in RecurrenceAnalysis.jl, ``max`` and ``mean`` of
-    a self-distance matrix exclude the zero diagonal; ``std`` (sample) does not.
-    Computed on distances divided by a detached power of two near their
-    largest, so sums and squares neither overflow nor underflow."""
+    """``max`` / ``mean`` / ``std`` of the finite entries of ``distance`` ``[..., T, T']``, shape ``[..., 1, 1]``.
+
+    As in RecurrenceAnalysis.jl, ``max`` and ``mean`` of a self-distance matrix exclude the zero diagonal and the
+    (sample) ``std`` does not. Computed on distances divided by a power of two, so sums and squares neither overflow
+    nor underflow.
+    """
     finite = ~torch.isnan(distance)
-    largest = torch.where(finite, distance, torch.zeros_like(distance)).detach().amax(dim=(-2, -1), keepdim=True)
-    largest = torch.where(torch.isfinite(largest) & (largest > 0), largest, torch.ones_like(largest))
-    unit = torch.exp2(torch.floor(torch.log2(largest)))
+    unit = _power_of_two_scale(distance)
     scaled = distance / unit
     zeroed = torch.where(finite, scaled, torch.zeros_like(scaled))
     count = finite.sum(dim=(-2, -1), keepdim=True)
@@ -80,10 +76,8 @@ def _distance_scale(distance: torch.Tensor, scale: str, self_distance: bool) -> 
 def _rate(value, name: str) -> float:
     """``value`` as a float in ``(0, 1]``; ``ValueError`` otherwise."""
     try:
-        if _is_complex(value):
-            raise ValueError
-        rate = float(value)
-    except (TypeError, ValueError, RuntimeError, OverflowError):
+        rate = _real_scalar(value, name)
+    except ValueError:
         raise ValueError(f"{name} must be a real number in (0, 1], got {value!r}") from None
     if not 0.0 < rate <= 1.0:
         raise ValueError(f"{name} must be in (0, 1], got {value!r}")
@@ -101,10 +95,9 @@ def _threshold_matrix(
     """Boolean ``distance <= threshold`` for the threshold option in use.
 
     Raises:
-        ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``,
-            ``local_rate`` is given, ``scale`` is given without ``epsilon``
-            or is not one of ``"max"``, ``"mean"``, ``"std"``, or a rate is
-            outside ``(0, 1]``.
+        ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``, ``local_rate`` is given, ``scale`` is
+            given without ``epsilon`` or is not one of ``"max"``, ``"mean"``, ``"std"``, or a rate is outside
+            ``(0, 1]``.
     """
     if sum(option is not None for option in (epsilon, recurrence_rate, local_rate)) != 1:
         raise ValueError("give exactly one of epsilon, recurrence_rate, local_rate")
@@ -128,47 +121,42 @@ def _threshold_matrix(
 
 def hard_recurrence_matrix(
     trajectory,
+    *,
     epsilon: float | None = None,
     norm_order: float = 2.0,
-    *,
     recurrence_rate: float | None = None,
     local_rate: float | None = None,
     scale: str | None = None,
 ) -> torch.Tensor:
     """Boolean recurrence matrix at a fixed, rate-derived or relative distance threshold.
 
-    Gradient class: none (Heaviside threshold, no useful gradient).
+    Reference: Marwan et al. (2007), Phys. Rep. 438(5-6), 237, eq. 1.
+
+    Gradient class: none (Heaviside threshold).
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
-            numpy array, or pandas Series/DataFrame.
-        epsilon: Recurrence threshold. Points ``i``, ``j`` recur when
-            their distance is ``<= epsilon``, matching RecurrenceAnalysis.jl's
-            ``RecurrenceMatrix`` (including the always-recurrent diagonal,
-            except at points with a NaN/inf coordinate, which recur with nothing).
-            With ``scale``, a ratio of that statistic of the distances
-            (``RecurrenceThresholdScaled``).
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        epsilon: Recurrence threshold: points ``i``, ``j`` recur when their distance is ``<= epsilon``, as in
+            RecurrenceAnalysis.jl's ``RecurrenceMatrix``. The diagonal always recurs, except at a point with a
+            NaN/inf coordinate, which recurs with nothing. With ``scale``, a ratio of that statistic of the
+            distances (``RecurrenceThresholdScaled``).
         norm_order: Minkowski norm order.
-        recurrence_rate: Instead of ``epsilon``: the threshold is this
-            quantile of all pairwise distances, giving about this fraction of
-            recurrences (``GlobalRecurrenceRate``). In ``(0, 1]``.
-        local_rate: Instead of ``epsilon``: each column has its own threshold
-            giving it about this fraction of recurrences besides the diagonal
-            (``LocalRecurrenceRate``; quantile-derived, ties and finite size
-            can add recurrences); the matrix is not symmetric. In ``(0, 1]``.
-            A rate of 1 is accepted (Julia rejects it) and saturates the
-            diagonal-corrected probability at 1, where Julia's can exceed one.
-        scale: ``"max"``, ``"mean"`` or ``"std"``; makes ``epsilon`` a ratio of
-            that statistic of the pairwise distances.
+        recurrence_rate: Instead of ``epsilon``: the threshold is this quantile of all pairwise distances, giving
+            about this fraction of recurrences (``GlobalRecurrenceRate``). In ``(0, 1]``.
+        local_rate: Instead of ``epsilon``: each column has its own threshold giving it about this fraction of
+            recurrences besides the diagonal (``LocalRecurrenceRate``; quantile-derived, so ties and finite size can
+            add recurrences), which makes the matrix asymmetric. In ``(0, 1]``; a rate of 1 is accepted (Julia
+            rejects it) and saturates the diagonal-corrected probability at 1.
+        scale: ``"max"``, ``"mean"`` or ``"std"``: makes ``epsilon`` a ratio of that statistic of the pairwise
+            distances. As in Julia, ``max`` and ``mean`` exclude the zero diagonal and the sample ``std`` does not.
 
     Returns:
-        Bool tensor of shape ``[T, T]`` or ``[B, T, T]``; each batch row gets
-        its own threshold, computed over its finite distances.
+        Bool tensor of shape ``[T, T]`` or ``[B, T, T]``. Each batch row gets its own threshold, computed over its
+        finite distances (a row with none gives an all-False matrix).
 
     Raises:
-        ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``,
-            ``local_rate`` is given, ``scale`` is invalid or given without
-            ``epsilon``, or a rate is outside ``(0, 1]``.
+        ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``, ``local_rate`` is given, ``scale`` is
+            invalid or given without ``epsilon``, or a rate is outside ``(0, 1]``.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     return _threshold_matrix(distance, epsilon, recurrence_rate, local_rate, scale, self_distance=True)
@@ -177,26 +165,30 @@ def hard_recurrence_matrix(
 def soft_recurrence_matrix(
     trajectory,
     temperature: torch.Tensor | float,
+    *,
     kind: str = "gaussian",
     norm_order: float = 2.0,
 ) -> torch.Tensor:
     """Kernel-weighted recurrence matrix, a smooth stand-in for the hard threshold.
 
-    Gradient class: smooth (differentiable relaxation of
-    :func:`~torchnlts.recurrence.hard_recurrence_matrix`, built on
-    :func:`torchnlts.neighbors.trajectory_kernel` rather than a
-    hidden default swap).
+    Reference: Marwan et al. (2007), Phys. Rep. 438(5-6), 237, eq. 1, with the Heaviside step replaced by
+    :func:`~torchnlts.neighbors.trajectory_kernel`.
+
+    Gradient class: smooth.
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
-            numpy array, or pandas Series/DataFrame.
-        temperature: Kernel bandwidth, forwarded to ``trajectory_kernel``.
-        kind: ``"gaussian"`` or ``"exponential"``, forwarded to ``trajectory_kernel``.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        temperature: Kernel bandwidth, the smooth analogue of ``epsilon``; must be > 0 (see
+            :func:`~torchnlts.neighbors.trajectory_kernel`).
+        kind: ``"gaussian"`` or ``"exponential"``.
         norm_order: Minkowski norm order.
 
     Returns:
-        Weight tensor in ``(0, 1]``, same shape as ``hard_recurrence_matrix``;
-        ``0`` for pairs involving a point with a NaN/inf coordinate.
+        Weights in ``[0, 1]``, shaped like the result of :func:`~torchnlts.recurrence.hard_recurrence_matrix`; ``0``
+        for pairs involving a point with a NaN/inf coordinate.
+
+    Raises:
+        ValueError: If ``temperature`` is not a positive real number or tensor, or ``kind`` is unknown.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     return trajectory_kernel(distance, temperature, kind=kind)

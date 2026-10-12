@@ -1,29 +1,22 @@
 """Tests for torchnlts.surrogate.iaaft.
 
-Dual ground truth:
-  1. Paper: Schreiber & Schmitz (1996) -- IAAFT preserves the original
-     data's amplitude distribution exactly (an exact invariant, checked
-     directly, same as AAFT) and its power spectrum only approximately,
-     via alternating spectral/amplitude adjustment. Hand-derived
-     consequences checked directly: the relative spectral error
-     generally decreases over the first several iterations (a seed
-     chosen to converge tightly), and the amplitude invariant holds
-     regardless of iteration count or random seed.
-  2. Julia: TimeseriesSurrogates.jl's ``IAAFT``, run live via subprocess
-     on the literal same input as this module's own implementation,
-     shows the same seed-dependent spread of converged spectral-error
-     quality (confirming a shared property of the method, not this
-     port) rather than a fixed, always-tiny error.
+Ground truth:
+  1. Paper: Schreiber & Schmitz (1996) -- IAAFT preserves the amplitude distribution exactly (sorted values are equal,
+     for any iteration count and seed) and the power spectrum approximately, with a relative spectral error that
+     generally decreases over the first iterations. A mocked initial permutation is compared with an independent torch
+     implementation of the iteration.
+  2. Julia: TimeseriesSurrogates.jl's ``IAAFT``, run via subprocess on the same input, shows the same seed-dependent
+     spread of converged spectral error as this implementation, not a fixed, always-tiny error.
 """
 
-import subprocess
 from unittest import mock
 
+import numpy as np
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.surrogate.iaaft import iaaft_surrogate
-
-JULIA_PROJECT = "juliaenv"
 
 _TEST_TRAJECTORY = [0.01, 0.02, 0.03, 0.04, 20.0, 0.05, 0.06, 0.07, 0.15, 0.9]
 
@@ -96,7 +89,7 @@ def test_iaaft_surrogate_relative_spectral_error_decreases_with_more_iterations(
     assert error_after_50 < error_after_1
 
 
-def test_iaaft_surrogate_matches_chaostools_jl_seed_spread():
+def test_iaaft_surrogate_matches_timeseries_surrogates_jl_seed_spread():
     # TimeseriesSurrogates.jl (see module docstring) shows the same seed-dependent convergence spread on this input;
     # the spread is what is checked.
     julia_code = f"""
@@ -111,14 +104,8 @@ def test_iaaft_surrogate_matches_chaostools_jl_seed_spread():
         println(rel_err)
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_errors = torch.tensor([float(v) for v in result.stdout.strip().splitlines()], dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_errors = torch.tensor([float(v) for v in stdout.strip().splitlines()], dtype=torch.float64)
     assert julia_errors.shape == (10,)
     # Every seed converges (generous bound, observed worst ~3e-3) and the errors differ across seeds.
     assert julia_errors.max() < 1e-2
@@ -191,26 +178,25 @@ def test_iaaft_surrogate_dtype_preserved_float32():
 
 
 def test_iaaft_surrogate_rejects_bad_ndim():
-    try:
+    with pytest.raises(ValueError):
         iaaft_surrogate(torch.zeros(2, 2, 2, 2))
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_iaaft_surrogate_rejects_non_positive_max_iterations():
     x = torch.randn(20, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         iaaft_surrogate(x, max_iterations=0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
-def test_iaaft_surrogate_rejects_fractional_max_iterations():
+@pytest.mark.parametrize("max_iterations", [2.5, 3.0, "3", None])
+def test_iaaft_surrogate_rejects_non_integer_max_iterations(max_iterations):
     x = torch.randn(20, dtype=torch.float64)
-    try:
-        iaaft_surrogate(x, max_iterations=2.5)
-        assert False, "expected TypeError"
-    except TypeError:
-        pass
+    with pytest.raises(ValueError, match="max_iterations"):
+        iaaft_surrogate(x, max_iterations=max_iterations)
+
+
+def test_iaaft_surrogate_accepts_numpy_integer_max_iterations():
+    x = torch.randn(20, dtype=torch.float64)
+    first = iaaft_surrogate(x, max_iterations=np.int64(5), generator=torch.Generator().manual_seed(1))
+    second = iaaft_surrogate(x, max_iterations=5, generator=torch.Generator().manual_seed(1))
+    assert torch.equal(first, second)

@@ -10,14 +10,15 @@ Ground truth:
 """
 
 import math
-import subprocess
 
+import numpy as np
 import pytest
 import torch
 
-from torchnlts.entropy.permutation import ordinal_pattern_probabilities, permutation_entropy
+from tests.conftest import run_julia
+from torchnlts.embedding.delay import delay_embedding
+from torchnlts.entropy.permutation import _ordinal_pattern_codes, ordinal_pattern_probabilities, permutation_entropy
 
-JULIA_PROJECT = "juliaenv"
 TRAJECTORY = torch.tensor([4.0, 7.0, 9.0, 10.0, 6.0, 11.0, 3.0], dtype=torch.float64)
 # Windows (m=3): (4,7,9)->code 0, (7,9,10)->0, (9,10,6)->4, (10,6,11)->2, (6,11,3)->4
 
@@ -38,7 +39,7 @@ def test_variance_weighting_hand_derived():
     expected = torch.zeros(6, dtype=torch.float64)
     for code, weight in zip([0, 0, 4, 2, 4], weights):
         expected[code] += weight / total
-    probability = ordinal_pattern_probabilities(TRAJECTORY, 3, 1, weighting="variance")
+    probability = ordinal_pattern_probabilities(TRAJECTORY, embedding_dim=3, delay=1, weighting="variance")
     assert torch.allclose(probability, expected, rtol=1e-12, atol=0)
     assert math.isclose(weights[1], 14 / 9, rel_tol=1e-12)
     assert math.isclose(weights[2], 26 / 9, rel_tol=1e-12)
@@ -56,19 +57,23 @@ def test_amplitude_weighting_hand_derived():
     expected = torch.zeros(6, dtype=torch.float64)
     for code, weight in zip([0, 0, 4, 2, 4], weights):
         expected[code] += weight / total
-    probability = ordinal_pattern_probabilities(TRAJECTORY, 3, 1, weighting="amplitude")
+    probability = ordinal_pattern_probabilities(TRAJECTORY, embedding_dim=3, delay=1, weighting="amplitude")
     assert torch.allclose(probability, expected, rtol=1e-12, atol=0)
 
 
 def test_amplitude_weight_extremes_and_default():
     # A = 1: weight is the mean absolute level only; A default is 0.5.
-    level = ordinal_pattern_probabilities(TRAJECTORY, 3, 1, weighting="amplitude", amplitude_weight=1.0)
+    level = ordinal_pattern_probabilities(
+        TRAJECTORY, embedding_dim=3, delay=1, weighting="amplitude", amplitude_weight=1.0
+    )
     weights = torch.tensor([20.0, 26.0, 25.0, 27.0, 20.0], dtype=torch.float64) / 3
     expected = torch.zeros(6, dtype=torch.float64)
     expected.index_add_(0, torch.tensor([0, 0, 4, 2, 4]), weights / weights.sum())
     assert torch.allclose(level, expected, rtol=1e-12, atol=0)
-    default = ordinal_pattern_probabilities(TRAJECTORY, 3, 1, weighting="amplitude")
-    explicit = ordinal_pattern_probabilities(TRAJECTORY, 3, 1, weighting="amplitude", amplitude_weight=0.5)
+    default = ordinal_pattern_probabilities(TRAJECTORY, embedding_dim=3, delay=1, weighting="amplitude")
+    explicit = ordinal_pattern_probabilities(
+        TRAJECTORY, embedding_dim=3, delay=1, weighting="amplitude", amplitude_weight=0.5
+    )
     assert torch.equal(default, explicit)
 
 
@@ -76,8 +81,10 @@ def test_equal_weights_reduce_to_permutation_entropy():
     # Alternating +-1 sawtooth: every window has the same A=1 weight (mean |x| = 1),
     # so amplitude weighting with A=1 equals plain counting.
     trajectory = torch.tensor([1.0, -1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0], dtype=torch.float64)
-    plain = ordinal_pattern_probabilities(trajectory, 3, 1)
-    weighted = ordinal_pattern_probabilities(trajectory, 3, 1, weighting="amplitude", amplitude_weight=1.0)
+    plain = ordinal_pattern_probabilities(trajectory, embedding_dim=3, delay=1)
+    weighted = ordinal_pattern_probabilities(
+        trajectory, embedding_dim=3, delay=1, weighting="amplitude", amplitude_weight=1.0
+    )
     assert torch.allclose(plain, weighted, rtol=1e-12, atol=0)
 
 
@@ -91,7 +98,7 @@ def test_batched_shapes_and_unbatched_agreement():
     torch.manual_seed(0)
     batch = torch.randn(3, 30, 1, dtype=torch.float64)
     for weighting in ("variance", "amplitude"):
-        probability = ordinal_pattern_probabilities(batch, 3, 1, weighting=weighting)
+        probability = ordinal_pattern_probabilities(batch, embedding_dim=3, delay=1, weighting=weighting)
         assert probability.shape == (3, 6)
         assert torch.allclose(probability.sum(-1), torch.ones(3, dtype=torch.float64))
         entropy = permutation_entropy(batch, weighting=weighting)
@@ -129,7 +136,7 @@ def test_gradcheck(weighting):
     trajectory = (torch.randn(2, 12, 1, dtype=torch.float64) + 0.1).requires_grad_()
     assert torch.autograd.gradcheck(lambda value: permutation_entropy(value, weighting=weighting), (trajectory,))
     assert torch.autograd.gradcheck(
-        lambda value: ordinal_pattern_probabilities(value, 3, 2, weighting=weighting), (trajectory,)
+        lambda value: ordinal_pattern_probabilities(value, embedding_dim=3, delay=2, weighting=weighting), (trajectory,)
     )
 
 
@@ -205,7 +212,7 @@ def test_invalid_amplitude_weight_raises_value_error(bad):
         permutation_entropy(TRAJECTORY, weighting="amplitude", amplitude_weight=bad)
 
 
-def _run_julia(trajectory, constructor, embedding_dim, delay, extra=""):
+def _julia_entropy(trajectory, constructor, embedding_dim, delay, extra=""):
     values = ", ".join(f"{v:.17g}" for v in trajectory.numpy())
     code = f"""
     using ComplexityMeasures
@@ -213,11 +220,7 @@ def _run_julia(trajectory, constructor, embedding_dim, delay, extra=""):
     est = {constructor}{{{embedding_dim}}}({delay}{extra})
     println(entropy(Shannon(base=MathConstants.e), est, x))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=120
-    )
-    assert result.returncode == 0, result.stderr
-    return torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    return torch.tensor(float(run_julia(code).strip()), dtype=torch.float64)
 
 
 @pytest.mark.parametrize("embedding_dim,delay", [(3, 1), (4, 2)])
@@ -225,8 +228,8 @@ def test_weighted_matches_complexitymeasures_jl(embedding_dim, delay):
     # Julia uses the population variance of each embedded vector, as here (documented paper typo).
     torch.manual_seed(5)
     trajectory = torch.randn(60, dtype=torch.float64)
-    julia = _run_julia(trajectory, "WeightedOrdinalPatterns", embedding_dim, delay)
-    ours = permutation_entropy(trajectory, embedding_dim, delay, weighting="variance")
+    julia = _julia_entropy(trajectory, "WeightedOrdinalPatterns", embedding_dim, delay)
+    ours = permutation_entropy(trajectory, embedding_dim=embedding_dim, delay=delay, weighting="variance")
     assert torch.isclose(ours, julia, rtol=1e-9, atol=1e-9)
 
 
@@ -235,9 +238,9 @@ def test_weighted_matches_complexitymeasures_jl(embedding_dim, delay):
 def test_amplitude_matches_complexitymeasures_jl(amplitude_weight, embedding_dim, delay):
     torch.manual_seed(6)
     trajectory = torch.randn(60, dtype=torch.float64)
-    julia = _run_julia(trajectory, "AmplitudeAwareOrdinalPatterns", embedding_dim, delay, f", {amplitude_weight}")
+    julia = _julia_entropy(trajectory, "AmplitudeAwareOrdinalPatterns", embedding_dim, delay, f", {amplitude_weight}")
     ours = permutation_entropy(
-        trajectory, embedding_dim, delay, weighting="amplitude", amplitude_weight=amplitude_weight
+        trajectory, embedding_dim=embedding_dim, delay=delay, weighting="amplitude", amplitude_weight=amplitude_weight
     )
     assert torch.isclose(ours, julia, rtol=1e-9, atol=1e-9)
 
@@ -247,3 +250,73 @@ def test_unweighted_large_integers_ranked_exactly():
     series = torch.tensor([2**24 + 1, 2**24, 2**24 + 2, 2**24 + 1, 2**24])
     expected = ordinal_pattern_probabilities(torch.tensor([1, 0, 2, 1, 0]))
     assert torch.equal(ordinal_pattern_probabilities(series), expected)
+
+
+@pytest.mark.parametrize("weighting", ["variance", "amplitude"])
+def test_large_pattern_space_needs_no_length_by_patterns_array(weighting):
+    # Regression: 9! = 362880 patterns over 20000 windows; a one-hot weighted sum needs tens of GB.
+    torch.manual_seed(1)
+    trajectory = torch.randn(20000, dtype=torch.float64)
+    embedding_dim = 9
+    windows = delay_embedding(trajectory, embedding_dim)
+    if weighting == "variance":
+        weights = windows.var(dim=-1, unbiased=False)
+    else:
+        weights = 0.5 * windows.abs().mean(dim=-1) + 0.5 * windows.diff(dim=-1).abs().mean(dim=-1)
+    codes = _ordinal_pattern_codes(windows)
+    sums = np.bincount(codes.numpy(), weights=weights.numpy(), minlength=math.factorial(embedding_dim))
+    probability = torch.from_numpy(sums[sums > 0] / sums.sum())
+    expected = -(probability * probability.log()).sum()
+    result = permutation_entropy(trajectory, embedding_dim=embedding_dim, weighting=weighting)
+    assert torch.isclose(result, expected, rtol=1e-9, atol=0)
+
+
+@pytest.mark.parametrize("weighting", ["variance", "amplitude"])
+def test_vmap_matches_batched_call(weighting):
+    torch.manual_seed(3)
+    batch = torch.randn(3, 40, 1, dtype=torch.float64)
+    batch[1, 4] = float("nan")
+    direct = permutation_entropy(batch, weighting=weighting)
+    mapped = torch.vmap(lambda series: permutation_entropy(series, weighting=weighting))(batch)
+    assert torch.allclose(direct, mapped, equal_nan=True) and torch.isnan(mapped[1])
+
+
+@pytest.mark.parametrize("weighting", ["variance", "amplitude"])
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf")])
+def test_nan_for_nonfinite_sample_outside_every_window(weighting, bad):
+    # Regression: with embedding_dim=2 and delay=30 on 50 samples, samples 20-29 enter no window.
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = bad
+    options = dict(embedding_dim=2, delay=30, weighting=weighting)
+    entropy = permutation_entropy(batch, **options)
+    assert torch.isnan(entropy[1]) and torch.isfinite(entropy[[0, 2]]).all()
+    probability = ordinal_pattern_probabilities(batch, **options)
+    assert torch.isnan(probability[1]).all() and torch.isfinite(probability[[0, 2]]).all()
+    for row in (0, 2):
+        assert torch.equal(entropy[row], permutation_entropy(batch[row], **options))
+        assert torch.equal(probability[row], ordinal_pattern_probabilities(batch[row], **options))
+
+
+@pytest.mark.parametrize("weighting", ["variance", "amplitude"])
+def test_nonfinite_sample_outside_every_window_leaves_other_gradients(weighting):
+    torch.manual_seed(2)
+    clean, bad_row = torch.randn(50, dtype=torch.float64), torch.randn(50, dtype=torch.float64)
+    bad_row[25] = float("nan")
+    options = dict(embedding_dim=2, delay=30, weighting=weighting)
+
+    def gradients(rows):
+        # The bad entry is scattered in after the scaling, so it carries no gradient of its own.
+        batch = torch.stack(rows).unsqueeze(-1)
+        scale = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+        nonfinite = ~torch.isfinite(batch)
+        scaled = (torch.where(nonfinite, 1.0, batch) * scale).masked_scatter(nonfinite, batch[nonfinite])
+        scaled.retain_grad()
+        permutation_entropy(scaled, **options).nansum().backward()
+        return scaled.grad, scale.grad
+
+    batch_grad, scale_grad = gradients([bad_row, clean])
+    single_grad, single_scale_grad = gradients([clean])
+    assert torch.isfinite(batch_grad).all() and (batch_grad[0] == 0).all()
+    assert torch.allclose(batch_grad[1], single_grad[0])
+    assert torch.isfinite(scale_grad) and torch.allclose(scale_grad, single_scale_grad)

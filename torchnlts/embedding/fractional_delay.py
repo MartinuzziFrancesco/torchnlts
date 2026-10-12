@@ -1,21 +1,13 @@
-"""Fractional/learnable-lag delay embedding, generalizing delay_embedding.
+"""Fractional (optionally learnable) lag delay embedding, generalizing ``delay_embedding``.
 
-Gradient class: piecewise. Linear interpolation is continuous in the
-lag everywhere, and its derivative w.r.t. a lag equals the local finite
-difference of the trajectory almost everywhere -- but that derivative
-jumps whenever a lag crosses an exact integer (the pair of interpolated
-samples changes). Gradcheck avoids that boundary by using half-integer
-lags.
+Reference: Laakso, T. I. et al. (1996), "Splitting the unit delay: tools for fractional delay filter design", IEEE
+Signal Processing Magazine 13(1), 30-60. Linear interpolation between the two nearest integer-lag samples is the
+simplest fractional-delay filter in their taxonomy; integer lags reproduce ``delay_embedding`` exactly.
 
-No Julia equivalent exists: DelayEmbeddings.jl's `embed` only accepts
-integer lags (checked its method signatures directly). Reference:
-Laakso, T. I. et al. (1996), "Splitting the unit delay: tools for
-fractional delay filter design", IEEE Signal Processing Magazine 13(1),
-30-60 -- linear interpolation between the two nearest integer-lag
-samples, the simplest fractional-delay filter in their taxonomy.
-Validated here against that formula directly (hand-derived) and against
-:func:`torchnlts.embedding.delay_embedding` for integer lags,
-where the two must agree exactly.
+Gradient class: piecewise. The interpolation is continuous in every lag and its derivative equals the local finite
+difference of the trajectory, but the derivative jumps when a lag crosses an integer.
+
+No Julia equivalent exists: DelayEmbeddings.jl's ``embed`` accepts integer lags only.
 """
 
 from __future__ import annotations
@@ -29,20 +21,25 @@ from torchnlts.convert import as_tensor
 
 
 def fractional_delay_embedding(trajectory, delays) -> torch.Tensor:
-    """Delay embedding at arbitrary (non-integer, non-uniform, and
-    optionally learnable) lags, via linear interpolation.
+    """Delay embedding at arbitrary (non-integer, non-uniform, optionally learnable) lags, by linear interpolation.
+
+    Reference: Laakso et al. (1996), IEEE Signal Process. Mag. 13(1), 30-60.
+
+    Gradient class: piecewise (see module docstring).
 
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
-            numpy array, or pandas Series/DataFrame.
-        delays: 1D tensor of ``embedding_dim`` non-negative lags (need
-            not be integers, sorted, or evenly spaced). Pass a tensor
-            with ``requires_grad=True`` to optimize the lags themselves.
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        delays: 1-D tensor of ``embedding_dim`` finite, non-negative lags in any order and spacing. Pass a tensor
+            with ``requires_grad=True`` to optimize the lags.
 
     Returns:
-        Embedded trajectory of shape ``[N, embedding_dim * D]`` or
-        ``[B, N, embedding_dim * D]``, row ``n`` interpolating
-        ``trajectory`` at times ``n + delays``.
+        Shape ``[N, embedding_dim * D]`` or ``[B, N, embedding_dim * D]`` with
+        ``N = floor(T - 1 - max(delays)) + 1``. Row ``n`` interpolates ``trajectory`` at times ``n + delays``. The
+        dtype is the promotion of the default dtype, ``delays`` and ``trajectory``.
+
+    Raises:
+        ValueError: If ``delays`` is not a non-empty 1-D tensor of finite, non-negative lags, or the trajectory is
+            too short for the largest lag.
     """
     batched, ndim = _ensure_batched(trajectory)
     batch_size, num_points, dim = batched.shape
@@ -59,6 +56,8 @@ def fractional_delay_embedding(trajectory, delays) -> torch.Tensor:
     if batched.is_floating_point():
         target_dtype = torch.promote_types(target_dtype, batched.dtype)
     delays = delays.to(device=batched.device, dtype=target_dtype)
+    if not torch.isfinite(delays).all():
+        raise ValueError("delays must be finite")
     if torch.any(delays < 0):
         raise ValueError("delays must be non-negative")
 

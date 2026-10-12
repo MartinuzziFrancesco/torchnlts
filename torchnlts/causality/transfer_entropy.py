@@ -1,73 +1,35 @@
-"""Transfer entropy, from observed data.
+"""Transfer entropy and the Frenzel-Pompe conditional mutual information estimator it is built on.
 
-Reference: Schreiber, T. (2000), "Measuring Information Transfer", Phys.
-Rev. Lett. 85(2), 461-464: transfer entropy from a source series to a
-target series is the conditional mutual information between the
-target's *future* and the source's *past*, conditioned on the target's
-own past --
+Reference: Schreiber, T. (2000), "Measuring Information Transfer", Phys. Rev. Lett. 85(2), 461-464:
+``TE(source -> target) = I(target_future ; source_past | target_past)``, the information the source's past adds about
+the target's next value beyond the target's own past. It is directional: ``transfer_entropy(source, target)`` and
+``transfer_entropy(target, source)`` differ.
 
-    TE(source -> target) = I(target_future ; source_past | target_past)
+:func:`~torchnlts.causality.conditional_mutual_information` is the k-nearest-neighbor estimator of Frenzel & Pompe
+(2007), Phys. Rev. Lett. 99, 204101, the three-variable analogue of :func:`torchnlts.entropy.mutual_information`
+(KSG1). One k-th-neighbor radius from the joint (x, y, z) space is shared by the three marginal counts, so the
+digamma terms cancel the bias; subtracting two ``mutual_information`` calls, each with its own radius, does not. As in
+``mutual_information``, the Theiler window applies to the joint search only.
 
--- i.e. how much *additional* predictive information about the target's
-next value the source's history carries, beyond what the target's own
-history already provides. Unlike (unconditional) mutual information,
-this is directional: ``transfer_entropy(source, target, ...)`` and
-``transfer_entropy(target, source, ...)`` generally differ, and neither
-equals ``mutual_information(source, target)``.
+Differences from CausalityTools.jl (``FPVP`` conditional mutual information, ``TEShannon``):
 
-:func:`~torchnlts.causality.conditional_mutual_information` implements the K-nearest-neighbor
-conditional mutual information estimator of Frenzel, S. & Pompe, B.
-(2007), "Partial Mutual Information for Coupling Analysis of
-Multivariate Time Series", Phys. Rev. Lett. 99, 204101 -- the natural,
-consistent generalization of this codebase's own
-:func:`torchnlts.entropy.mutual_information` (KSG1)
-from two variables to three with conditioning, reusing the same
-building blocks (:func:`torchnlts.neighbors.pairwise_distance`,
-the same strict marginal-counting convention, the same Theiler-window-
-on-the-joint-search-only convention). Critically, this is *not* the
-same as calling ``mutual_information`` twice and subtracting: that naive
-decomposition (``I(A;B|C) = I(A;(B,C)) - I(A;C)``) uses a different,
-independently-computed k-th-neighbor radius for each term, which breaks
-the digamma bias-cancellation that makes the KSG-style estimator
-accurate in the first place -- Frenzel & Pompe's estimator instead uses
-a *single* k-th-neighbor radius, from the full three-way joint space,
-shared across all three marginal counts.
+- Marginal neighbors are counted with the paper's strict ``<``; ``FPVP`` counts ``<=`` (Neighborhood.jl's
+  ``inrangecount``), which changes the estimate on essentially every point.
+- :func:`~torchnlts.causality.transfer_entropy` embeds the source's and the target's past with one shared
+  ``embedding_dim`` (CausalityTools.jl's default ``EmbeddingTE()`` has ``dS = dT = 1``) and does not offer its
+  independent dimensions or non-uniform lags.
 
-Matches CausalityTools.jl's ``FPVP`` conditional-mutual-information
-estimator (its own transfer entropy, ``TEShannon``, is defined as this
-same conditional mutual information, matching the decomposition above
-exactly). Known, confirmed deviation, same playbook as
-:func:`torchnlts.entropy.mutual_information`'s own
-CausalityTools.jl comparison: that package's ``FPVP`` counts marginal
-neighbors with an *inclusive* (``<=``) radius query
-(``Neighborhood.jl``'s ``inrangecount``, the same primitive
-``mutual_information``'s own Julia comparison already found to be
-inclusive there), not Frenzel & Pompe's strict ``<``. This module
-implements the paper's strict definition.
+Limitation: a single shared ``embedding_dim``; independent source and target embedding dimensions are the upgrade
+path.
 
-:func:`~torchnlts.causality.transfer_entropy` uses a single shared ``embedding_dim`` for
-*both* the source's and the target's own past (matching
-CausalityTools.jl's own default, ``EmbeddingTE()``'s ``dS = dT = 1``) --
-a deliberate simplification relative to Julia's fully general
-``EmbeddingTE``, which supports independent source/target embedding
-dimensions and arbitrary (non-uniform-lag) embedding vectors. Symmetric
-dimensions keep the two embeddings' raw-time alignment identical (see
-:func:`torchnlts.causality.cross_map_estimate`'s own docstring for
-why this codebase's forward-offset ``delay_embedding`` needs this
-re-derivation at all); independent dimensions would need two different
-offsets reconciled against a shared "current time", which this module
-doesn't implement. Limitation: single shared ``embedding_dim``; independent
-source/target embedding dimensions would be the upgrade if asymmetric
-embeddings matter for a real workload.
+Gradient class: none (neighbor ranks and threshold counts are discrete).
 """
 
 from __future__ import annotations
 
-import operator
-
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch
+from torchnlts._shape import _as_int, _ensure_batched, _restore_batch, _validate_matching_batch
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.theiler import _require_self_exclusion, apply_theiler_window
@@ -77,56 +39,42 @@ def conditional_mutual_information(
     x,
     y,
     z,
+    *,
     num_neighbors: int = 3,
     theiler_window: int = 0,
     norm_order: float = float("inf"),
 ) -> torch.Tensor:
-    """Frenzel-Pompe KSG-style conditional mutual information estimate,
-    ``I(x ; y | z)``.
+    """Frenzel-Pompe k-nearest-neighbor estimate of the conditional mutual information ``I(x ; y | z)``, in nats.
 
-    Gradient class: none (same reasoning as
-    :func:`torchnlts.entropy.mutual_information`:
-    k-th-nearest-neighbor selection and the marginal threshold counts
-    are discrete).
+    Reference: Frenzel & Pompe (2007), Phys. Rev. Lett. 99, 204101.
+
+    Gradient class: none (neighbor ranks and threshold counts are discrete).
 
     Args:
-        x: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy
-            array, or pandas Series/DataFrame. A ``NaN`` anywhere in a
-            given time point NaNs that whole point's contribution (see
-            Returns) rather than raising, matching
-            ``mutual_information``'s own vmap-compatible convention.
-        y: Second variable, same batched-ness as ``x``; own feature
-            dimensionality.
-        z: Conditioning variable, same batched-ness as ``x``; own
-            feature dimensionality. All three are truncated together to
-            the shortest one's length if they differ.
-        num_neighbors: k, the neighbor rank whose joint-(x,y,z)-space
-            distance sets each point's marginal counting radius.
-        theiler_window: Theiler window, applied only when searching for
-            each point's k-th joint-space neighbor, not to the marginal
-            counting step (matching ``mutual_information``'s and
-            CausalityTools.jl's ``FPVP``'s own convention). Must be
-            ``>= 0``.
-        norm_order: Shared Minkowski norm order for every marginal
-            distance matrix and, through them, the joint metric
-            (``inf`` for the paper's and CausalityTools.jl's default
-            Chebyshev choice).
+        x: Shape ``[T]``, ``[T, D]`` or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        y: Same batching as ``x``, own feature dimension.
+        z: Conditioning variable, same batching as ``x``, own feature dimension. The three are truncated to the
+            shortest length.
+        num_neighbors: ``k``, the rank of the joint-space neighbor whose distance is each point's counting radius.
+        theiler_window: Joint-space neighbors with ``|i - j| <= theiler_window`` are excluded; the marginal counts
+            are not windowed. Must be ``>= 0``.
+        norm_order: Minkowski norm order of every marginal distance and, through them, the joint metric (``inf``,
+            Chebyshev, is the paper's choice).
 
     Returns:
-        Scalar (unbatched inputs) or ``[B]`` (batched) conditional
-        mutual information estimate, in nats. Can be negative -- a
-        finite-sample estimator, not a probability. ``NaN`` for any
-        batch element where some point has fewer than ``num_neighbors``
-        eligible neighbors in the joint space after Theiler exclusion,
-        or where some point contains ``NaN`` in ``x``, ``y``, or ``z``.
+        Scalar for unbatched input, ``[B]`` for batched, in ``x``'s floating dtype (float32 for half-precision
+        input, the default dtype for integer input). Can be negative: it is a finite-sample estimate. ``NaN`` for a
+        batch element with a point that has fewer than ``num_neighbors`` joint neighbors left after Theiler
+        exclusion, or with a ``NaN``/``inf`` in ``x``, ``y`` or ``z``.
 
     Raises:
-        ValueError: If ``num_neighbors < 1``, ``theiler_window < 0``, or
-            ``x``/``y``/``z`` disagree on batched-ness or batch size.
+        ValueError: If ``num_neighbors`` is not an integer ``>= 1``, ``theiler_window`` is negative or not an
+            integer, or the inputs disagree on batching or batch size.
     """
+    num_neighbors = _as_int(num_neighbors, "num_neighbors")
     if num_neighbors < 1:
         raise ValueError(f"num_neighbors must be >= 1, got {num_neighbors}")
-    _require_self_exclusion(theiler_window, "conditional mutual information")
+    theiler_window = _require_self_exclusion(theiler_window, "conditional mutual information")
 
     x_batched, x_ndim = _ensure_batched(x)
     y_batched, y_ndim = _ensure_batched(y)
@@ -137,7 +85,9 @@ def conditional_mutual_information(
     length = min(x_batched.shape[-2], y_batched.shape[-2], z_batched.shape[-2])
     x_batched, y_batched, z_batched = x_batched[..., :length, :], y_batched[..., :length, :], z_batched[..., :length, :]
     invalid_point = (
-        torch.isnan(x_batched).any(dim=-1) | torch.isnan(y_batched).any(dim=-1) | torch.isnan(z_batched).any(dim=-1)
+        ~torch.isfinite(x_batched).all(dim=-1)
+        | ~torch.isfinite(y_batched).all(dim=-1)
+        | ~torch.isfinite(z_batched).all(dim=-1)
     )
 
     dist_x = pairwise_distance(x_batched, norm_order=norm_order)
@@ -165,6 +115,7 @@ def conditional_mutual_information(
 def transfer_entropy(
     source,
     target,
+    *,
     embedding_dim: int = 1,
     delay: int = 1,
     prediction_lag: int = 1,
@@ -172,41 +123,39 @@ def transfer_entropy(
     theiler_window: int = 0,
     norm_order: float = float("inf"),
 ) -> torch.Tensor:
-    """Transfer entropy from ``source`` to ``target``.
+    """Transfer entropy from ``source`` to ``target``, in nats.
+
+    The conditional mutual information between the target ``prediction_lag`` steps ahead and the source's past, given
+    the target's past.
+
+    Reference: Schreiber (2000), Phys. Rev. Lett. 85(2), 461-464.
 
     Gradient class: none (see :func:`~torchnlts.causality.conditional_mutual_information`).
 
     Args:
-        source: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
-            numpy array, or pandas Series/DataFrame.
-        target: Second series, same batched-ness as ``source``; own
-            feature dimensionality. Truncated together with ``source``
-            to the shorter one's length if they differ.
-        embedding_dim: Delay-embedding dimension shared by both the
-            source's and the target's own past (see the module
-            docstring for why this is a single shared value, not
-            independently configurable).
-        delay: Embedding lag, shared by both past embeddings.
-        prediction_lag: How many steps ahead the target is predicted
-            from (Schreiber's/CausalityTools.jl's ``eta``). Must be
-            ``>= 1``.
+        source: Shape ``[T]``, ``[T, D]`` or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        target: Same batching as ``source``, own feature dimension. Truncated together with ``source`` to the shorter
+            length.
+        embedding_dim: Embedding dimension of the source's and of the target's past (one shared value).
+        delay: Embedding lag of both pasts.
+        prediction_lag: Steps from the most recent sample of the pasts to the predicted target value (``eta`` in
+            Schreiber and CausalityTools.jl). Must be ``>= 1``.
         num_neighbors: Forwarded to :func:`~torchnlts.causality.conditional_mutual_information`.
         theiler_window: Forwarded to :func:`~torchnlts.causality.conditional_mutual_information`.
         norm_order: Forwarded to :func:`~torchnlts.causality.conditional_mutual_information`.
 
     Returns:
-        Scalar (unbatched) or ``[B]`` (batched) transfer entropy
-        estimate, in nats. See :func:`~torchnlts.causality.conditional_mutual_information`
-        for when this is ``NaN``.
+        Scalar for unbatched input, ``[B]`` for batched. ``NaN`` as for
+        :func:`~torchnlts.causality.conditional_mutual_information`.
 
     Raises:
-        ValueError: If ``embedding_dim < 1``, ``delay < 1``, or
-            ``prediction_lag < 1``, or if ``source``/``target`` disagree
-            on batched-ness or batch size.
+        ValueError: If ``embedding_dim``, ``delay``, ``prediction_lag`` or ``num_neighbors`` is not an integer
+            ``>= 1``, ``theiler_window`` is negative or not an integer, the series are shorter than
+            ``(embedding_dim - 1) * delay + prediction_lag + 1``, or the inputs disagree on batching or batch size.
     """
-    embedding_dim = operator.index(embedding_dim)
-    delay = operator.index(delay)
-    prediction_lag = operator.index(prediction_lag)
+    embedding_dim = _as_int(embedding_dim, "embedding_dim")
+    delay = _as_int(delay, "delay")
+    prediction_lag = _as_int(prediction_lag, "prediction_lag")
     if prediction_lag < 1:
         raise ValueError(f"prediction_lag must be >= 1, got {prediction_lag}")
 
@@ -217,9 +166,10 @@ def transfer_entropy(
     length = min(source_batched.shape[-2], target_batched.shape[-2])
     source_batched, target_batched = source_batched[:, :length, :], target_batched[:, :length, :]
 
-    source_past = delay_embedding(source_batched, embedding_dim, delay)  # [B, N, embedding_dim * D_source]
-    target_past = delay_embedding(target_batched, embedding_dim, delay)  # [B, N, embedding_dim * D_target]
+    source_past = delay_embedding(source_batched, embedding_dim, delay=delay)  # [B, N, embedding_dim * D_source]
+    target_past = delay_embedding(target_batched, embedding_dim, delay=delay)  # [B, N, embedding_dim * D_target]
     num_embedded = source_past.shape[-2]
+    # Embedded row n ends at raw index n + offset; the target is predicted prediction_lag steps after that.
     offset = (embedding_dim - 1) * delay
 
     num_points = num_embedded - prediction_lag
@@ -234,6 +184,11 @@ def transfer_entropy(
 
     # conditional_mutual_information sees already-batched inputs; restore the original batch rank here.
     cmi = conditional_mutual_information(
-        target_future, source_past, target_past, num_neighbors, theiler_window, norm_order
+        target_future,
+        source_past,
+        target_past,
+        num_neighbors=num_neighbors,
+        theiler_window=theiler_window,
+        norm_order=norm_order,
     )
     return _restore_batch(cmi, max(source_ndim, target_ndim))

@@ -1,7 +1,8 @@
 """Pairwise distance between points of a (batch of) trajectory.
 
-Gradient class: exact (non-differentiable only at zero distance).
 Reference: Grassberger & Procaccia (1983), Physica D 9(1-2), eq. 1-2.
+
+Gradient class: exact (non-differentiable only at zero distance).
 """
 
 from __future__ import annotations
@@ -10,8 +11,8 @@ import torch
 
 from torchnlts._shape import (
     _ensure_batched,
-    _is_complex,
     _power_of_two_scale,
+    _real_scalar,
     _restore_batch,
     _validate_matching_batch,
     _work_dtype,
@@ -20,38 +21,36 @@ from torchnlts._shape import (
 
 def pairwise_distance(
     trajectory: torch.Tensor,
+    *,
     other: torch.Tensor | None = None,
     norm_order: float = 2.0,
 ) -> torch.Tensor:
     """Pairwise Minkowski distance between points of a trajectory.
 
+    Reference: Grassberger & Procaccia (1983), Physica D 9(1-2), eq. 1-2.
+
+    Gradient class: exact (non-differentiable only at zero distance).
+
     Args:
-        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor,
-            numpy array, or pandas Series/DataFrame.
-        other: Optional second trajectory, same convention as ``trajectory``.
-            Defaults to ``trajectory`` (self-distance matrix). Must agree
-            with ``trajectory`` on batched-ness (both ``[B, T, D]`` or both
-            unbatched) and feature dim; batch size must match if both are
-            batched.
-        norm_order: Minkowski norm order (``2`` = Euclidean, ``1`` =
-            Manhattan, ``float('inf')`` = Chebyshev, ``0`` = number of
-            unequal coordinates).
+        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
+        other: Optional second trajectory, same convention as ``trajectory``. It must agree with ``trajectory`` on
+            batchedness and feature dim, and on batch size if batched. Default: ``trajectory`` (self-distance).
+        norm_order: Minkowski norm order: ``2`` Euclidean, ``1`` Manhattan, ``float('inf')`` Chebyshev, ``0`` number
+            of unequal coordinates. A real number ``>= 0``.
 
     Returns:
-        Distance matrix of shape ``[T, T']`` or ``[B, T, T']``, in the
-        input's floating dtype (the default dtype for integer input,
-        float32 for half precision). ``NaN`` for every pair involving a
-        point with a NaN/inf coordinate.
+        Distance matrix of shape ``[T, T']`` or ``[B, T, T']``, in the input's floating dtype (the default dtype for
+        integer input, float32 for half precision). ``NaN`` for every pair involving a point with a NaN/inf
+        coordinate.
 
     Raises:
-        ValueError: If either trajectory is complex or ``norm_order`` is
-            not a real number >= 0.
+        ValueError: If a trajectory is complex, the trajectories do not match in shape, or ``norm_order`` is not a
+            real number ``>= 0``.
 
     Note:
-        Distances far below the trajectory's largest magnitude underflow to
-        zero: in float32 below about ``1e-19`` times it for ``norm_order=2``,
-        ``2**(-126 / norm_order)`` in general (``1`` and ``inf`` are not
-        affected). See the numerical range limits in :doc:`/primitives`.
+        Distances far below the trajectory's largest magnitude underflow to zero: in float32 below about ``1e-19``
+        times it for ``norm_order=2``, ``2**(-126 / norm_order)`` in general (``1`` and ``inf`` are not affected).
+        See the numerical range limits in :doc:`/primitives`.
     """
     norm_order = _validate_norm_order(norm_order)
     batched, ndim = _ensure_batched(trajectory)
@@ -85,9 +84,9 @@ def pairwise_distance(
 def _validate_norm_order(norm_order) -> float:
     """``norm_order`` as a Python float >= 0."""
     try:
-        value = None if _is_complex(norm_order) else float(norm_order)
-    except (TypeError, ValueError, RuntimeError):
-        value = None
-    if value is None or not value >= 0:
-        raise ValueError(f"norm_order must be a real number >= 0, got {norm_order!r}")
-    return value
+        value = _real_scalar(norm_order, "norm_order")
+        if value >= 0:
+            return value
+    except ValueError:
+        pass
+    raise ValueError(f"norm_order must be a real number >= 0, got {norm_order!r}")

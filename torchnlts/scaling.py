@@ -1,53 +1,26 @@
-"""Automatic scaling-region detection for the log-log (or semi-log) slope
-estimators.
+"""Automatic scaling-region detection for the log-log (or semi-log) slope estimators.
 
-Reference: the sequential ``LargestLinearRegion`` algorithm of
-FractalDimensions.jl (``linear_regions``, ``linear_region``, ``slopefit``)
-with ``dxi = 1``. Unlike Julia (``ignore_saturation = true`` by default),
-``saturation=None`` here: no segments are trimmed unless a threshold is
-given. A zero-width segment (repeated sweep point) has no slope and never
-joins a region. Consecutive points define segments with slope
-``dy / dx``; a segment starts a new region when its slope differs from the
-slope of the segment that started the current region by more than
-``tolerance`` (relative, ``|a - b| <= tolerance * max(|a|, |b|)``).
-Neighbouring regions share their boundary point, and the region covering
-the most points (the first one on ties) is the scaling region.
+Reference: the sequential ``LargestLinearRegion`` algorithm of FractalDimensions.jl (``linear_regions``,
+``linear_region``, ``slopefit``) with ``dxi = 1``. Consecutive points define segments with slope ``dy / dx``; a
+segment starts a new region when its slope differs from the slope of the segment that opened the current region by
+more than ``tolerance`` (relative: ``|a - b| <= tolerance * max(|a|, |b|)``). Neighbouring regions share their
+boundary point, and the region covering the most points (the first on ties) is the scaling region. A zero-width
+segment (repeated sweep point) has no slope and never joins a region.
 
-What to pass as ``(sweep, values)`` so the slope equals each estimator's
-result over the detected region:
+Unlike Julia (``ignore_saturation = true`` by default), ``saturation=None`` here: no segment is trimmed unless a
+threshold is given.
 
-==================================  ==========================  ==========================
-Estimator                           ``sweep``                   ``values``
-==================================  ==========================  ==========================
-``correlation_dimension``           ``log(radius)``             ``log(correlation_sum)``
-``dfa_exponent``                    ``log(window_size)``        ``log(fluctuation)``
-``higuchi_dimension``               ``-log(k)``                 ``log(length)``
-``generalized_dimension``           ``-log(box_size)``          ``entropy``
-``rosenstein_lyapunov``             ``k_values``                ``divergence``
-``variogram_dimension``             ``log(lag)``                ``log(variogram)``
-==================================  ==========================  ==========================
-
-``variogram_dimension`` returns ``2 - slope / power``; apply that to the
-slope. Limitation: only the ``dxi = 1`` scan of FractalDimensions.jl is
-implemented (no ``dxi`` stride, no ``:overlap`` method); add a stride by
-averaging segment slopes over ``dxi`` points.
+Limitation: only the ``dxi = 1`` scan is implemented (no ``dxi`` stride, no ``:overlap`` method); upgrade path:
+average the segment slopes over ``dxi`` points.
 """
 
 from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_sweep, _is_complex, _mask_nonfinite_rows, _ols_slope, _output_dtype, _work_dtype
+from torchnlts._shape import _as_sweep, _mask_nonfinite_rows, _ols_slope, _output_dtype, _real_scalar, _work_dtype
 
-
-def _real_scalar(value, name: str) -> float:
-    """``value`` as a Python float; ``ValueError`` for strings, ``None``, complex or non-scalars."""
-    if isinstance(value, (str, bytes)) or value is None or _is_complex(value):
-        raise ValueError(f"{name} must be a real number, got {value!r}")
-    try:
-        return float(value)
-    except (TypeError, ValueError, RuntimeError):
-        raise ValueError(f"{name} must be a real number, got {value!r}") from None
+__all__ = ["linear_regions", "largest_linear_region", "scaling_slope"]
 
 
 def _prepare(sweep, values, tolerance, saturation):
@@ -112,7 +85,7 @@ def _segment_labels(sweep, values, tolerance, saturation) -> torch.Tensor:
     return torch.stack(labels)
 
 
-def linear_regions(sweep, values, tolerance: float = 0.25, saturation: float | None = None) -> torch.Tensor:
+def linear_regions(sweep, values, *, tolerance: float = 0.25, saturation: float | None = None) -> torch.Tensor:
     """Segment ``values`` against ``sweep`` into linear regions.
 
     Reference: FractalDimensions.jl ``linear_regions`` (``dxi = 1``).
@@ -120,24 +93,20 @@ def linear_regions(sweep, values, tolerance: float = 0.25, saturation: float | N
     Gradient class: none (integer labels).
 
     Args:
-        sweep: Shape ``[R]``, the x-axis (see the module docstring for
-            what each estimator uses).
+        sweep: Shape ``[R]``, the x-axis (what to pass for each estimator is listed in
+            :func:`~torchnlts.scaling.scaling_slope`).
         values: Shape ``[R]`` or ``[R, B]``, the y-axis.
-        tolerance: Relative slope tolerance for staying in a region.
-        saturation: If given, ignore the leading and trailing segments
-            whose ``|dy|`` is at most this (FractalDimensions.jl's
-            ``ignore_saturation`` with ``sat_threshold``); ``None``
-            keeps every segment.
+        tolerance: Relative slope tolerance for staying in a region, ``> 0``.
+        saturation: If given (``>= 0``), ignore the leading and trailing segments whose ``|dy|`` is at most this
+            (FractalDimensions.jl's ``ignore_saturation`` with ``sat_threshold``). ``None`` keeps every segment.
 
     Returns:
-        Long tensor of shape ``[R - 1]`` or ``[R - 1, B]``: the region
-        index (from 0) of each segment between consecutive sweep points,
-        ``-1`` for ignored segments and for every segment of a row with a
-        non-finite entry or sweep.
+        Long tensor of shape ``[R - 1]`` or ``[R - 1, B]``: the region index (from 0) of each segment between
+        consecutive sweep points. ``-1`` for ignored segments and for every segment of a row with a non-finite
+        entry or sweep.
 
     Raises:
-        ValueError: If the shapes differ, ``R < 2``, ``tolerance <= 0``
-            or ``saturation < 0``.
+        ValueError: If the shapes differ, ``R < 2``, ``tolerance <= 0`` or ``saturation < 0``.
     """
     sweep, values, batched, nonfinite = _prepare(sweep, values, tolerance, saturation)
     sweep_ok = torch.isfinite(sweep).all()
@@ -156,7 +125,7 @@ def _largest(labels: torch.Tensor):
     return start, stop
 
 
-def largest_linear_region(sweep, values, tolerance: float = 0.25, saturation: float | None = None):
+def largest_linear_region(sweep, values, *, tolerance: float = 0.25, saturation: float | None = None):
     """Start and stop indices of the largest linear region per row.
 
     Reference: FractalDimensions.jl ``linear_region`` / ``LargestLinearRegion``.
@@ -166,18 +135,17 @@ def largest_linear_region(sweep, values, tolerance: float = 0.25, saturation: fl
     Args:
         sweep: Shape ``[R]``.
         values: Shape ``[R]`` or ``[R, B]``.
-        tolerance: See :func:`linear_regions`.
-        saturation: See :func:`linear_regions`.
+        tolerance: As in :func:`~torchnlts.scaling.linear_regions`.
+        saturation: As in :func:`~torchnlts.scaling.linear_regions`.
 
     Returns:
-        ``(start, stop)`` long tensors, shape ``[]`` or ``[B]``, so the
-        region is ``values[start:stop]``. ``(-1, -1)`` for a row with a
-        non-finite entry or sweep.
+        ``(start, stop)`` long tensors, shape ``[]`` or ``[B]``, so the region is ``values[start:stop]``.
+        ``(-1, -1)`` for a row with a non-finite entry or sweep.
 
     Raises:
-        ValueError: As :func:`linear_regions`.
+        ValueError: As :func:`~torchnlts.scaling.linear_regions`.
     """
-    labels = linear_regions(sweep, values, tolerance, saturation)
+    labels = linear_regions(sweep, values, tolerance=tolerance, saturation=saturation)
     batched = labels.dim() == 2
     labels = labels if batched else labels.unsqueeze(-1)
     start, stop = _largest(labels)
@@ -186,28 +154,42 @@ def largest_linear_region(sweep, values, tolerance: float = 0.25, saturation: fl
     return (start, stop) if batched else (start.squeeze(0), stop.squeeze(0))
 
 
-def scaling_slope(sweep, values, tolerance: float = 0.25, saturation: float | None = None) -> torch.Tensor:
+def scaling_slope(sweep, values, *, tolerance: float = 0.25, saturation: float | None = None) -> torch.Tensor:
     """OLS slope of ``values`` against ``sweep`` over the largest linear region.
+
+    Passing the following ``(sweep, values)`` makes the slope equal each estimator's result over the detected
+    region:
+
+    ==================================  ==========================  ==========================
+    Estimator                           ``sweep``                   ``values``
+    ==================================  ==========================  ==========================
+    ``correlation_dimension``           ``log(radius)``             ``log(correlation_sum)``
+    ``dfa_exponent``                    ``log(window_size)``        ``log(fluctuation)``
+    ``higuchi_dimension``               ``-log(k)``                 ``log(length)``
+    ``generalized_dimension``           ``-log(box_size)``          ``entropy``
+    ``rosenstein_lyapunov``             ``k_values``                ``divergence``
+    ``variogram_dimension``             ``log(lag)``                ``log(variogram)``
+    ==================================  ==========================  ==========================
+
+    ``variogram_dimension`` returns ``2 - slope / power``; apply that to the slope.
 
     Reference: FractalDimensions.jl ``slopefit(x, y, LargestLinearRegion())``.
 
-    Gradient class: exact for the chosen region (closed-form OLS slope;
-    the region choice is piecewise constant in ``values`` and carries no
-    gradient).
+    Gradient class: exact for the chosen region (closed-form OLS slope); the region choice is piecewise constant in
+    ``values`` and carries no gradient.
 
     Args:
         sweep: Shape ``[R]``.
         values: Shape ``[R]`` or ``[R, B]``.
-        tolerance: See :func:`linear_regions`.
-        saturation: See :func:`linear_regions`.
+        tolerance: As in :func:`~torchnlts.scaling.linear_regions`.
+        saturation: As in :func:`~torchnlts.scaling.linear_regions`.
 
     Returns:
-        Slope(s), shape ``[]`` or ``[B]``, in ``values``' floating dtype
-        (half precision is computed in float32). ``NaN`` for a row with a
-        non-finite entry or sweep, whose gradient is zero.
+        Slope, shape ``[]`` or ``[B]``, in ``values``' floating dtype (half precision is computed in float32).
+        ``NaN`` for a row with a non-finite entry or sweep, whose gradient is zero.
 
     Raises:
-        ValueError: As :func:`linear_regions`.
+        ValueError: As :func:`~torchnlts.scaling.linear_regions`.
     """
     out_dtype = _output_dtype(values if torch.is_tensor(values) else torch.as_tensor(values))
     sweep, values, batched, nonfinite = _prepare(sweep, values, tolerance, saturation)

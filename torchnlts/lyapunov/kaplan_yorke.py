@@ -1,8 +1,7 @@
 """Kaplan-Yorke (Lyapunov) dimension from a Lyapunov spectrum.
 
-Reference: Kaplan & Yorke (1979), "Chaotic behavior of multidimensional
-difference equations", Lecture Notes in Math. 730, 204-227; Frederickson,
-Kaplan, Yorke & Yorke (1983), J. Diff. Eq. 49, 185-207.
+Reference: Kaplan & Yorke (1979), "Chaotic behavior of multidimensional difference equations", Lecture Notes in Math.
+730, 204-227; Frederickson, Kaplan, Yorke & Yorke (1983), J. Diff. Eq. 49, 185-207.
 """
 
 from __future__ import annotations
@@ -16,27 +15,27 @@ from torchnlts.convert import as_tensor
 def kaplan_yorke_dimension(spectrum) -> torch.Tensor:
     """Kaplan-Yorke dimension ``k + sum(lambda_1..lambda_k) / |lambda_{k+1}|``.
 
-    Matches FractalDimensions.jl's ``kaplanyorke_dim``: ``k`` is the number
-    of leading non-negative partial sums of the descending-sorted spectrum.
+    ``k`` is the number of leading non-negative partial sums of the descending-sorted spectrum, as in
+    FractalDimensions.jl's ``kaplanyorke_dim``.
 
-    Gradient class: piecewise (continuous, with kinks where a partial sum
-    crosses zero or sorted exponents tie; jumps where the largest exponent
-    crosses zero).
+    Reference: Kaplan & Yorke (1979), Lecture Notes in Math. 730, 204-227.
+
+    Gradient class: piecewise (continuous, with kinks where a partial sum crosses zero or sorted exponents tie, and
+    jumps where the largest exponent crosses zero).
 
     Args:
-        spectrum: Lyapunov exponents, shape ``[D]`` or ``[B, D]``, as
-            returned by ``lyapunov_spectrum`` or ``eckmann_spectrum`` (a
-            tensor, numpy array, or pandas object). Any
-            order: sorted descending internally (the gradient follows the
-            sort).
+        spectrum: Lyapunov exponents, shape ``[D]`` or ``[B, D]``, as returned by
+            :func:`~torchnlts.lyapunov.lyapunov_spectrum` or :func:`~torchnlts.lyapunov.eckmann_spectrum`. A tensor,
+            numpy array, or pandas object. Any order; it is sorted descending internally and the gradient follows
+            the sort.
 
     Returns:
-        Dimension, shape ``[]`` or ``[B]``. ``0`` if the largest exponent is
-        negative, ``D`` if no partial sum is negative, and ``NaN`` for a row
-        containing NaN/inf (other rows and their gradients are unaffected).
+        The dimension, shape ``[]`` or ``[B]``, in the spectrum's floating dtype (the default dtype for integer
+        input; half precision is computed in float32). ``0`` if the largest exponent is negative, ``D`` if no partial
+        sum is negative, ``NaN`` for a row containing NaN/inf (other rows and their gradients are unaffected).
 
     Raises:
-        ValueError: If ``spectrum`` is not 1D or 2D, is empty, or is complex.
+        ValueError: If ``spectrum`` is not 1-D or 2-D, is empty, or is complex.
     """
     spectrum = as_tensor(spectrum)
     if spectrum.dim() not in (1, 2) or spectrum.shape[-1] == 0:

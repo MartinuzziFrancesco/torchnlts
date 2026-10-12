@@ -103,6 +103,10 @@ def test_errors():
         complexity_estimate(torch.randn(10, 2))
     with pytest.raises(ValueError, match="complex"):
         complexity_estimate(torch.randn(10, dtype=torch.complex64))
+    with pytest.raises(ValueError, match="complex"):
+        complexity_invariant_distance(torch.randn(10, dtype=torch.complex64), torch.randn(10))
+    with pytest.raises(ValueError, match="complexity_invariant_distance only supports a univariate"):
+        complexity_invariant_distance(torch.randn(10), torch.randn(10, 2))
 
 
 def test_dtype_inferred():

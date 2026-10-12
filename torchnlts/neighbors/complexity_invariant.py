@@ -1,12 +1,8 @@
 """Complexity estimate and complexity-invariant distance (CID) of univariate series.
 
-Reference: Batista, Keogh, Tataw & de Souza (2014), "CID: an efficient complexity-invariant distance
-for time series", Data Mining and Knowledge Discovery 28(3), 634-669:
-``CE(Q) = sqrt(sum_i (q_{i+1} - q_i)^2)`` and ``CID(Q, C) = ED(Q, C) * max(CE(Q), CE(C)) / min(CE(Q), CE(C))``.
-
-Gradient class: exact except at zero (the norms are not differentiable there; the zero subgradient is
-returned) and, for CID, at ties ``CE(Q) = CE(C)`` (max/min kink). Where exactly one CE is zero the CID
-is ``inf``; its gradient is not meaningful there and is returned as zero.
+Reference: Batista, Keogh, Tataw & de Souza (2014), "CID: an efficient complexity-invariant distance for time series",
+Data Mining and Knowledge Discovery 28(3), 634-669: ``CE(Q) = sqrt(sum_i (q_{i+1} - q_i)^2)`` and
+``CID(Q, C) = ED(Q, C) * max(CE(Q), CE(C)) / min(CE(Q), CE(C))``.
 """
 
 from __future__ import annotations
@@ -20,6 +16,7 @@ from torchnlts._shape import (
     _mask_nonfinite_rows,
     _output_dtype,
     _power_of_two_scale,
+    _require_univariate,
     _restore_batch,
     _work_dtype,
 )
@@ -27,10 +24,7 @@ from torchnlts._shape import (
 
 def _prepare(trajectory, name: str) -> tuple[torch.Tensor, int]:
     tensor, ndim = _ensure_batched(trajectory)
-    if tensor.shape[-1] != 1:
-        raise ValueError(f"{name} only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}")
-    if tensor.is_complex():
-        raise ValueError(f"{name} does not support complex input")
+    _require_univariate(tensor, name)
     return tensor.squeeze(-1), ndim
 
 
@@ -38,7 +32,7 @@ def _complexity(values: torch.Tensor) -> torch.Tensor:
     return torch.linalg.vector_norm(values[:, 1:] - values[:, :-1], dim=-1)
 
 
-def complexity_estimate(trajectory, normalize: bool = False) -> torch.Tensor:
+def complexity_estimate(trajectory, *, normalize: bool = False) -> torch.Tensor:
     """Complexity estimate ``CE = sqrt(sum_i (x_{i+1} - x_i)^2)``, the length of the series' difference vector.
 
     Reference: Batista et al. (2014), Data Min. Knowl. Discov. 28(3), 634.
@@ -81,7 +75,8 @@ def complexity_invariant_distance(trajectory, other) -> torch.Tensor:
 
     Reference: Batista et al. (2014), Data Min. Knowl. Discov. 28(3), 634.
 
-    Gradient class: piecewise (see module docstring).
+    Gradient class: piecewise (kink where the two complexity estimates are equal; where exactly one is zero the
+    CID is ``inf`` and its gradient is returned as zero).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, 1]`` or ``[B, T, 1]``.

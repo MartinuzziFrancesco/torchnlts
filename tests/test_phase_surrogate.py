@@ -1,38 +1,22 @@
 """Tests for torchnlts.surrogate.phase.
 
-Dual ground truth:
-  1. Paper: Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) --
-     phase randomization preserves the Fourier magnitude at every
-     frequency bin. Hand-derived consequence checked directly here: for
-     an odd-length signal (no Nyquist bin), every non-DC bin's magnitude
-     round-trips exactly; for an even-length signal, the Nyquist bin is
-     the one bin where the literal (unmodified) algorithm's assignment
-     of a random, generally non-real phase to a bin Hermitian symmetry
-     requires to be real breaks that invariant -- confirmed by hand, not
-     assumed.
-  2. Julia: TimeseriesSurrogates.jl's ``RandomFourier``, run live via
-     subprocess on the literal same even-length input array as this
-     module's own ``phase_randomized_surrogate`` (interpolated into the
-     Julia source, same pattern as ``tests/test_kantz.py``'s
-     cross-language tests), shows the identical interior-exact /
-     Nyquist-broken pattern in *both* languages' own surrogate output --
-     confirming this is a shared property of the algorithm's reference
-     implementation, not a divergence introduced by this port. Not a
-     value-for-value comparison: the two implementations draw from
-     different, unrelated RNG streams, so their surrogate *values*
-     necessarily differ -- what's compared is that each one's own
-     surrogate exhibits the same documented magnitude-preservation
-     pattern on the same input.
+Ground truth:
+  1. Paper: Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) -- phase randomization preserves the Fourier
+     magnitude. For an odd-length signal every non-DC bin round-trips exactly; for an even-length signal the Nyquist
+     bin, which Hermitian symmetry requires to be real, does not.
+  2. Julia: TimeseriesSurrogates.jl's ``RandomFourier``, run via subprocess on the same even-length input, shows the
+     same pattern (interior bins exact, Nyquist bin not). The two RNG streams differ, so surrogate values are not
+     compared, only each surrogate's own magnitude-preservation pattern.
 """
 
-import subprocess
+import math
 from unittest import mock
 
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.surrogate.phase import phase_randomized_surrogate
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_phase_randomized_surrogate_preserves_all_nondc_bins_for_odd_length():
@@ -55,7 +39,17 @@ def test_phase_randomized_surrogate_nyquist_bin_broken_for_even_length():
     assert not torch.isclose(original_magnitude[-1], surrogate_magnitude[-1], atol=0.05)
 
 
-def test_phase_randomized_surrogate_matches_chaostools_jl_pattern():
+def test_phase_randomized_surrogate_nyquist_magnitude_is_scaled_by_abs_cosine_of_its_phase():
+    # irfft drops the imaginary part of the Nyquist bin, so its magnitude becomes |X| |cos(phase)|; the mean is kept.
+    x = torch.randn(16, dtype=torch.float64, generator=torch.Generator().manual_seed(7))
+    surrogate = phase_randomized_surrogate(x, generator=torch.Generator().manual_seed(1))
+    phase = 2 * math.pi * torch.rand(1, 9, 1, dtype=torch.float64, generator=torch.Generator().manual_seed(1))
+    nyquist = torch.fft.rfft(x).abs()[-1]
+    assert torch.isclose(torch.fft.rfft(surrogate).abs()[-1], nyquist * torch.cos(phase[0, -1, 0]).abs(), rtol=1e-9)
+    assert torch.isclose(surrogate.mean(), x.mean(), atol=1e-12, rtol=0)
+
+
+def test_phase_randomized_surrogate_matches_timeseries_surrogates_jl_pattern():
     # Same literal input to both languages' generators; each output is checked against its own spectrum (see module
     # docstring).
     trajectory = [0.3, -1.2, 0.7, 2.1, -0.4, 1.0, -0.9, 0.5]
@@ -67,14 +61,8 @@ def test_phase_randomized_surrogate_matches_chaostools_jl_pattern():
     println(join(abs.(rfft(x)), " "))
     println(join(abs.(rfft(s)), " "))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_original_line, julia_surrogate_line = result.stdout.strip().splitlines()
+    stdout = run_julia(julia_code)
+    julia_original_line, julia_surrogate_line = stdout.strip().splitlines()
     julia_original_magnitude = torch.tensor([float(v) for v in julia_original_line.split()], dtype=torch.float64)
     julia_surrogate_magnitude = torch.tensor([float(v) for v in julia_surrogate_line.split()], dtype=torch.float64)
     assert julia_original_magnitude.shape == (5,)
@@ -145,8 +133,5 @@ def test_phase_randomized_surrogate_dtype_preserved_float32():
 
 
 def test_phase_randomized_surrogate_rejects_bad_ndim():
-    try:
+    with pytest.raises(ValueError):
         phase_randomized_surrogate(torch.zeros(2, 2, 2, 2))
-        assert False, "expected ValueError"
-    except ValueError:
-        pass

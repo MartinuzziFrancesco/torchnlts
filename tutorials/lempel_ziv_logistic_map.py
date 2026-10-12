@@ -8,13 +8,12 @@ the biomedical-signal-analysis literature that also applies this
 measure to periodic/chaotic/random signals -- a standard illustration
 of the measure's behavior, not a numeric result copied from a paper.
 
-Rather than trust a memorized claim about which `r` values are
-periodic (an earlier draft of this script got one wrong -- r=3.6 turns
-out to already be chaotic, past the logistic map's Feigenbaum
-accumulation point at r=3.569945..., not periodic as first assumed),
-each swept r's regime is *derived* here from the sign of its own exact
-Lyapunov exponent (the logistic map's derivative is known in closed
-form, f'(x) = r(1 - 2x), so this needs no data-driven estimator).
+Rather than assume which `r` values are periodic (r=3.6, for example,
+is already chaotic, past the logistic map's Feigenbaum accumulation
+point at r=3.569945...), each swept r's regime is derived here from
+the sign of its own exact Lyapunov exponent (the logistic map's
+derivative is known in closed form, f'(x) = r(1 - 2x), so this needs
+no data-driven estimator).
 r=3.83 is included specifically because it sits *inside* the
 nominally-chaotic band yet has a negative Lyapunov exponent -- the
 well-known period-3 window -- to check whether Lempel-Ziv complexity

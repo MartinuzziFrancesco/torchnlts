@@ -38,11 +38,11 @@ for step in range(transient + num_points):
 orbit = torch.stack(orbit, dim=1).unsqueeze(-1)  # [B, T, 1]
 
 recurrence = hard_recurrence_matrix(orbit, epsilon=epsilon)
-rate = recurrence_rate(recurrence, theiler_window)
+rate = recurrence_rate(recurrence, theiler_window=theiler_window)
 det = determinism(recurrence, lmin=2, theiler_window=theiler_window)
 lam = laminarity(recurrence, lmin=2, theiler_window=theiler_window)
 tt = trapping_time(recurrence, lmin=2, theiler_window=theiler_window)
-rte = rt_entropy(recurrence, theiler_window)
+rte = rt_entropy(recurrence, theiler_window=theiler_window)
 
 print(f"{'r':>7}  {'RR':>6}  {'DET':>6}  {'LAM':>6}  {'TT':>6}  {'RTE':>6}")
 for index, value in enumerate(parameters.tolist()):

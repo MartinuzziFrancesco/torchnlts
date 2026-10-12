@@ -1,99 +1,38 @@
 """Convergent cross mapping (CCM), from observed data.
 
-Reference: Sugihara, G., May, R., Ye, H., Hsieh, C., Deyle, E., Fogarty,
-M. & Munch, S. (2012), "Detecting Causality in Complex Ecosystems",
-Science 338(6106), 496-500.
+Reference: Sugihara, G., May, R., Ye, H., Hsieh, C., Deyle, E., Fogarty, M. & Munch, S. (2012), "Detecting
+Causality in Complex Ecosystems", Science 338(6106), 496-500.
 
-CCM tests whether one variable causally influences another using only
-observed time series, no intervention. The intuition (and the classic
-source of confusion about which direction the test actually points in):
-if a driving variable causally influences a response variable, the
-driver's dynamical signature gets left behind in the response's own
-trajectory. So the response's own delay-embedded shadow manifold can be
-used to *cross-map* (locally, nearest-neighbor-weighted predict) the
-driver's values -- and under this simple unidirectional-forcing story,
-the more of the response's history is available (the larger the
-"library"), the better that cross-map prediction gets ("convergence"),
-while a variable that does *not* drive the response leaves no such
-signature and skill stays flat as the library grows.
+:func:`~torchnlts.causality.cross_map_estimate` embeds ``manifold_series`` and predicts ``estimated_series`` at each
+embedded point from the values at its nearest neighbors' time indices; :func:`~torchnlts.causality.ccm_skill` is the
+correlation of that estimate with the truth. Skill that rises ("converges") with the library size is evidence that
+``estimated_series`` drives ``manifold_series``, because the driven variable's manifold carries the driver's
+signature. One call is one library size: the convergence check is the caller's sweep over ``library_size``. Shared
+external forcing and strong bidirectional coupling can also give convergent skill in both directions.
 
-Neither function in this module performs that convergence check itself
--- each call computes one estimate/skill value at one library size (see
-:func:`~torchnlts.causality.ccm_skill`'s own docstring: the causality read is in how skill
-changes *across several calls* at different ``library_size`` values, not
-in any single returned number). Nor is "high/increasing skill" a
-guarantee of causation on its own even across a full convergence sweep:
-the paper's own follow-up literature documents that variables driven by
-a shared external forcing, or synchronized through sufficiently strong
-*bidirectional* coupling, can also show convergent cross-map skill in
-both directions without one causing the other in the sense CCM is meant
-to detect -- convergence is evidence consistent with the causal-forcing
-story under CCM's assumptions, not proof of it, and ruling out those
-confounds is the caller's responsibility, not something this module
-checks.
+The weighting follows CausalityTools.jl's ``ConvergentCrossMapping``: the ``embedding_dim + 1`` nearest
+Theiler-windowed library points get weights ``exp(-d_i / d_1) / sum_j exp(-d_j / d_1)``, ``d_1`` the smallest
+distance. When ``d_1 = 0``, every distance is shifted by ``10 * eps`` of the working dtype (as in Julia) instead of
+dividing 0 by 0. For the full library the estimate matches CausalityTools.jl to float64 precision, except that
+Julia's Theiler parameter ``w`` excludes ``|i - j| <= w + 1`` (not only the point itself for ``w = 0``, as its
+documentation says); here ``theiler_window`` excludes ``|i - j| <= theiler_window``, so pass ``w + 1`` to compare.
 
-This module keeps the direction unambiguous in its own terms rather than
-in "X"/"Y causes" language: :func:`~torchnlts.causality.cross_map_estimate` takes
-``manifold_series`` (embedded and searched for neighbors) and
-``estimated_series`` (whose values are cross-map-predicted from those
-neighbors' own indices). Under the assumptions above, high/increasing
-skill (see :func:`~torchnlts.causality.ccm_skill`) when embedding ``manifold_series`` and
-predicting ``estimated_series`` across a library-size sweep is evidence
-that ``estimated_series`` drives ``manifold_series`` -- the
-reversed-looking direction the paper itself notes trips people up.
-
-Neighbor search and weighting matches CausalityTools.jl's
-``ConvergentCrossMapping`` (its generic, no-estimator ``crossmap``/
-``predict`` path, i.e. always using the full available library -- see
-this module's ``library_size`` for the partial-library case it doesn't
-cover): for each embedded point, find its ``embedding_dim + 1`` nearest
-neighbors (Theiler-windowed) within the library, weight them by
-``w_i = exp(-d_i / d_1) / sum_j exp(-d_j / d_1)`` (``d_1`` the smallest
-neighbor distance), and combine ``estimated_series``'s own values at
-those neighbors' time indices with those weights. Confirmed, by reading
-its source, that Julia's implementation adds a tiny epsilon to every
-distance whenever the nearest neighbor's distance is exactly ``0``
-(otherwise ``d_i / d_1`` is a literal ``0/0`` for that neighbor) --
-matched here rather than left to propagate as ``NaN``, unlike this
-package's usual "don't silently clamp a genuine degeneracy" convention
-elsewhere (Kantz/Rosenstein's unclamped ``log(0)``): ``0/0`` here isn't
-a meaningful mathematical answer being hidden, it's a genuinely
-undefined expression every real implementation of this formula must
-disambiguate somehow, and this is the reference implementation's own
-disambiguation.
-
-Like :mod:`torchnlts.recurrence.joint_recurrence`, ``manifold_series``
-and ``estimated_series`` need not share a feature space (only a time
-axis to align by), and are truncated to the shorter one's length if they
-differ.
-
-Confirmed, by direct comparison against ``CausalityTools.jl`` on a
-synthetic unidirectionally-coupled logistic-map pair (see this module's
-tests), to match its ``ConvergentCrossMapping`` to float64 precision
-(max per-point difference ~1e-16) for the default full-library case --
-but only once its own ``w`` parameter is translated as
-``theiler_window = w + 1``, not ``theiler_window = w`` directly. That
-offset is a confirmed discrepancy in ``CausalityTools.jl`` itself, not a
-convention chosen here: its own docstring says ``w = 0`` excludes only
-the query point itself, but its implementation passes ``Theiler(w + 1)``
-to ``Neighborhood.jl``, whose own documented semantics are
-``|i - j| <= w`` excluded -- so ``w = 0`` there actually excludes
-``|i - j| <= 1`` (self *and* its immediate temporal neighbors), not only
-self as the docstring claims. This module's own ``theiler_window``
-matches this package's own established convention throughout (see
-:func:`torchnlts.neighbors.theiler_window_mask`:
-``|i - j| <= theiler_window`` excluded, ``theiler_window = 0`` excludes
-only self, exactly as documented) rather than replicating Julia's
-inconsistency.
+The two series need not share a feature space; they are truncated to the shorter length.
 """
 
 from __future__ import annotations
 
-import operator
-
 import torch
 
-from torchnlts._shape import _ensure_batched, _restore_batch, _validate_matching_batch
+from torchnlts._shape import (
+    _as_int,
+    _ensure_batched,
+    _output_dtype,
+    _restore_shape_preserving,
+    _validate_matching_batch,
+    _work_dtype,
+)
+from torchnlts.convert import as_tensor
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.theiler import _require_self_exclusion, theiler_window_mask
@@ -103,76 +42,51 @@ def cross_map_estimate(
     manifold_series,
     estimated_series,
     embedding_dim: int,
+    *,
     delay: int = 1,
     library_size: int | None = None,
     theiler_window: int = 0,
     norm_order: float = 2.0,
 ) -> torch.Tensor:
-    """Cross-map estimate of ``estimated_series`` from ``manifold_series``'s
-    delay-embedded shadow manifold.
+    """Cross-map estimate of ``estimated_series`` from the delay-embedded manifold of ``manifold_series``.
 
-    Gradient class: piecewise (built on nearest-neighbor selection, same
-    caveat as :func:`torchnlts.neighbors.knn_search`: the weighted
-    combination differentiates normally once neighbors are picked, but
-    the pick itself is a discrete, non-differentiable decision).
+    Reference: Sugihara et al. (2012), Science 338(6106), 496-500.
+
+    Gradient class: piecewise (the neighbor choice is discrete; the weighted combination is smooth once it is fixed).
 
     Args:
-        manifold_series: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A
-            tensor, numpy array, or pandas Series/DataFrame. Delay-embedded
-            and searched for neighbors.
-        estimated_series: Second series, same batched-ness as
-            ``manifold_series`` (see :func:`torchnlts._shape._validate_matching_batch`),
-            any feature dimensionality of its own. Truncated together with
-            ``manifold_series`` to ``min(len(manifold_series), len(estimated_series))``
-            if they differ in length.
-        embedding_dim: Delay-embedding dimension of ``manifold_series``
-            (Sugihara et al.'s ``E``). Uses ``embedding_dim + 1`` nearest
-            neighbors per point, per the cited paper.
+        manifold_series: Shape ``[T]``, ``[T, D]`` or ``[B, T, D]``. A tensor, numpy array, or pandas
+            Series/DataFrame. Embedded and searched for neighbors.
+        estimated_series: Same batching as ``manifold_series``, any feature dimension. Truncated together with
+            ``manifold_series`` to the shorter length.
+        embedding_dim: Embedding dimension ``E`` of ``manifold_series``; ``E + 1`` neighbors are used per point.
         delay: Embedding lag.
-        library_size: Number of leading embedded points to search for
-            neighbors within (a prefix of the manifold, not a random
-            subsample -- see the module docstring). ``None`` (default)
-            uses every embedded point. Must be in ``[1, N]`` where
-            ``N = len(manifold_series) - (embedding_dim - 1) * delay``
-            after truncation.
-        theiler_window: Theiler window over embedded-point start indices
-            (see :func:`torchnlts.neighbors.theiler_window_mask`).
-            Must be ``>= 0`` (self-matches must be excluded
-            unconditionally, matching Sugihara et al.'s own convention
-            that a point is never its own neighbor).
-        norm_order: Minkowski norm order for the neighbor search.
+        library_size: Number of leading embedded points searched for neighbors, in ``[1, N]`` with
+            ``N = T - (embedding_dim - 1) * delay``. Default: all.
+        theiler_window: Embedded points with ``|i - j| <= theiler_window`` are not neighbors. Must be ``>= 0``, so
+            a point is never its own neighbor.
+        norm_order: Minkowski norm order of the neighbor search.
 
     Returns:
-        Cross-map estimate of ``estimated_series``, shape ``[N, D]`` or
-        ``[B, N, D]`` (``D`` from ``estimated_series``; unlike
-        :func:`torchnlts.embedding.delay_embedding`'s own
-        ``[T] -> [N, E]``-style restoration, an unbatched ``[T]`` input
-        for either series still yields a 2D ``[N, D]`` result, not a
-        flattened ``[N]`` one -- ``D`` is genuinely ``estimated_series``'s
-        own feature dimensionality here, which may not be 1). Row ``n``
-        estimates ``estimated_series`` at the same raw time index as
-        embedded row ``n``'s *most recent* sample, i.e. raw index
-        ``n + (embedding_dim - 1) * delay`` (matching Sugihara et al.'s
-        "current + past" alignment, not this codebase's own
-        ``delay_embedding`` row-start convention, which is why this
-        function re-derives the alignment itself rather than assuming
-        row ``n`` of ``estimated_series`` directly). ``NaN`` at any row
-        with fewer than ``embedding_dim + 1`` valid (Theiler-window-
-        surviving, library-restricted) neighbor candidates.
+        Estimates with the rank of ``estimated_series``, shape ``[N]``, ``[N, D]`` or ``[B, N, D]``, in the promoted
+        floating dtype of the inputs (the default dtype for integer input, float32 for half precision). Row ``n``
+        estimates ``estimated_series`` at raw index ``n + (embedding_dim - 1) * delay``, the embedded point's most
+        recent sample. ``NaN`` for a row with fewer than ``embedding_dim + 1`` neighbors left by the Theiler window and
+        ``library_size``, or whose embedded point or neighbor targets are non-finite; other rows and their gradients
+        are unaffected.
 
     Raises:
-        ValueError: If ``manifold_series``/``estimated_series`` aren't
-            both batched or both unbatched, or have mismatched batch
-            size; if ``embedding_dim < 1``; if ``library_size`` is out
-            of ``[1, N]``; or if ``theiler_window < 0``.
+        ValueError: If a series is complex, the series are not both batched or both unbatched, their batch sizes
+            differ, ``embedding_dim`` or ``delay`` is not a positive integer, ``theiler_window`` is negative or not an
+            integer, or ``library_size`` is not an integer in ``[1, N]``.
     """
-    embedding_dim = operator.index(embedding_dim)
-    delay = operator.index(delay)
-    theiler_window = operator.index(theiler_window)
-    _require_self_exclusion(theiler_window, "cross-map neighbor search")
+    embedding_dim = _as_int(embedding_dim, "embedding_dim")
+    delay = _as_int(delay, "delay")
+    theiler_window = _require_self_exclusion(theiler_window, "cross-map neighbor search")
 
     manifold_batched, manifold_ndim = _ensure_batched(manifold_series)
     estimated_batched, estimated_ndim = _ensure_batched(estimated_series)
+    estimated_batched = estimated_batched.to(_work_dtype(estimated_batched.dtype))
     _validate_matching_batch(
         manifold_batched, estimated_batched, manifold_ndim, estimated_ndim, check_feature_dim=False
     )
@@ -181,12 +95,12 @@ def cross_map_estimate(
     manifold_batched = manifold_batched[:, :num_points, :]
     estimated_batched = estimated_batched[:, :num_points, :]
 
-    embedded = delay_embedding(manifold_batched, embedding_dim, delay)  # [B, N, E]
+    embedded = delay_embedding(manifold_batched, embedding_dim, delay=delay)  # [B, N, E]
     num_embedded = embedded.shape[-2]
     current_time_offset = (embedding_dim - 1) * delay
     target = estimated_batched[:, current_time_offset : current_time_offset + num_embedded, :]  # [B, N, D]
 
-    library_size = num_embedded if library_size is None else operator.index(library_size)
+    library_size = num_embedded if library_size is None else _as_int(library_size, "library_size")
     if not (1 <= library_size <= num_embedded):
         raise ValueError(f"library_size must be in [1, {num_embedded}], got {library_size}")
 
@@ -199,10 +113,12 @@ def cross_map_estimate(
     if num_neighbors > library_size:
         distance = torch.nn.functional.pad(distance, (0, num_neighbors - library_size), value=float("inf"))
     neighbor_distance, neighbor_index = torch.topk(distance, num_neighbors, dim=-1, largest=False, sorted=True)
-    # A still-infinite farthest slot means fewer than num_neighbors valid candidates; check before the eps nudge.
-    row_valid = torch.isfinite(neighbor_distance[..., -1])
+    # A non-finite farthest slot means fewer than num_neighbors usable candidates.
+    row_valid = torch.isfinite(neighbor_distance[..., -1])  # [B, N]
+    # Placeholder distances: exp(-inf / d_1) has a NaN gradient w.r.t. d_1 (0 * inf).
+    neighbor_distance = torch.where(row_valid.unsqueeze(-1), neighbor_distance, torch.ones_like(neighbor_distance))
 
-    # Match CausalityTools.jl: nudge rows with a zero nearest distance off 0 to avoid 0/0 (see module docstring).
+    # Match CausalityTools.jl: shift rows with a zero nearest distance off 0 to avoid 0/0.
     nearest_is_zero = neighbor_distance[..., :1] <= 0
     epsilon = torch.finfo(neighbor_distance.dtype).eps * 10
     neighbor_distance = torch.where(nearest_is_zero, neighbor_distance + epsilon, neighbor_distance)
@@ -214,53 +130,58 @@ def cross_map_estimate(
     batch_size, num_query, num_target_features = target.shape
     flat_index = safe_index.reshape(batch_size, num_query * num_neighbors, 1).expand(-1, -1, num_target_features)
     gathered = torch.gather(target, 1, flat_index).reshape(batch_size, num_query, num_neighbors, num_target_features)
+    # Zeroed so a non-finite target cannot reach backward as 0 * NaN; its row is NaN below.
+    target_finite = torch.isfinite(gathered)
+    gathered = torch.where(target_finite, gathered, torch.zeros_like(gathered))
+    row_valid = row_valid & target_finite.all(dim=(-2, -1))
 
     estimate = (weight.unsqueeze(-1) * gathered).sum(dim=2)  # [B, N, D]
     estimate = torch.where(row_valid.unsqueeze(-1), estimate, torch.full_like(estimate, float("nan")))
-    return _restore_batch(estimate, max(manifold_ndim, estimated_ndim))
+    return _restore_shape_preserving(estimate, estimated_ndim)
 
 
-def ccm_skill(estimate: torch.Tensor, actual: torch.Tensor) -> torch.Tensor:
-    """Pearson correlation between a cross-map estimate and the actual
-    values it targets -- the CCM causality signal itself (Sugihara et
-    al. 2012): compute this once per ``library_size`` and look for it
-    increasing ("converging") as the library grows to conclude causal
-    influence, rather than reading any single value in isolation.
+def ccm_skill(estimate, actual) -> torch.Tensor:
+    """Pearson correlation between a cross-map estimate and the values it targets.
+
+    Compute it once per ``library_size``; skill that rises with the library size is the convergence CCM looks for.
+
+    Reference: Sugihara et al. (2012), Science 338(6106), 496-500.
 
     Gradient class: exact.
 
     Args:
-        estimate: Shape ``[N]``, ``[N, D]``, or ``[B, N, D]``, as
-            returned by :func:`~torchnlts.causality.cross_map_estimate` (or any array of the
-            same convention).
-        actual: The corresponding true values, exactly matching
-            ``estimate``'s shape.
+        estimate: Shape ``[N]``, ``[N, D]`` or ``[B, N, D]``, as returned by
+            :func:`~torchnlts.causality.cross_map_estimate`. A tensor, numpy array, or pandas Series/DataFrame.
+        actual: The true values, with the same shape as ``estimate``.
 
     Returns:
-        Pearson correlation, shape ``[1]`` for an unbatched, single-feature
-        ``estimate`` up to ``[B, D]`` for a batched multi-feature one
-        (``_ensure_batched`` always keeps a trailing feature dim, even
-        for a bare ``[N]`` input, and only the leading batch dim gets
-        squeezed back off -- not a true 0-dim scalar). ``NaN`` if
-        ``estimate`` or ``actual`` has fewer
-        than 2 points, or if either is constant (zero variance) along the
-        time axis -- an exactly-zero denominator, not clamped.
+        The correlation over the time axis, shape ``[]``, ``[D]`` or ``[B, D]``, in the promoted floating dtype of
+        the inputs (the default dtype for integer input). ``NaN`` for an entry whose estimate or actual has fewer
+        than two points, is constant along time (zero variance, not clamped) or contains ``NaN``/``inf``; other
+        entries and their gradients are unaffected.
 
     Raises:
-        ValueError: If ``estimate`` and ``actual`` don't have identical
-            shapes.
+        ValueError: If the shapes differ or an input is complex.
     """
+    estimate, actual = as_tensor(estimate), as_tensor(actual)
     if estimate.shape != actual.shape:
         raise ValueError(
             f"expected estimate and actual to have matching shapes, got {tuple(estimate.shape)} and {tuple(actual.shape)}"
         )
-    estimate_batched, ndim = _ensure_batched(estimate)
-    actual_batched, _ = _ensure_batched(actual)
+    dtype = torch.promote_types(_output_dtype(estimate), _output_dtype(actual))
+    estimate_batched, ndim = _ensure_batched(estimate.to(_work_dtype(dtype)))
+    actual_batched, _ = _ensure_batched(actual.to(_work_dtype(dtype)))
 
+    # Non-finite columns are zeroed and constant ones get a unit denominator, so neither reaches backward as NaN.
+    finite = torch.isfinite(estimate_batched).all(dim=-2) & torch.isfinite(actual_batched).all(dim=-2)  # [B, D]
+    estimate_batched = torch.where(finite.unsqueeze(-2), estimate_batched, torch.zeros_like(estimate_batched))
+    actual_batched = torch.where(finite.unsqueeze(-2), actual_batched, torch.zeros_like(actual_batched))
     estimate_centered = estimate_batched - estimate_batched.mean(dim=-2, keepdim=True)
     actual_centered = actual_batched - actual_batched.mean(dim=-2, keepdim=True)
+    estimate_norm = estimate_centered.norm(dim=-2)
+    actual_norm = actual_centered.norm(dim=-2)
+    valid = finite & (estimate_norm > 0) & (actual_norm > 0)
     numerator = (estimate_centered * actual_centered).sum(dim=-2)
-    denominator = estimate_centered.norm(dim=-2) * actual_centered.norm(dim=-2)
-    correlation = numerator / denominator
-
-    return _restore_batch(correlation, ndim)
+    denominator = torch.where(valid, estimate_norm * actual_norm, torch.ones_like(numerator))
+    skill = torch.where(valid, numerator / denominator, torch.full_like(numerator, float("nan")))
+    return _restore_shape_preserving(skill, ndim).to(dtype)

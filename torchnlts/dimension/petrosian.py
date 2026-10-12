@@ -1,54 +1,47 @@
-"""Petrosian fractal dimension: a count-based estimate of signal roughness
-via sign changes in the first difference.
+"""Petrosian fractal dimension: a count-based estimate of signal roughness via sign changes in the first difference.
 
-Reference: Petrosian, A. (1995), "Kolmogorov complexity of finite sequences
-and recognition of different preictal EEG patterns", Proc. 8th IEEE Symposium
-on Computer-Based Medical Systems, 212-217.
+Reference: Petrosian (1995), "Kolmogorov complexity of finite sequences and recognition of different preictal EEG
+patterns", Proc. 8th IEEE Symposium on Computer-Based Medical Systems, 212-217. A zero difference counts as positive
+and ``-0.0`` as negative, as in antropy's ``petrosian_fd``.
 
-Gradient class: none (based on sign changes in the derivative, a discrete
-count independent of the input's magnitude; the output does not require or
-accumulate gradients).
+Gradient class: none (a discrete count; the output does not require grad).
 """
 
 from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _ensure_batched, _mask_nonfinite_rows, _output_dtype
-
-
-def _require_univariate(tensor: torch.Tensor) -> None:
-    if tensor.shape[-1] != 1:
-        raise ValueError(
-            f"petrosian_dimension only supports a univariate (D=1) trajectory, got feature dim {tensor.shape[-1]}"
-        )
+from torchnlts._shape import (
+    _ensure_batched,
+    _high_precision_dtype,
+    _mask_nonfinite_rows,
+    _output_dtype,
+    _require_univariate,
+    _restore_batch,
+)
 
 
 def petrosian_dimension(trajectory) -> torch.Tensor:
-    """Petrosian fractal dimension: D = log10(N) / (log10(N) +
-    log10(N / (N + 0.4 * N_delta))), where N is series length and N_delta
-    is the count of sign changes in the first difference.
+    """Petrosian fractal dimension ``log10(N) / (log10(N) + log10(N / (N + 0.4 * N_delta)))``.
 
-    Gradient class: none (a discrete count-based statistic; output does not
-    require grad and does not flow gradients backward even if input does).
+    ``N`` is the series length and ``N_delta`` the number of sign changes in the first difference.
+
+    Reference: Petrosian (1995), Proc. 8th IEEE Symp. Computer-Based Medical Systems, 212.
+
+    Gradient class: none (a discrete count; the output does not require grad even if the input does).
 
     Args:
-        trajectory: Shape ``[T]`` or ``[T, 1]``/``[B, T, 1]`` (univariate
-            only). A tensor, numpy array, or pandas Series/DataFrame.
+        trajectory: Shape ``[T]``, ``[T, 1]`` or ``[B, T, 1]``. A tensor, numpy array, or pandas Series/DataFrame.
 
     Returns:
-        Petrosian dimension estimate(s), shape ``[]`` for an unbatched
-        trajectory or ``[B]`` for a batched one. NaN if the series is
-        too short (N < 2). ``NaN`` for any row containing NaN/inf.
+        Petrosian dimension, shape ``[]`` unbatched or ``[B]`` batched, in the trajectory's float dtype (the default
+        dtype for integer input). ``NaN`` if the series has fewer than 2 points and for any row containing NaN/inf.
 
     Raises:
-        ValueError: If trajectory has feature dim other than 1, or is
-            complex.
+        ValueError: If the feature dim is not 1 or the trajectory is complex.
     """
     tensor, ndim = _ensure_batched(trajectory)
-    _require_univariate(tensor)
-    if tensor.is_complex():
-        raise ValueError("petrosian_dimension does not support complex input")
+    _require_univariate(tensor, "petrosian_dimension")
     dtype = _output_dtype(tensor)
     values, nonfinite = _mask_nonfinite_rows(tensor.squeeze(-1).to(dtype))  # [B, T]
 
@@ -64,10 +57,11 @@ def petrosian_dimension(trajectory) -> torch.Tensor:
         sign_bits = torch.signbit(differences)  # [B, T-1]
         sign_changes = torch.diff(sign_bits.to(torch.int32), dim=1).abs().sum(dim=1)  # [B]
 
-        # float64 so N + 0.4 * N_delta cannot overflow a low-precision input dtype.
-        num_sign_changes = sign_changes.to(torch.float64)
-        log_points = torch.log10(torch.tensor(float(series_length), dtype=torch.float64, device=values.device))
+        # High precision so N + 0.4 * N_delta cannot overflow a low-precision input dtype.
+        work_dtype = _high_precision_dtype(values.device)
+        num_sign_changes = sign_changes.to(work_dtype)
+        log_points = torch.log10(torch.tensor(float(series_length), dtype=work_dtype, device=values.device))
         result = log_points / (log_points + torch.log10(series_length / (series_length + 0.4 * num_sign_changes)))
         result = torch.where(nonfinite, float("nan"), result).to(dtype)
 
-    return result if ndim == 3 else result.squeeze(0)
+    return _restore_batch(result, ndim)

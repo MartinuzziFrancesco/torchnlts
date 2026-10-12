@@ -5,6 +5,7 @@ Dual ground truth:
   2. Python reference: antropy.petrosian_fd.
 """
 
+import pytest
 import torch
 
 from torchnlts.dimension.petrosian import petrosian_dimension
@@ -94,11 +95,8 @@ def test_petrosian_two_element_series():
 
 def test_petrosian_multivariate_raises():
     trajectory = torch.randn(10, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         petrosian_dimension(trajectory)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_petrosian_unbatched_scalar_shape():
@@ -178,11 +176,8 @@ def test_petrosian_preserves_floating_dtype():
 
 
 def test_petrosian_complex_raises():
-    try:
+    with pytest.raises(ValueError):
         petrosian_dimension(torch.tensor([0 + 1j, 1 + 0j, 0 + 2j]))
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_petrosian_negative_zero_difference_counts_as_negative():

@@ -30,11 +30,11 @@ for delay in range(0, 30, 3):
 print(f"\n{'method':>8}  {'delay':>5}  {'time units':>10}")
 chosen = {}
 for method in ("mi_min", "ac_1/e", "ac_min", "ac_zero"):
-    chosen[method] = estimate_delay(observable, max_delay, method).item()
+    chosen[method] = estimate_delay(observable, max_delay, method=method).item()
     print(f"{method:>8}  {chosen[method]:>5}  {chosen[method] * sampling_step:>10.3f}")
 print("\nac_zero returning max_delay means no zero crossing was found in the searched range.")
 
-embedding = delay_embedding(observable, 3, chosen["mi_min"])
+embedding = delay_embedding(observable, 3, delay=chosen["mi_min"])
 spread = embedding.std(dim=0)
 print(
     f"\nembedding with the mutual-information delay: shape {tuple(embedding.shape)}, per-axis std {[round(value, 2) for value in spread.tolist()]}"

@@ -7,24 +7,21 @@ Ground truth:
      has p-values on the grid ``j / (M + 1)``, uniform under the null.
      Hand-derived p-values are checked on deterministic statistics.
   2. Julia: TimeseriesSurrogates.jl's ``pvalue(SurrogateTest(...))``, run
-     live via subprocess. It counts ``k`` surrogates ``>=`` (right) or
+     via subprocess. It counts ``k`` surrogates ``>=`` (right) or
      ``<=`` (left) the data statistic and returns ``k / M``; this module
      returns ``(1 + k) / (M + 1)``. Compared on a deterministic ``CircShift``
      (identical ``k``) and on random shuffles (equal up to Monte Carlo error).
 """
 
-import subprocess
-
 import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.surrogate import hypothesis
 from torchnlts.surrogate.hypothesis import surrogate_test
 from torchnlts.surrogate.iaaft import iaaft_surrogate
 from torchnlts.surrogate.phase import phase_randomized_surrogate
 from torchnlts.surrogate.shuffle import random_shift_surrogate, random_shuffle_surrogate
-
-JULIA_PROJECT = "juliaenv"
 
 
 def _first_value(data):
@@ -127,7 +124,7 @@ def test_shift_rank_test_is_exact_on_two_point_group():
     # x = [0, 1] vs [1, 0], i.e. 50% false rejection at 5%.
     x = torch.tensor([[[0.0], [1.0]], [[1.0], [0.0]]]).repeat(200, 1, 1)
     p_values = surrogate_test(
-        x, _first_value, random_shift_surrogate, 99, generator=torch.Generator().manual_seed(0)
+        x, _first_value, random_shift_surrogate, num_surrogates=99, generator=torch.Generator().manual_seed(0)
     ).p_value
     assert (p_values <= 0.05).double().mean().item() < 0.15
 
@@ -178,7 +175,11 @@ def test_p_value_hand_derived_on_deterministic_statistic():
         assert torch.equal(result.surrogate_statistics, firsts)
     assert surrogate_test(x, _first_value, stub, num_surrogates=5, tail="both").p_value.item() <= 1.0
     constant = surrogate_test(
-        torch.tensor([5.0, 1.0, 1.0]), _first_value, lambda data, generator=None: data.clone(), 4, tail="both"
+        torch.tensor([5.0, 1.0, 1.0]),
+        _first_value,
+        lambda data, generator=None: data.clone(),
+        num_surrogates=4,
+        tail="both",
     )
     assert constant.p_value.item() == 1.0  # 2 * 5 / 5 clipped
 
@@ -208,7 +209,11 @@ def test_reproducible_with_generator():
     x = torch.randn(40, dtype=torch.float64)
     runs = [
         surrogate_test(
-            x, _lag_one_autocorrelation, random_shuffle_surrogate, 25, generator=torch.Generator().manual_seed(9)
+            x,
+            _lag_one_autocorrelation,
+            random_shuffle_surrogate,
+            num_surrogates=25,
+            generator=torch.Generator().manual_seed(9),
         )
         for _ in range(2)
     ]
@@ -218,7 +223,11 @@ def test_reproducible_with_generator():
 def test_chunking_equality(monkeypatch):
     x = torch.randn(3, 40, 1, dtype=torch.float64)
     full = surrogate_test(
-        x, _lag_one_autocorrelation, random_shuffle_surrogate, 11, generator=torch.Generator().manual_seed(1)
+        x,
+        _lag_one_autocorrelation,
+        random_shuffle_surrogate,
+        num_surrogates=11,
+        generator=torch.Generator().manual_seed(1),
     )
     monkeypatch.setattr(hypothesis, "_ELEMENT_BUDGET", 3 * 40 * 3)  # 3 surrogates per chunk
     calls = []
@@ -227,22 +236,26 @@ def test_chunking_equality(monkeypatch):
         calls.append(data.shape[0])
         return _lag_one_autocorrelation(data)
 
-    chunked = surrogate_test(x, counting, random_shuffle_surrogate, 11, generator=torch.Generator().manual_seed(1))
+    chunked = surrogate_test(
+        x, counting, random_shuffle_surrogate, num_surrogates=11, generator=torch.Generator().manual_seed(1)
+    )
     assert calls == [3, 9, 9, 9, 6]
     assert torch.equal(full.surrogate_statistics, chunked.surrogate_statistics)
     assert torch.equal(full.p_value, chunked.p_value)
     # Regression: M - 1 divisible by the chunk size must not drop the last chunk.
-    assert surrogate_test(x, _lag_one_autocorrelation, random_shuffle_surrogate, 10).surrogate_statistics.shape == (
-        3,
-        10,
-    )
+    result = surrogate_test(x, _lag_one_autocorrelation, random_shuffle_surrogate, num_surrogates=10)
+    assert result.surrogate_statistics.shape == (3, 10)
 
 
 def test_nan_rows_and_nan_statistics():
     x = torch.randn(3, 30, 1, dtype=torch.float64)
     x[1, 4, 0] = float("nan")
     result = surrogate_test(
-        x, _lag_one_autocorrelation, random_shuffle_surrogate, 9, generator=torch.Generator().manual_seed(0)
+        x,
+        _lag_one_autocorrelation,
+        random_shuffle_surrogate,
+        num_surrogates=9,
+        generator=torch.Generator().manual_seed(0),
     )
     assert torch.isnan(result.p_value[1]) and torch.isfinite(result.p_value[[0, 2]]).all()
     calls = []
@@ -254,9 +267,11 @@ def test_nan_rows_and_nan_statistics():
             values[0] = float("nan")
         return values
 
-    result = surrogate_test(torch.randn(2, 10, 1), flaky, random_shuffle_surrogate, 3)
+    result = surrogate_test(torch.randn(2, 10, 1), flaky, random_shuffle_surrogate, num_surrogates=3)
     assert torch.isnan(result.p_value[0]) and torch.isfinite(result.p_value[1])
-    assert torch.isnan(surrogate_test(x[1], _lag_one_autocorrelation, phase_randomized_surrogate, 3).p_value)
+    assert torch.isnan(
+        surrogate_test(x[1], _lag_one_autocorrelation, phase_randomized_surrogate, num_surrogates=3).p_value
+    )
 
 
 def test_invalid_arguments():
@@ -272,7 +287,7 @@ def test_invalid_arguments():
         with pytest.raises(ValueError):
             surrogate_test(x, **arguments)
     with pytest.raises(ValueError):
-        surrogate_test(x, lambda data: torch.zeros(5), random_shuffle_surrogate, 3)
+        surrogate_test(x, lambda data: torch.zeros(5), random_shuffle_surrogate, num_surrogates=3)
 
 
 def test_integer_statistics_ranked_without_float_cast():
@@ -285,7 +300,7 @@ def test_integer_statistics_ranked_without_float_cast():
         return out
 
     x = torch.tensor([16777217.0, 0.0], dtype=torch.float64)
-    result = surrogate_test(x, lambda data: data[:, 0, 0].to(torch.int64), stub, 4, tail="right")
+    result = surrogate_test(x, lambda data: data[:, 0, 0].to(torch.int64), stub, num_surrogates=4, tail="right")
     assert result.p_value.item() == pytest.approx(1 / 5)
     assert result.statistic.dtype == torch.int64 and result.p_value.dtype == torch.float64
 
@@ -293,7 +308,9 @@ def test_integer_statistics_ranked_without_float_cast():
 def test_nonfinite_rows_and_infinite_statistics_give_nan():
     x = torch.randn(3, 20, 1, dtype=torch.float64)
     x[0, 3, 0] = float("inf")
-    result = surrogate_test(x, lambda data: data[:, :, 0].mean(dim=1).clamp(max=1e9), random_shuffle_surrogate, 5)
+    result = surrogate_test(
+        x, lambda data: data[:, :, 0].mean(dim=1).clamp(max=1e9), random_shuffle_surrogate, num_surrogates=5
+    )
     assert torch.isnan(result.p_value[0]) and torch.isfinite(result.p_value[1:]).all()
     data_calls = []
 
@@ -301,7 +318,7 @@ def test_nonfinite_rows_and_infinite_statistics_give_nan():
         data_calls.append(1)
         return data[:, 0, 0] / (0.0 if len(data_calls) == 1 else 1.0)
 
-    inf_data = surrogate_test(x[1:], inf_on_data, random_shuffle_surrogate, 5)
+    inf_data = surrogate_test(x[1:], inf_on_data, random_shuffle_surrogate, num_surrogates=5)
     assert torch.isnan(inf_data.p_value).all()
     calls = []
 
@@ -309,7 +326,7 @@ def test_nonfinite_rows_and_infinite_statistics_give_nan():
         calls.append(1)
         return data[:, 0, 0] / (1.0 if len(calls) == 1 else 0.0)
 
-    inf_surrogate = surrogate_test(x[1:], inf_on_surrogates, random_shuffle_surrogate, 5)
+    inf_surrogate = surrogate_test(x[1:], inf_on_surrogates, random_shuffle_surrogate, num_surrogates=5)
     assert torch.isnan(inf_surrogate.p_value).all()
 
 
@@ -325,7 +342,7 @@ def test_statistic_views_do_not_keep_surrogate_chunks_alive(monkeypatch):
         return real_cat(tensors, *args, **kwargs)
 
     monkeypatch.setattr(torch, "cat", spy)
-    surrogate_test(x, lambda data: data[:, 0, 0], random_shuffle_surrogate, 4)
+    surrogate_test(x, lambda data: data[:, 0, 0], random_shuffle_surrogate, num_surrogates=4)
     assert stored and all(size == 2 for sizes in stored for size in sizes)
 
 
@@ -337,7 +354,7 @@ def test_results_carry_no_autograd_graph():
         grad_enabled.append(torch.is_grad_enabled())
         return data[:, 0, 0]
 
-    result = surrogate_test(x, statistic, random_shuffle_surrogate, 3)
+    result = surrogate_test(x, statistic, random_shuffle_surrogate, num_surrogates=3)
     assert not any(grad_enabled)
     assert not any(tensor.requires_grad for tensor in result)
 
@@ -350,7 +367,7 @@ def test_surrogate_kwargs_forwarded():
         seen.append(marker)
         return data
 
-    surrogate_test(x, _first_value, spy, 2, marker="m")
+    surrogate_test(x, _first_value, spy, num_surrogates=2, marker="m")
     assert seen == ["m"]
 
 
@@ -358,12 +375,14 @@ def test_uniform_p_values_under_the_null():
     generator = torch.Generator().manual_seed(11)
     x = torch.randn(300, 40, 1, dtype=torch.float64, generator=generator)
     p_values = surrogate_test(
-        x, _lag_one_autocorrelation, random_shuffle_surrogate, 19, tail="both", generator=generator
+        x, _lag_one_autocorrelation, random_shuffle_surrogate, num_surrogates=19, tail="both", generator=generator
     ).p_value
     # Two-sided grid 2j/20: P(p <= 0.1) = 0.1 and P(p <= 0.5) = 0.5 for iid data.
     assert abs((p_values <= 0.1).double().mean().item() - 0.1) < 0.06
     assert abs((p_values <= 0.5).double().mean().item() - 0.5) < 0.1
-    one_sided = surrogate_test(x, _lag_one_autocorrelation, random_shuffle_surrogate, 19, generator=generator).p_value
+    one_sided = surrogate_test(
+        x, _lag_one_autocorrelation, random_shuffle_surrogate, num_surrogates=19, generator=generator
+    ).p_value
     assert abs((one_sided <= 0.25).double().mean().item() - 0.25) < 0.08
 
 
@@ -373,7 +392,7 @@ def test_detects_nonlinearity_in_henon_against_iaaft():
         series,
         _time_reversal_asymmetry,
         iaaft_surrogate,
-        19,
+        num_surrogates=19,
         tail="both",
         generator=torch.Generator().manual_seed(0),
         max_iterations=30,
@@ -383,7 +402,7 @@ def test_detects_nonlinearity_in_henon_against_iaaft():
         torch.randn(1000, dtype=torch.float64, generator=torch.Generator().manual_seed(5)),
         _time_reversal_asymmetry,
         iaaft_surrogate,
-        19,
+        num_surrogates=19,
         tail="both",
         generator=torch.Generator().manual_seed(0),
         max_iterations=30,
@@ -406,11 +425,8 @@ def test_matches_timeseries_surrogates_jl_convention():
         println(pvalue(SurrogateTest(f, x, RandomShuffle(); rng = Xoshiro(1), n = 4000, threaded = false); tail = tail))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=300
-    )
-    assert result.returncode == 0, result.stderr
-    left, right, both, shuffle_left, shuffle_right = [float(v) for v in result.stdout.split()]
+    stdout = run_julia(julia_code)
+    left, right, both, shuffle_left, shuffle_right = [float(v) for v in stdout.split()]
     assert (left, right, both) == (0.0, 1.0, 0.0)
 
     def shift_two(data, generator=None):
@@ -418,12 +434,17 @@ def test_matches_timeseries_surrogates_jl_convention():
 
     data = torch.tensor(x, dtype=torch.float64)
     for tail, julia_p in (("left", left), ("right", right), ("both", both)):
-        ours = surrogate_test(data, _first_value, shift_two, 10, tail=tail).p_value.item()
+        ours = surrogate_test(data, _first_value, shift_two, num_surrogates=10, tail=tail).p_value.item()
         # k from Julia's convention, ours = (1 + k) / (M + 1) (clipped to 1)
         assert ours == pytest.approx(min(1.0, (1 + julia_p * 10) / 11 * (2 if tail == "both" else 1)))
     for tail, julia_p in (("left", shuffle_left), ("right", shuffle_right)):
         ours = surrogate_test(
-            data, _first_value, random_shuffle_surrogate, 4000, tail=tail, generator=torch.Generator().manual_seed(2)
+            data,
+            _first_value,
+            random_shuffle_surrogate,
+            num_surrogates=4000,
+            tail=tail,
+            generator=torch.Generator().manual_seed(2),
         )
         assert abs(ours.p_value.item() - julia_p) < 0.03
 
@@ -437,7 +458,7 @@ def test_half_precision_p_value_with_large_counts():
 
     for tail, count in (("right", 65520), ("left", 100001)):
         result = surrogate_test(
-            torch.ones(1, dtype=torch.float16), lambda data: data[:, 0, 0], surrogate, 100000, tail=tail
+            torch.ones(1, dtype=torch.float16), lambda data: data[:, 0, 0], surrogate, num_surrogates=100000, tail=tail
         )
         expected = torch.tensor(count / 100001, dtype=torch.float64).to(torch.float16)
         assert result.p_value.dtype == torch.float16 and result.p_value == expected
@@ -452,5 +473,5 @@ def test_mixed_statistic_dtypes_are_promoted_before_ranking():
             return torch.ones(data.shape[0], dtype=torch.float32)
         return torch.full((data.shape[0],), 1 - 2**-30, dtype=torch.float64)
 
-    result = surrogate_test(torch.zeros(2), statistic, lambda data, generator=None: data, 5)
+    result = surrogate_test(torch.zeros(2), statistic, lambda data, generator=None: data, num_surrogates=5)
     assert result.p_value.item() == pytest.approx(1 / 6)

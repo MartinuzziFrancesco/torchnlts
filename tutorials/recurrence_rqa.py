@@ -30,7 +30,7 @@ theiler_window = 1
 print(f"{'signal':>20}  {'RR':>6}  {'DET':>6}")
 for name, signal in [("periodic (sine)", periodic), ("chaotic (Lorenz x)", chaotic), ("white noise", noise)]:
     recurrence = hard_recurrence_matrix(signal, recurrence_rate=target_rate)
-    rate = recurrence_rate(recurrence, theiler_window)
+    rate = recurrence_rate(recurrence, theiler_window=theiler_window)
     det = determinism(recurrence, lmin=2, theiler_window=theiler_window)
     print(f"{name:>20}  {rate.item():>6.3f}  {det.item():>6.3f}")
 

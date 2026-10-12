@@ -11,13 +11,11 @@ Dual ground truth:
   2. Julia: RecurrenceAnalysis.jl's `RecurrenceMatrix` (hard variant only).
 """
 
-import subprocess
-
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.recurrence.matrix import hard_recurrence_matrix, soft_recurrence_matrix
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_hard_recurrence_matrix_hand_derived():
@@ -62,15 +60,9 @@ def test_hard_recurrence_matrix_matches_recurrenceanalysis_jl():
         println(join(Int.(row), ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
+    stdout = run_julia(julia_code)
     julia_matrix = torch.tensor(
-        [[int(v) for v in line.split(",")] for line in result.stdout.strip().splitlines()],
+        [[int(v) for v in line.split(",")] for line in stdout.strip().splitlines()],
         dtype=torch.bool,
     )
     torch_matrix = hard_recurrence_matrix(trajectory, epsilon=epsilon)
@@ -104,3 +96,16 @@ def test_soft_recurrence_matrix_batched_and_exponential():
     assert actual.shape == (4, 6, 6)
     assert torch.allclose(torch.diagonal(actual, dim1=-2, dim2=-1), torch.ones(4, 6, dtype=torch.float64))
     assert torch.equal(actual, actual.transpose(-1, -2))
+
+
+@pytest.mark.parametrize("temperature", [0.0, -1.0, float("nan"), torch.tensor([0.5, 0.0])])
+def test_soft_recurrence_matrix_rejects_invalid_temperature(temperature):
+    with pytest.raises(ValueError, match="temperature"):
+        soft_recurrence_matrix(torch.randn(8), temperature)
+
+
+def test_soft_recurrence_matrix_weights_lie_in_the_closed_unit_interval():
+    trajectory = torch.tensor([0.0, 1.0, 300.0, float("nan")])
+    weights = soft_recurrence_matrix(trajectory, temperature=0.5)
+    assert ((weights >= 0) & (weights <= 1)).all()
+    assert weights[0, 2] == 0 and weights[3].tolist() == [0.0] * 4 and weights[:, 3].tolist() == [0.0] * 4

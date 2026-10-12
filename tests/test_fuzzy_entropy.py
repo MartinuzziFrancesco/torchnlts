@@ -9,9 +9,15 @@ Dual ground truth:
 
 import math
 
+import pytest
 import torch
 
+from tests.conftest import assert_first_row_gradients_unaffected
 from torchnlts.entropy.fuzzy import fuzzy_entropy
+
+NONFINITE = [float("nan"), float("inf"), -float("inf")]
+# With embedding_dim=1 and delay=30 on 50 samples, samples 20-29 enter no template.
+GAP = dict(embedding_dim=1, delay=30)
 
 
 def test_fuzzy_entropy_hand_derived_embedding_dim_1():
@@ -66,13 +72,26 @@ def test_fuzzy_entropy_batch_size_one_matches_unbatched():
     assert torch.isclose(batched[0], unbatched)
 
 
+def test_fuzzy_entropy_follows_the_input_dtype():
+    torch.manual_seed(9)
+    reference = torch.randn(60)
+    integers = (4 * reference).round().long()
+    result = fuzzy_entropy(integers, 0.5)
+    assert result.dtype == torch.get_default_dtype() and torch.isfinite(result)
+    assert torch.equal(result, fuzzy_entropy(integers.to(torch.get_default_dtype()), 0.5))
+    for dtype in (torch.float16, torch.bfloat16):
+        half = reference.to(dtype)
+        result = fuzzy_entropy(half, 0.5)
+        assert result.dtype == dtype and torch.isfinite(result)
+        assert torch.equal(result, fuzzy_entropy(half.float(), 0.5).to(dtype))
+    with pytest.raises(ValueError, match="complex"):
+        fuzzy_entropy(torch.ones(20, dtype=torch.complex64), 0.5)
+
+
 def test_fuzzy_entropy_negative_theiler_window_raises():
     trajectory = torch.tensor([0.0, 1.0, 0.0, 2.0], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         fuzzy_entropy(trajectory, radius=1.5, embedding_dim=1, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_fuzzy_entropy_gradcheck_embedding_dim_3():
@@ -209,3 +228,93 @@ def test_fuzzy_entropy_multivariate_embedding_dim_1_not_short_circuited():
     result.backward()
     assert torch.isfinite(trajectory.grad).all()
     assert (trajectory.grad != 0).any()
+
+
+@pytest.mark.parametrize("bad", NONFINITE)
+def test_fuzzy_entropy_nan_for_nonfinite_sample_outside_every_template(bad):
+    # Regression: a non-finite sample that enters no template used to leave its row finite.
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = bad
+    values = fuzzy_entropy(batch, 0.5, **GAP)
+    assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
+    for row in (0, 2):
+        assert torch.equal(values[row], fuzzy_entropy(batch[row], 0.5, **GAP))
+    assert torch.isnan(fuzzy_entropy(batch[1], 0.5, **GAP)) and torch.isnan(fuzzy_entropy(batch[1, :, 0], 0.5, **GAP))
+    swept = fuzzy_entropy(batch, torch.tensor([0.5, 0.8], dtype=torch.float64), **GAP)
+    assert swept.shape == (2, 3) and torch.isnan(swept[:, 1]).all() and torch.isfinite(swept[:, [0, 2]]).all()
+
+
+@pytest.mark.parametrize(
+    "options, position",
+    [
+        (dict(embedding_dim=3), 5),
+        (dict(embedding_dim=2, norm_order=2.0), 5),
+        (dict(embedding_dim=3, fuzzy_power=0.5), 5),
+        (GAP, 25),
+    ],
+    ids=["inside_window", "euclidean", "fractional_power", "outside_every_template"],
+)
+def test_fuzzy_entropy_nonfinite_row_leaves_other_gradients(options, position):
+    # Regression: the NaN row put NaN into the gradients of the other rows and of the shared radius.
+    torch.manual_seed(1)
+    clean, bad_row = torch.randn(50, dtype=torch.float64), torch.randn(50, dtype=torch.float64)
+    bad_row[position] = float("nan")
+
+    def gradients(rows):
+        batch = torch.stack(rows).unsqueeze(-1).requires_grad_()
+        radius = torch.tensor(0.7, dtype=torch.float64, requires_grad=True)
+        fuzzy_entropy(batch, radius, **options).nansum().backward()
+        return batch.grad, radius.grad
+
+    batch_grad, radius_grad = gradients([bad_row, clean])
+    single_grad, single_radius_grad = gradients([clean])
+    assert torch.isfinite(batch_grad).all() and (batch_grad[0] == 0).all()
+    assert torch.allclose(batch_grad[1], single_grad[0])
+    assert torch.isfinite(radius_grad) and torch.allclose(radius_grad, single_radius_grad)
+
+
+def test_fuzzy_entropy_vmap_with_nonfinite_sample_outside_every_template():
+    torch.manual_seed(0)
+    batch = torch.randn(3, 50, 1, dtype=torch.float64)
+    batch[1, 25] = float("nan")
+    direct = fuzzy_entropy(batch, 0.5, **GAP)
+    mapped = torch.vmap(lambda series: fuzzy_entropy(series, 0.5, **GAP))(batch)
+    assert torch.allclose(direct, mapped, equal_nan=True) and torch.isnan(mapped[1]) and torch.isfinite(mapped[0])
+
+
+SMALL_SERIES = [0.00, 0.03, -0.02, 0.05, 0.01, -0.04, 0.02, 0.06, -0.01, 0.00, 0.04, -0.03]
+# Mean-removed templates of this series are at least 10 apart, so every membership at a radius of 0.1 underflows.
+QUADRATIC_SERIES = [10.0 * index**2 for index in range(12)]
+# At embedding_dim=3 some length-3 templates are close, but no length-4 pair is, in float32.
+SPREAD_SERIES = [2.225, -6.662, 6.846, 5.74, -5.829, 7.679, 0.571, -11.894, -5.659, -8.327, 9.014, 2.116]
+SPREAD_ROW_ZERO = [-0.049, -0.06, -0.056, 0.067, -0.02, 0.194, -0.14, -0.076, 0.063, -0.09, -0.056, 0.069]
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize(
+    "options, expected",
+    [
+        (dict(embedding_dim=1), math.inf),
+        (dict(embedding_dim=2), math.nan),
+        (dict(embedding_dim=3, norm_order=2.0), math.nan),
+    ],
+    ids=["long_underflows", "both_underflow", "both_underflow_euclidean"],
+)
+def test_fuzzy_entropy_underflowed_memberships_keep_other_gradients_finite(options, expected, dtype):
+    # log(0) of an underflowed membership sum must not put NaN into the gradient of the shared radius.
+    result = assert_first_row_gradients_unaffected(
+        lambda series, radius: fuzzy_entropy(series, radius, **options), [SMALL_SERIES, QUADRATIC_SERIES], 0.1, dtype
+    )
+    assert torch.isfinite(result[0])
+    torch.testing.assert_close(result[1], torch.tensor(expected, dtype=dtype), equal_nan=True)
+
+
+def test_fuzzy_entropy_only_the_long_membership_sum_underflows_keeps_other_gradients_finite():
+    result = assert_first_row_gradients_unaffected(
+        lambda series, radius: fuzzy_entropy(series, radius, embedding_dim=3, norm_order=2.0),
+        [SPREAD_ROW_ZERO, SPREAD_SERIES],
+        0.1,
+        torch.float32,
+    )
+    assert torch.isfinite(result[0]) and result[1] == math.inf

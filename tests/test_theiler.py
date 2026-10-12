@@ -8,13 +8,12 @@ Dual ground truth:
      this test confirms uses the identical |i - j| <= w rule.
 """
 
-import subprocess
-
+import numpy
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.neighbors.theiler import apply_theiler_window, theiler_window_mask
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_theiler_window_mask_hand_derived():
@@ -53,11 +52,8 @@ def test_apply_theiler_window_batched():
 
 
 def test_apply_theiler_window_rejects_non_square_matrix():
-    try:
+    with pytest.raises(ValueError):
         apply_theiler_window(torch.zeros(3, 5), window=1)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for a non-square matrix")
 
 
 def test_apply_theiler_window_gradcheck():
@@ -75,14 +71,22 @@ def test_theiler_window_matches_neighborhood_jl():
         print(th(i, j) ? 1 : 0)
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    excluded_flat = [c == "1" for c in result.stdout.strip()]
+    stdout = run_julia(julia_code)
+    excluded_flat = [c == "1" for c in stdout.strip()]
     julia_excluded = torch.tensor(excluded_flat).reshape(t, t)
     # Neighborhood.jl's Theiler(i, j) is True where the pair is EXCLUDED, the negation of our "valid pair" mask.
     assert torch.equal(mask, ~julia_excluded)
+
+
+@pytest.mark.parametrize("bad", [1.5, 2.0, "1", None, torch.tensor(1.5)])
+def test_theiler_window_must_be_an_integer(bad):
+    with pytest.raises(ValueError, match="theiler_window must be an integer"):
+        theiler_window_mask(5, bad)
+    with pytest.raises(ValueError, match="theiler_window must be an integer"):
+        apply_theiler_window(torch.zeros(5, 5), bad)
+
+
+def test_theiler_window_accepts_numpy_and_huge_integers():
+    assert torch.equal(theiler_window_mask(5, numpy.int64(1)), theiler_window_mask(5, 1))
+    assert not theiler_window_mask(5, 10**30).any()
+    assert theiler_window_mask(5, -(10**30)).all()

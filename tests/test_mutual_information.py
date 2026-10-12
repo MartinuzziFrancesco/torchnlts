@@ -18,10 +18,11 @@ Dual ground truth:
 """
 
 import math
-import subprocess
 
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.entropy.mutual_information import mutual_information
 
 # CausalityTools.jl conflicts with the shared juliaenv's FractalDimensions.jl pin (checked by forcing both into one
@@ -81,21 +82,15 @@ def test_mutual_information_truncates_to_shorter_length():
 def test_mutual_information_rejects_invalid_num_neighbors():
     x = torch.randn(10, dtype=torch.float64)
     y = torch.randn(10, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         mutual_information(x, y, num_neighbors=0)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_mutual_information_rejects_negative_theiler_window():
     x = torch.randn(10, dtype=torch.float64)
     y = torch.randn(10, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         mutual_information(x, y, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_mutual_information_nan_input_gives_nan_output():
@@ -190,14 +185,8 @@ def test_mutual_information_disagrees_with_causalitytools_jl():
     y = [0.0, 2.0, 1.0, 20.0]
     println(association(KSG1(MIShannon(base=MathConstants.e); k=1, w=0), x, y))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_mi = torch.tensor(float(result.stdout.strip()), dtype=torch.float64)
+    stdout = run_julia(julia_code, JULIA_PROJECT)
+    julia_mi = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_mi = mutual_information(x, y, num_neighbors=1, theiler_window=0)
     assert torch.isclose(julia_mi, torch.tensor(-0.875, dtype=torch.float64))
     assert torch.isclose(torch_mi, torch.tensor(0.0, dtype=torch.float64), atol=1e-12)
@@ -256,11 +245,8 @@ def test_mutual_information_default_estimator_is_ksg1_and_invalid_raises():
     x = torch.randn(30, dtype=torch.float64)
     y = torch.randn(30, dtype=torch.float64)
     assert torch.equal(mutual_information(x, y), mutual_information(x, y, estimator="ksg1"))
-    try:
+    with pytest.raises(ValueError):
         mutual_information(x, y, estimator="ksg3")
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_mutual_information_ksg2_batched_nan_and_starvation():
@@ -305,14 +291,7 @@ def _julia_ksg2(x, y, num_neighbors):
     y = {y.tolist()}
     println(association(KSG2(MIShannon(base=MathConstants.e); k={num_neighbors}, w=0), x, y))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    return float(result.stdout.strip())
+    return float(run_julia(julia_code, JULIA_PROJECT).strip())
 
 
 def test_mutual_information_ksg2_matches_causalitytools_jl_at_k1_and_deviates_for_larger_k():
@@ -359,11 +338,8 @@ def test_mutual_information_rejects_non_integer_num_neighbors():
     x = torch.randn(10, dtype=torch.float64)
     for estimator in ("ksg1", "ksg2"):
         for bad in (1.5, float("nan"), float("inf")):
-            try:
+            with pytest.raises(ValueError):
                 mutual_information(x, x, num_neighbors=bad, estimator=estimator)
-                assert False, "expected ValueError"
-            except ValueError:
-                pass
 
 
 def test_mutual_information_ksg2_small_scale_deviates_from_causalitytools_jl():

@@ -1,17 +1,14 @@
 """Tests for torchnlts.lyapunov.eckmann.
 
-Dual ground truth:
-  1. nolds.lyap_e, run live on the same data and parameters, for
-     configurations whose matrix step is 1 (nolds composes the fitted maps
-     at consecutive points, which follows the paper only then). Agreement
-     is at float64 precision for well-conditioned fits; the one
-     ill-conditioned case (an exactly-determined 1D map embedded in 3
-     dimensions) uses a looser tolerance.
-  2. The paper's algorithm (Sec. 2c: maps composed at i, i + m, i + 2m, ...)
-     as an independent straightforward NumPy implementation, for matrix
-     steps above 1 and delays above 1; and the known values: Henon map
-     (a=1.4, b=0.3) exponents ~ 0.42 and -1.62, logistic map (r=4) ln 2,
-     and ``lyapunov_spectrum`` on the map itself.
+Ground truth:
+
+- ``nolds.lyap_e`` on the same data and parameters, for configurations whose matrix step is 1 (nolds composes the
+  fitted maps at consecutive points, which follows the paper only then). Agreement is at float64 precision for
+  well-conditioned fits; the one ill-conditioned case (an exactly determined 1-D map embedded in 3 dimensions) uses a
+  looser tolerance.
+- The paper's algorithm (Sec. 2c: maps composed at i, i + m, i + 2m, ...) as an independent NumPy implementation, for
+  matrix steps and delays above 1; and the known values: the Henon map (a = 1.4, b = 0.3) exponents ~0.42 and -1.62, the
+  logistic map (r = 4) ln 2, and ``lyapunov_spectrum`` on the map itself.
 """
 
 import math
@@ -21,7 +18,7 @@ import pytest
 import torch
 
 import torchnlts.lyapunov.eckmann as eckmann_module
-from tests.conftest import logistic_map_trajectory
+from tests.conftest import logistic_map_trajectory, requires_nolds
 from torchnlts.lyapunov.eckmann import eckmann_spectrum
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
 from torchnlts.neighbors.knn import knn_search
@@ -77,11 +74,14 @@ def _paper_oracle(series, embedding_dim, matrix_dim, num_neighbors, delay=1, the
     "embedding_dim, matrix_dim, num_neighbors, theiler_window, tolerance",
     [(4, 4, None, 0, 1e-8), (2, 2, 6, 3, 1e-8), (3, 3, 9, 5, 1e-8), (5, 5, None, 0, 1e-8)],
 )
+@requires_nolds
 def test_matches_nolds_henon(embedding_dim, matrix_dim, num_neighbors, theiler_window, tolerance):
     import nolds
 
     series = _henon_series(1200)
-    result = eckmann_spectrum(series, embedding_dim, matrix_dim, num_neighbors, theiler_window=theiler_window)
+    result = eckmann_spectrum(
+        series, embedding_dim, matrix_dim, num_neighbors=num_neighbors, theiler_window=theiler_window
+    )
     reference = nolds.lyap_e(
         series.numpy(), emb_dim=embedding_dim, matrix_dim=matrix_dim, min_nb=num_neighbors, min_tsep=theiler_window
     )
@@ -89,6 +89,7 @@ def test_matches_nolds_henon(embedding_dim, matrix_dim, num_neighbors, theiler_w
     numpy.testing.assert_allclose(result.numpy(), reference, rtol=0, atol=tolerance)
 
 
+@requires_nolds
 @pytest.mark.parametrize("embedding_dim, matrix_dim, tolerance", [(2, 2, 1e-8), (3, 3, 1e-4)])
 def test_matches_nolds_logistic(embedding_dim, matrix_dim, tolerance):
     import nolds
@@ -165,7 +166,7 @@ def test_input_shapes():
     reference = eckmann_spectrum(series, 4, 4)
     torch.testing.assert_close(eckmann_spectrum(series[:, None], 4, 4), reference)
     torch.testing.assert_close(eckmann_spectrum(series.numpy(), 4, 4), reference)
-    with pytest.raises(ValueError, match="scalar"):
+    with pytest.raises(ValueError, match="univariate"):
         eckmann_spectrum(torch.randn(100, 2), 4, 4)
     with pytest.raises(ValueError):
         eckmann_spectrum(torch.randn(2, 3, 100, 1), 4, 4)

@@ -1,19 +1,15 @@
 """Tests for torchnlts.lyapunov.kaplan_yorke.
 
-Ground truth: hand-derived values from the Kaplan-Yorke formula, live
-FractalDimensions.jl ``kaplanyorke_dim`` calls (run via subprocess), and the
-literature dimensions of the Henon (1.258) and Lorenz (2.06) attractors.
+Ground truth: hand-derived values of the Kaplan-Yorke formula, FractalDimensions.jl's ``kaplanyorke_dim`` (run through
+a subprocess), and the literature dimensions of the Henon (1.258) and Lorenz (2.06) attractors.
 """
-
-import subprocess
 
 import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.lyapunov.kaplan_yorke import kaplan_yorke_dimension
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
-
-JULIA_PROJECT = "juliaenv"
 
 SPECTRA = [
     [0.9, 0.0, -14.5],  # Lorenz-like, k = 2
@@ -105,11 +101,8 @@ def test_validation():
 def test_julia_cross_check():
     literal = "[" + ", ".join("[" + ", ".join(repr(value) for value in spectrum) + "]" for spectrum in SPECTRA) + "]"
     code = f"using FractalDimensions; for s in {literal}; println(repr(kaplanyorke_dim(s))); end"
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", code], capture_output=True, text=True, timeout=300
-    )
-    assert result.returncode == 0, result.stderr
-    expected = [float(value) for value in result.stdout.split()]
+    stdout = run_julia(code)
+    expected = [float(value) for value in stdout.split()]
     assert len(expected) == len(SPECTRA)
     for spectrum, reference in zip(SPECTRA, expected):
         got = kaplan_yorke_dimension(torch.tensor(spectrum, dtype=torch.float64)).item()

@@ -1,7 +1,10 @@
 """Recurrence quantification analysis (RQA) measures.
 
-Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6),
-237-329.
+Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6), 237-329.
+
+``theiler_window`` excludes the pairs with ``|i - j| <= theiler_window``; RecurrenceAnalysis.jl's ``theiler``
+keyword is ``theiler_window + 1``. The average and maximum line lengths return ``0`` when no line reaches ``lmin``,
+as in Julia; the entropies return ``NaN``.
 """
 
 from __future__ import annotations
@@ -11,39 +14,33 @@ from collections.abc import Callable
 import torch
 import torch.nn.functional as functional
 
-from torchnlts._shape import _as_int, _validate_square_matrix
+from torchnlts._shape import _as_int, _shannon_entropy, _validate_square_matrix
 from torchnlts.neighbors.theiler import theiler_window_mask
 
 _WINDOW_ELEMENT_BUDGET = 2**24
 
 
-def recurrence_rate(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tensor:
+def recurrence_rate(recurrence: torch.Tensor, *, theiler_window: int = 0) -> torch.Tensor:
     """Recurrence rate (RR): fraction of recurrent points.
 
-    Gradient class: exact (a mean, differentiable whenever ``recurrence``
-    is; ``recurrence`` itself may come from the non-differentiable
-    :func:`torchnlts.recurrence.hard_recurrence_matrix` or the
-    smooth :func:`torchnlts.recurrence.soft_recurrence_matrix`).
+    Reference: Marwan et al. (2007), eq. 11. Matches RecurrenceAnalysis.jl's ``recurrencerate``
+    (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), eq. 11. Matches
-    RecurrenceAnalysis.jl's ``recurrencerate``, whose ``theiler`` keyword
-    counts excluded diagonals differently (``theiler = theiler_window + 1``
-    reproduces the same denominator; see its docstring).
+    Gradient class: exact (a mean, differentiable whenever ``recurrence`` is, e.g. a soft recurrence matrix).
 
     Args:
-        recurrence: Bool or float recurrence matrix, shape ``[T, T]`` or
-            ``[B, T, T]``, as returned by ``hard_recurrence_matrix`` or
-            ``soft_recurrence_matrix``.
-        theiler_window: Theiler window (see
-            :func:`torchnlts.neighbors.theiler_window_mask`).
-            Pairs with ``|i - j| <= theiler_window`` are excluded from
-            both the numerator and denominator; ``0`` (default) excludes
-            only the always-recurrent diagonal. Negative excludes nothing.
+        recurrence: Bool or float recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``, as returned by
+            :func:`~torchnlts.recurrence.hard_recurrence_matrix` or :func:`~torchnlts.recurrence.soft_recurrence_matrix`.
+        theiler_window: Pairs with ``|i - j| <= theiler_window`` are excluded from the numerator and the
+            denominator. ``0`` (default) excludes only the always-recurrent diagonal; a negative window excludes
+            nothing.
 
     Returns:
-        Scalar (or ``[B]``) recurrence rate in ``[0, 1]``, or ``NaN`` if
-        ``theiler_window`` excludes every pair (e.g. ``T <= theiler_window``),
-        the honest answer for an empty denominator rather than a crash.
+        Recurrence rate, shape ``[]`` or ``[B]``, in ``[0, 1]`` for a 0/1 or kernel-weight matrix; ``NaN`` if the
+        window excludes every pair (``T <= theiler_window``).
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square matrix or ``theiler_window`` is not an integer.
     """
     _validate_square_matrix(recurrence)
     weights = recurrence.to(torch.get_default_dtype()) if recurrence.dtype == torch.bool else recurrence
@@ -65,15 +62,10 @@ def _check_line_input(recurrence: torch.Tensor, theiler_window: int) -> int:
 
 
 def _run_length_counts(lines: torch.Tensor) -> torch.Tensor:
-    """Count of runs of ``True`` of each length along the last dim.
+    """Number of runs of ``True`` of each length along the last dim: long ``[..., L + 1]`` for ``lines`` ``[..., L]``.
 
-    Each line is run-length encoded via a group-id trick (cumulative count
-    of ``False`` entries is constant within a run of ``True``s), so no
-    Python loop over points is needed.
-
-    Returns:
-        Long tensor ``[..., L + 1]`` for ``lines`` ``[..., L]``; entry ``l``
-        is the number of runs of length exactly ``l`` (entry ``0`` is ``0``).
+    Entry ``l`` counts the runs of length exactly ``l`` (entry ``0`` is ``0``). The cumulative count of ``False``
+    entries is constant within a run of ``True``s, which identifies the runs without a Python loop.
     """
     lines = lines.long()
     group = torch.cumsum(1 - lines, dim=-1)
@@ -83,16 +75,10 @@ def _run_length_counts(lines: torch.Tensor) -> torch.Tensor:
 
 
 def _diagonal_line_histogram(recurrence: torch.Tensor, theiler_window: int) -> torch.Tensor:
-    """Count of diagonal lines of each length, outside the Theiler window.
+    """Number of diagonal lines of each length outside the Theiler window: long ``[..., num_points + 1]``.
 
-    Shared by the diagonal-line RQA measures, matching RecurrenceAnalysis.jl's
-    ``diagonalhistogram``. Loops only over the ``2 * num_points - 1``
-    diagonal offsets, which is unavoidable since diagonals differ in length.
-
-    Returns:
-        Long tensor of shape ``[..., num_points + 1]``; entry ``l`` is the
-        number of diagonal lines of length exactly ``l`` (entry ``0`` is
-        always ``0``, kept only so indices line up with lengths).
+    Entry ``l`` counts the lines of length exactly ``l`` (entry ``0`` is always ``0``). Matches RecurrenceAnalysis.jl's
+    ``diagonalhistogram``. Loops over the ``2 * num_points - 1`` diagonal offsets, since diagonals differ in length.
     """
     theiler_window = _check_line_input(recurrence, theiler_window)
     num_points = recurrence.shape[-1]
@@ -112,26 +98,20 @@ def _columns_outside_window(recurrence: torch.Tensor, theiler_window: int) -> to
 
 
 def _vertical_line_histogram(recurrence: torch.Tensor, theiler_window: int) -> torch.Tensor:
-    """Count of vertical lines of each length, outside the Theiler window.
+    """Number of vertical lines of each length outside the Theiler window, laid out like the diagonal histogram.
 
-    Matches RecurrenceAnalysis.jl's ``vl_histogram``: a column's line is cut
-    by the Theiler window. Same layout as :func:`_diagonal_line_histogram`.
+    A column's line is cut by the Theiler window, as in RecurrenceAnalysis.jl's ``vl_histogram``.
     """
     theiler_window = _check_line_input(recurrence, theiler_window)
     return _run_length_counts(_columns_outside_window(recurrence, theiler_window)).sum(dim=-2)
 
 
 def _recurrence_time_histogram(recurrence: torch.Tensor, theiler_window: int) -> torch.Tensor:
-    """Count of recurrence times of each value, outside the Theiler window.
+    """Number of recurrence times of each value outside the Theiler window: long ``[..., num_points + 1]``.
 
-    Within each column, the time between consecutive vertical lines is the
-    white gap between them plus half (floored) of each line's length, as in
-    RecurrenceAnalysis.jl's ``rt_histogram``. All line lengths take part
-    (no ``lmin``), and the Theiler window counts as white.
-
-    Returns:
-        Long tensor ``[..., num_points + 1]``; entry ``t`` is the number of
-        recurrence times equal to ``t``.
+    Within a column, the time between consecutive vertical lines is the white gap between them plus half (floored)
+    of each line's length, as in RecurrenceAnalysis.jl's ``rt_histogram``. All line lengths take part (no ``lmin``)
+    and the Theiler window counts as white. Entry ``t`` counts the recurrence times equal to ``t``.
     """
     theiler_window = _check_line_input(recurrence, theiler_window)
     lines = _columns_outside_window(recurrence, theiler_window)  # [..., column, row]
@@ -155,16 +135,11 @@ def _recurrence_time_histogram(recurrence: torch.Tensor, theiler_window: int) ->
 def _qualifying_line_lengths(
     recurrence: torch.Tensor, lmin: int, theiler_window: int, vertical: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Shared setup for every line RQA measure: validate ``lmin``, build the
-    diagonal (or vertical) line histogram, and slice both it and a matching
-    ``lengths`` tensor down to ``l >= lmin`` (long dtype; callers needing
-    float cast it themselves, since the max measures want exact integers).
+    """Validate ``lmin`` and build the diagonal (or vertical) line histogram and the line lengths ``l >= lmin``.
 
     Returns:
-        ``(histogram, lengths)``, both shape ``[..., num_points + 1 - lmin]``
-        (``lengths`` broadcastable against ``histogram``'s last dim), or
-        both empty along the last dim if ``lmin`` exceeds every possible
-        line length (e.g. ``lmin > num_points``).
+        ``(histogram, lengths)``, long, both ``[..., num_points + 1 - lmin]`` (``lengths`` broadcastable against
+        the histogram's last dim), or empty along the last dim if ``lmin`` exceeds every possible line length.
     """
     lmin = _as_int(lmin, "lmin")
     if lmin < 1:
@@ -199,266 +174,308 @@ def _max_line_length(histogram: torch.Tensor, lengths: torch.Tensor, recurrence:
 def _line_entropy(histogram: torch.Tensor) -> torch.Tensor:
     counts = histogram.to(torch.get_default_dtype())
     num_lines = counts.sum(dim=-1, keepdim=True)
-    probability = counts / num_lines.clamp(min=1)
-    # probability is 0 where histogram is 0, so 0 * log(tiny) is 0; no has_lines mask is needed.
-    log_probability = torch.log(probability.clamp(min=torch.finfo(probability.dtype).tiny))
-    entropy = -(probability * log_probability).sum(dim=-1)
+    entropy = _shannon_entropy(counts / num_lines.clamp(min=1))
     return torch.where(num_lines.squeeze(-1) > 0, entropy, torch.full_like(entropy, float("nan")))
 
 
-def determinism(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def determinism(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """Determinism (DET): fraction of recurrent points forming diagonal lines.
 
-    Gradient class: none (discrete run-length structure of a boolean matrix).
+    Reference: Marwan et al. (2007), eq. 13. Matches RecurrenceAnalysis.jl's ``determinism``
+    (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), eq. 13. Matches RecurrenceAnalysis.jl's
-    ``determinism`` (``theiler = theiler_window + 1``, see
-    :func:`~torchnlts.recurrence.recurrence_rate`), including its convention of ``0.0`` (not
-    ``NaN``) when no line reaches ``lmin`` -- a deliberate empty-case
-    convention (Julia's implementation special-cases it directly); it's a
-    safe default here too, since the numerator (points in qualifying
-    lines) can only be positive if the denominator (all recurrent points)
-    is too, so a zero denominator always coincides with a zero numerator.
+    Gradient class: none (run lengths of a boolean matrix).
 
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        lmin: Minimum diagonal line length to count as "deterministic".
-        theiler_window: Theiler window, forwarded to both the line search
-            and the point-count denominator (see :func:`~torchnlts.recurrence.recurrence_rate`).
-            Unlike :func:`~torchnlts.recurrence.recurrence_rate`, must be ``>= 0`` here (see
-            :func:`_diagonal_line_histogram`).
+        lmin: Minimum diagonal line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0`` (a negative window would count the main diagonal as a
+            line). It applies to the line search and to the count of recurrent points.
 
     Returns:
-        Scalar (or ``[B]``) determinism in ``[0, 1]``, ``0.0`` if no line
-        reaches ``lmin``.
+        Determinism, shape ``[]`` or ``[B]``, in ``[0, 1]``; ``0.0`` (not ``NaN``) if no line reaches ``lmin``, as
+        in Julia.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     return _line_point_fraction(recurrence, lmin, theiler_window, vertical=False)
 
 
-def dl_average(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
-    """L: average length of diagonal lines (Marwan et al. (2007), eq. 12).
+def dl_average(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+    """L: average length of the diagonal lines of length ``>= lmin``.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
+    Reference: Marwan et al. (2007), eq. 12. Matches RecurrenceAnalysis.jl's ``dl_average``
+    (``theiler = theiler_window + 1``).
 
-    Matches RecurrenceAnalysis.jl's ``dl_average`` (``theiler =
-    theiler_window + 1``, see :func:`~torchnlts.recurrence.recurrence_rate`), including its
-    convention of ``0.0`` (not ``NaN``) when no line reaches ``lmin``.
+    Gradient class: none (run lengths of a boolean matrix).
 
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        lmin: Minimum diagonal line length to count.
-        theiler_window: Theiler window, forwarded to the line search. Must
-            be ``>= 0`` (see :func:`_diagonal_line_histogram`).
+        lmin: Minimum diagonal line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``.
 
     Returns:
-        Scalar (or ``[B]``) average line length, ``0.0`` if none qualify.
+        Average line length, shape ``[]`` or ``[B]``; ``0.0`` (not ``NaN``) if no line reaches ``lmin``, as in
+        Julia.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     histogram, lengths = _qualifying_line_lengths(recurrence, lmin, theiler_window)
     return _average_line_length(histogram, lengths)
 
 
-def dl_max(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def dl_max(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """Lmax: length of the longest diagonal line.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
+    Reference: Marwan et al. (2007), Sec. 2.1. Matches RecurrenceAnalysis.jl's ``dl_max``
+    (``theiler = theiler_window + 1``).
 
-    Matches RecurrenceAnalysis.jl's ``dl_max`` (``theiler = theiler_window
-    + 1``, see :func:`~torchnlts.recurrence.recurrence_rate`), including its convention of
-    ``0`` when no line reaches ``lmin``.
+    Gradient class: none (run lengths of a boolean matrix).
 
-    Args: same as :func:`~torchnlts.recurrence.dl_average`.
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum diagonal line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``.
 
     Returns:
-        Scalar (or ``[B]``) longest diagonal line length, ``0`` if none qualify.
+        Longest line length, long, shape ``[]`` or ``[B]``; ``0`` if no line reaches ``lmin``, as in Julia.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     histogram, lengths = _qualifying_line_lengths(recurrence, lmin, theiler_window)
     return _max_line_length(histogram, lengths, recurrence)
 
 
-def dl_entropy(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def dl_entropy(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """ENTR: Shannon entropy of the diagonal line length distribution.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
+    Reference: Marwan et al. (2007), eq. 14. Matches RecurrenceAnalysis.jl's ``dl_entropy``
+    (``theiler = theiler_window + 1``).
 
-    Matches RecurrenceAnalysis.jl's ``dl_entropy`` (``theiler =
-    theiler_window + 1``, see :func:`~torchnlts.recurrence.recurrence_rate`).
+    Gradient class: none (run lengths of a boolean matrix).
 
-    Args: same as :func:`~torchnlts.recurrence.dl_average`.
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum diagonal line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``.
 
     Returns:
-        Scalar (or ``[B]``) entropy (nats), or ``NaN`` if no line reaches
-        ``lmin`` (an empty distribution has no defined entropy, unlike
-        :func:`~torchnlts.recurrence.dl_average`/:func:`~torchnlts.recurrence.dl_max`'s ``0`` convention).
+        Entropy in nats, shape ``[]`` or ``[B]``; ``NaN`` if no line reaches ``lmin`` (an empty distribution has no
+        entropy, unlike the ``0`` of :func:`~torchnlts.recurrence.dl_average` and :func:`~torchnlts.recurrence.dl_max`).
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     histogram, _ = _qualifying_line_lengths(recurrence, lmin, theiler_window)
     return _line_entropy(histogram)
 
 
-def laminarity(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def laminarity(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """Laminarity (LAM): fraction of recurrent points forming vertical lines.
 
-    Gradient class: none (discrete run-length structure of a boolean matrix).
+    Reference: Marwan et al. (2007), eq. 62. Matches RecurrenceAnalysis.jl's ``rqa(...)[:LAM]``
+    (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), eq. 62. Matches RecurrenceAnalysis.jl's
-    ``rqa(...)[:LAM]`` (``theiler = theiler_window + 1``), with ``0.0`` when no
-    line reaches ``lmin``. Vertical lines are cut by the Theiler window.
+    Gradient class: none (run lengths of a boolean matrix).
 
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        lmin: Minimum vertical line length to count.
-        theiler_window: Theiler window, ``>= 0`` (see :func:`~torchnlts.recurrence.determinism`).
+        lmin: Minimum vertical line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``. Vertical lines are cut by the window.
 
     Returns:
-        Scalar (or ``[B]``) laminarity in ``[0, 1]``.
+        Laminarity, shape ``[]`` or ``[B]``, in ``[0, 1]``; ``0.0`` if no line reaches ``lmin``.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     return _line_point_fraction(recurrence, lmin, theiler_window, vertical=True)
 
 
-def trapping_time(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
-    """TT: average length of vertical lines.
+def trapping_time(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+    """TT: average length of the vertical lines of length ``>= lmin``.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
+    Reference: Marwan et al. (2007), eq. 63. Matches RecurrenceAnalysis.jl's ``trappingtime``
+    (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), eq. 63. Matches RecurrenceAnalysis.jl's
-    ``trappingtime`` (``theiler = theiler_window + 1``), ``0.0`` if no line
-    reaches ``lmin``.
+    Gradient class: none (run lengths of a boolean matrix).
 
-    Args: same as :func:`~torchnlts.recurrence.laminarity`.
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum vertical line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``. Vertical lines are cut by the window.
 
     Returns:
-        Scalar (or ``[B]``) average vertical line length.
+        Average vertical line length, shape ``[]`` or ``[B]``; ``0.0`` if no line reaches ``lmin``.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     histogram, lengths = _qualifying_line_lengths(recurrence, lmin, theiler_window, vertical=True)
     return _average_line_length(histogram, lengths)
 
 
-def vl_max(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def vl_max(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """Vmax: length of the longest vertical line.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
+    Reference: Marwan et al. (2007), eq. 64. Matches RecurrenceAnalysis.jl's ``vl_max``
+    (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), eq. 64. Matches RecurrenceAnalysis.jl's
-    ``vl_max`` (``theiler = theiler_window + 1``), ``0`` if no line reaches ``lmin``.
+    Gradient class: none (run lengths of a boolean matrix).
 
-    Args: same as :func:`~torchnlts.recurrence.laminarity`.
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum vertical line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``. Vertical lines are cut by the window.
 
     Returns:
-        Scalar (or ``[B]``) longest vertical line length (long).
+        Longest vertical line length, long, shape ``[]`` or ``[B]``; ``0`` if no line reaches ``lmin``.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     histogram, lengths = _qualifying_line_lengths(recurrence, lmin, theiler_window, vertical=True)
     return _max_line_length(histogram, lengths, recurrence)
 
 
-def vl_entropy(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def vl_entropy(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """VENTR: Shannon entropy of the vertical line length distribution.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
+    Reference: Marwan et al. (2007), Sec. 3.5.3. Matches RecurrenceAnalysis.jl's ``vl_entropy``
+    (``theiler = theiler_window + 1``).
 
-    Matches RecurrenceAnalysis.jl's ``vl_entropy`` (``theiler = theiler_window + 1``).
+    Gradient class: none (run lengths of a boolean matrix).
 
-    Args: same as :func:`~torchnlts.recurrence.laminarity`.
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum vertical line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``. Vertical lines are cut by the window.
 
     Returns:
-        Scalar (or ``[B]``) entropy (nats), ``NaN`` if no line reaches ``lmin``.
+        Entropy in nats, shape ``[]`` or ``[B]``; ``NaN`` if no line reaches ``lmin``.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
     histogram, _ = _qualifying_line_lengths(recurrence, lmin, theiler_window, vertical=True)
     return _line_entropy(histogram)
 
 
-def rt_entropy(recurrence: torch.Tensor, theiler_window: int = 0) -> torch.Tensor:
+def rt_entropy(recurrence: torch.Tensor, *, theiler_window: int = 0) -> torch.Tensor:
     """RTE: Shannon entropy of the recurrence time distribution.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.laminarity`).
+    Recurrence times are the gaps between the vertical lines of a column plus half (floored) of each neighbouring
+    line's length, as in RecurrenceAnalysis.jl's ``rt_entropy`` (``theiler = theiler_window + 1``). The entropy is
+    unnormalized and independent of ``lmin``.
 
-    Reference: Little et al. (2007), BioMed. Eng. OnLine 6, 23 (recurrence
-    period density entropy); Baptista et al. (2010). Recurrence times are the
-    gaps between vertical lines of a column (white vertical lines) plus half
-    of each neighbouring line's length, as in RecurrenceAnalysis.jl's
-    ``rt_entropy`` (``theiler = theiler_window + 1``). Unnormalized, in nats,
-    and independent of ``lmin``.
+    Reference: Little et al. (2007), BioMed. Eng. OnLine 6, 23 (recurrence period density entropy); Baptista et al.
+    (2010).
+
+    Gradient class: none (run lengths of a boolean matrix).
 
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        theiler_window: Theiler window, ``>= 0`` (see :func:`~torchnlts.recurrence.determinism`).
+        theiler_window: Theiler window, an integer ``>= 0``.
 
     Returns:
-        Scalar (or ``[B]``) entropy (nats), ``NaN`` if no column has two lines.
+        Entropy in nats, shape ``[]`` or ``[B]``; ``NaN`` if no column has two lines.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, or ``theiler_window`` is not an integer ``>= 0``.
     """
     return _line_entropy(_recurrence_time_histogram(recurrence, theiler_window))
 
 
-def ratio(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def ratio(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """RATIO: determinism over recurrence rate, ``DET / RR``.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
+    Reference: Marwan et al. (2007), Sec. 3.5.2. RecurrenceAnalysis.jl has no ``ratio``; this is
+    ``determinism / recurrencerate`` (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), Sec. 3.5.2. RecurrenceAnalysis.jl has no
-    ``ratio``; this is ``determinism / recurrencerate`` with
-    ``theiler = theiler_window + 1``.
+    Gradient class: none (run lengths of a boolean matrix).
 
     Args:
         recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        lmin: Minimum diagonal line length to count.
-        theiler_window: Theiler window, ``>= 0`` (see :func:`~torchnlts.recurrence.determinism`).
+        lmin: Minimum diagonal line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``.
 
     Returns:
-        Scalar (or ``[B]``) ratio, ``NaN`` if there are no recurrent points
-        outside the Theiler window (``0 / 0``).
+        Ratio, shape ``[]`` or ``[B]``; ``NaN`` if there are no recurrent points outside the Theiler window
+        (``0 / 0``).
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
-    return determinism(recurrence, lmin, theiler_window) / recurrence_rate(recurrence, theiler_window)
+    rate = recurrence_rate(recurrence, theiler_window=theiler_window)
+    return determinism(recurrence, lmin=lmin, theiler_window=theiler_window) / rate
 
 
-def divergence(recurrence: torch.Tensor, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
+def divergence(recurrence: torch.Tensor, *, lmin: int = 2, theiler_window: int = 0) -> torch.Tensor:
     """DIV: inverse of the longest diagonal line, ``1 / Lmax``.
 
-    Gradient class: none (see :func:`~torchnlts.recurrence.determinism`).
+    Reference: Marwan et al. (2007), Sec. 3.5.2. Matches RecurrenceAnalysis.jl's ``divergence`` and
+    ``rqa(...)[:DIV]`` (``theiler = theiler_window + 1``).
 
-    Reference: Marwan et al. (2007), Sec. 3.5.2. Matches RecurrenceAnalysis.jl's
-    ``divergence`` and ``rqa(...)[:DIV]`` (``theiler = theiler_window + 1``),
-    including ``inf`` when no line reaches ``lmin`` (``Lmax = 0``).
+    Gradient class: none (run lengths of a boolean matrix).
 
-    Args: same as :func:`~torchnlts.recurrence.dl_max`.
+    Args:
+        recurrence: Bool recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
+        lmin: Minimum diagonal line length to count, an integer ``>= 1``.
+        theiler_window: Theiler window, an integer ``>= 0``.
 
     Returns:
-        Scalar (or ``[B]``) divergence, ``inf`` if no line qualifies.
+        Divergence, shape ``[]`` or ``[B]``; ``inf`` if no line reaches ``lmin`` (``Lmax = 0``), as in Julia.
+
+    Raises:
+        ValueError: If ``recurrence`` is not a square bool matrix, ``lmin`` is not an integer ``>= 1``, or
+            ``theiler_window`` is not an integer ``>= 0``.
     """
-    return dl_max(recurrence, lmin, theiler_window).to(torch.get_default_dtype()).reciprocal()
+    return dl_max(recurrence, lmin=lmin, theiler_window=theiler_window).to(torch.get_default_dtype()).reciprocal()
 
 
 def windowed_rqa(
-    recurrence: torch.Tensor, measure: Callable[..., torch.Tensor], window_size: int, step: int = 1, **measure_kwargs
+    recurrence: torch.Tensor, measure: Callable[..., torch.Tensor], window_size: int, *, step: int = 1, **measure_kwargs
 ) -> torch.Tensor:
     """RQA measure over square windows slid along the main diagonal.
 
+    Window ``k`` is the sub-block ``recurrence[k * step : k * step + window_size]`` on both axes; a trailing partial
+    window is dropped. Windows are evaluated in batched calls of ``measure``, in chunks of at most ``2**24`` gathered
+    matrix elements.
+
+    Reference: RecurrenceAnalysis.jl's ``windowed``; Marwan et al. (2007), Sec. 3.5.
+
     Gradient class: inherits ``measure``'s.
 
-    Reference: RecurrenceAnalysis.jl's ``windowed``. Window ``k`` is the
-    sub-block ``recurrence[k * step : k * step + window_size]`` on both
-    axes; a trailing partial window is dropped. Windows are evaluated in
-    batched calls of ``measure``, in chunks of at most ``2**24`` gathered
-    matrix elements (one call if everything fits).
-
-    Limitation: the budget bounds the blocks gathered per call over the
-    visible batch dimensions only (dimensions mapped by ``torch.vmap``
-    multiply it, as do the measure's own temporaries, and a differentiable
-    measure keeps every chunk alive until backward); each chunk copies its
-    overlapping blocks, at least one window. A strided view without copies
-    would need a measure that accepts one.
+    Limitation: the chunk budget ignores dimensions mapped by ``torch.vmap`` and the measure's own temporaries, and a
+    differentiable measure keeps every chunk alive until backward; each chunk copies its overlapping blocks. A
+    strided view without copies would need a measure that accepts one.
 
     Args:
         recurrence: Recurrence matrix, shape ``[T, T]`` or ``[B, T, T]``.
-        measure: Function mapping ``[..., w, w]`` matrices to one value each,
-            e.g. :func:`~torchnlts.recurrence.determinism`.
-        window_size: Window width ``w``, ``2 <= w <= T``.
-        step: Offset between consecutive windows, ``>= 1``.
+        measure: Function mapping ``[..., w, w]`` matrices to one value each, e.g.
+            :func:`~torchnlts.recurrence.determinism`.
+        window_size: Window width ``w``, an integer with ``2 <= w <= T``.
+        step: Offset between consecutive windows, an integer ``>= 1``.
         **measure_kwargs: Forwarded to ``measure`` (e.g. ``lmin``).
 
     Returns:
-        ``[W]`` (or ``[B, W]``) values, ``W = (T - window_size) // step + 1``.
+        Values of shape ``[W]`` or ``[B, W]``, ``W = (T - window_size) // step + 1``.
 
     Raises:
-        ValueError: On a non-callable ``measure``, non-integer or out-of-range
-            ``window_size`` / ``step``, or a non-square ``recurrence``.
+        ValueError: If ``measure`` is not callable, ``window_size`` or ``step`` is not an integer in range, or
+            ``recurrence`` is not a square matrix.
     """
     _validate_square_matrix(recurrence)
     if not callable(measure):

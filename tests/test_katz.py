@@ -80,11 +80,8 @@ def test_katz_dimension_empty_trajectory_is_nan_not_crash():
 
 def test_katz_dimension_multivariate_raises():
     trajectory = torch.randn(10, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         katz_dimension(trajectory)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_katz_dimension_batched_matches_unbatched():

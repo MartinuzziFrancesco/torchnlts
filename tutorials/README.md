@@ -13,7 +13,7 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   `torchnlts.convert`.
 - `embedding_fnn_cao.py`: Kennel, Brown & Abarbanel (1992) + Cao (1997)
   -- choosing a delay embedding's dimension from a scalar observable
-  alone.
+  alone, with Cao's E2 separating the Lorenz observable from white noise.
 - `delay_selection_lorenz.py`: Fraser & Swinney (1986) -- choosing a delay
   embedding's delay from the first minimum of the self mutual information of
   Lorenz x, compared with autocorrelation criteria.
@@ -65,11 +65,13 @@ benchmark; add one whenever a new module lands a result worth reproducing.
   reproducing their ecology-map and Lorenz r=90%-missing results in
   the same range.
 - `sinkhorn_vs_mmd_invariant_matching.py`: Jiang, Lu, Orlova & Willett
-  (2023) -- training a differentiable Lorenz vector field with a
-  whole-attractor distributional loss added to MSE, comparing
-  `torchnlts.sciml.SinkhornLoss` (their entropic-OT loss,
-  new in this tutorial) against `AttractorLoss` (MMD, already in the
-  library) on Lyapunov-exponent and correlation-dimension recovery.
+  (2023) -- training a small differentiable Lorenz vector field with a
+  point-cloud loss on its own rollouts added to MSE, using
+  `torchnlts.sciml.SinkhornLoss` (entropic optimal transport) and
+  `AttractorLoss` (MMD), scored by the Lyapunov exponent and correlation
+  dimension of long rollouts. A cheap run (about 1.5 minutes) in which the
+  second term has no measurable effect: it shows the training loop, not
+  the paper's improvement.
 - `multiscale_entropy_noise.py`: Costa, Goldberger & Peng (2002) --
   single-scale sample entropy ranks white noise as more "complex" than
   1/f noise, and multiscale entropy (`torchnlts.entropy.multiscale`)

@@ -9,13 +9,10 @@ Dual ground truth:
      ``d == r``.
 """
 
-import subprocess
-
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.neighbors.radius import radius_neighbors
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_radius_neighbors_hand_derived():
@@ -63,14 +60,9 @@ def test_radius_neighbors_matches_neighborhood_jl():
         println(join(sort(idxs[i] .- 1), ","))
     end
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    for i, line in enumerate(result.stdout.strip().splitlines()):
+    lines = run_julia(julia_code).splitlines()
+    assert len(lines) == len(x)  # a point without neighbors prints an empty line, which strip() would drop
+    for i, line in enumerate(lines):
         julia_neighbors = sorted(int(v) for v in line.split(",")) if line else []
         torch_neighbors = sorted(mask[i].nonzero().flatten().tolist())
         assert julia_neighbors == torch_neighbors, (i, julia_neighbors, torch_neighbors)

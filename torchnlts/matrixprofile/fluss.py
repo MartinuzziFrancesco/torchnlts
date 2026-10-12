@@ -30,7 +30,7 @@ def _validate(window, exclusion_factor) -> tuple[int, int]:
     return window, exclusion_factor
 
 
-def corrected_arc_curve(index, window: int, exclusion_factor: int = 5) -> torch.Tensor:
+def corrected_arc_curve(index, window: int, *, exclusion_factor: int = 5) -> torch.Tensor:
     """Corrected arc curve (CAC) of a matrix profile index.
 
     Reference: Gharghabi et al. (2017), IEEE ICDM, Table I.
@@ -50,7 +50,8 @@ def corrected_arc_curve(index, window: int, exclusion_factor: int = 5) -> torch.
 
     Raises:
         ValueError: If ``index`` is not an integer tensor of shape ``[n]`` or ``[B, n]``
-            (``n >= 1``) with entries in ``[-1, n - 1]``, or ``window``/``exclusion_factor`` is invalid.
+            (``n >= 1``) with entries in ``[-1, n - 1]``, ``window`` is not an integer ``>= 1``, or
+            ``exclusion_factor`` is not an integer ``>= 0``.
     """
     window, exclusion_factor = _validate(window, exclusion_factor)
     index = _as_profile_index(index)
@@ -72,7 +73,7 @@ def corrected_arc_curve(index, window: int, exclusion_factor: int = 5) -> torch.
     return curve.reshape(index.shape)
 
 
-def regime_boundaries(arc_curve, window: int, num_regimes: int = 2, exclusion_factor: int = 5) -> torch.Tensor:
+def regime_boundaries(arc_curve, window: int, *, num_regimes: int = 2, exclusion_factor: int = 5) -> torch.Tensor:
     """Regime boundary positions from a corrected arc curve.
 
     Reference: Gharghabi et al. (2017), IEEE ICDM, Table II (regime extracting algorithm).
@@ -90,6 +91,11 @@ def regime_boundaries(arc_curve, window: int, num_regimes: int = 2, exclusion_fa
         ``[num_regimes - 1]`` or ``[B, num_regimes - 1]``. A boundary with no
         evidence (the smallest remaining CAC is 1, e.g. all ones or everything
         already cleared) is ``-1``.
+
+    Raises:
+        ValueError: If ``arc_curve`` is not of shape ``[n]`` or ``[B, n]`` (``n >= 1``), ``num_regimes`` is not an
+            integer ``>= 2``, ``window`` is not an integer ``>= 1``, or ``exclusion_factor`` is not an integer
+            ``>= 0``.
     """
     window, exclusion_factor = _validate(window, exclusion_factor)
     num_regimes = _as_int(num_regimes, "num_regimes")

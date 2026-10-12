@@ -1,6 +1,10 @@
+import re
+
 import pytest
 import torch
 
+from tests.conftest import LargestOutput
+from torchnlts.chaos.zero_one import zero_one_test
 from torchnlts.dimension.higuchi import higuchi_dimension, higuchi_length
 from torchnlts.dimension.katz import katz_dimension
 from torchnlts.dimension.petrosian import petrosian_dimension
@@ -89,7 +93,7 @@ def test_pairwise_distance_nonfinite_points_multivariate_cross():
     other = torch.tensor([[0.0, 1.0], [float("inf"), 2.0]], dtype=torch.float64)
     expected = {0: [1.0, 2.0], 1: [1.0, 6.0], 2: [1.0, 18.0**0.5], float("inf"): [1.0, 3.0]}
     for norm_order, finite_column in expected.items():
-        distance = pairwise_distance(trajectory, other, norm_order=norm_order)
+        distance = pairwise_distance(trajectory, other=other, norm_order=norm_order)
         assert torch.isnan(distance[2]).all() and torch.isnan(distance[:, 1]).all()
         assert torch.allclose(distance[:2, 0], torch.tensor(finite_column, dtype=torch.float64))
 
@@ -147,3 +151,40 @@ def test_knn_search_nonfinite_self_query():
 
     distances, indices = knn_search(torch.tensor([0.0, float("nan"), 1.0]), 2)
     assert torch.isinf(distances[1]).all() and (indices[1] == -1).all()
+
+
+SCALAR_ESTIMATORS = {
+    "higuchi_length": ("torchnlts.dimension.higuchi", lambda batch: higuchi_length(batch, [1, 2])),
+    "katz_dimension": ("torchnlts.dimension.katz", katz_dimension),
+    "petrosian_dimension": ("torchnlts.dimension.petrosian", petrosian_dimension),
+    "power_variogram": ("torchnlts.dimension.variogram", lambda batch: power_variogram(batch, [1, 2])),
+    "dfa_fluctuation": ("torchnlts.fluctuations.dfa", lambda batch: dfa_fluctuation(batch, [8, 16])),
+    "the 0-1 test": ("torchnlts.chaos.zero_one", lambda batch: zero_one_test(batch, [1.0, 2.0])),
+}
+
+
+@pytest.mark.parametrize("name", SCALAR_ESTIMATORS)
+def test_multivariate_and_complex_input_raise(name):
+    function = SCALAR_ESTIMATORS[name][1]
+    message = f"{name} only supports a univariate (D=1) trajectory, got feature dim 2"
+    with pytest.raises(ValueError, match=re.escape(message)):
+        function(torch.randn(64, 2))
+    with pytest.raises(ValueError, match="complex"):
+        function(torch.randn(64, dtype=torch.complex64))
+
+
+@pytest.mark.parametrize(
+    "name", ["katz_dimension", "petrosian_dimension", "power_variogram", "dfa_fluctuation", "the 0-1 test"]
+)
+def test_work_dtype_comes_from_high_precision_dtype(name, monkeypatch):
+    # Apple MPS has no float64, and there _high_precision_dtype is float32. With it patched to float32, the only float64
+    # tensors left are the CPU copies of integer arguments being validated (2 values here), none the size of the data.
+    module, function = SCALAR_ESTIMATORS[name]
+    batch = torch.randn(8, 64, 1, generator=torch.Generator().manual_seed(0))
+    expected = function(batch)
+    for target in (module, "torchnlts._shape"):
+        monkeypatch.setattr(f"{target}._high_precision_dtype", lambda device: torch.float32)
+    with LargestOutput() as recorder:
+        result = function(batch)
+    assert recorder.numel_by_dtype.get(torch.float64, 0) <= 2
+    assert torch.allclose(result, expected, rtol=1e-4, equal_nan=True)

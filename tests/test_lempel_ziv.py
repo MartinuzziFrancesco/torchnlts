@@ -13,13 +13,11 @@ Dual ground truth:
      a neutralized-or-locked-disagreement one.
 """
 
-import subprocess
-
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.entropy.lempel_ziv import _lz76_count, lempel_ziv_complexity
-
-JULIA_PROJECT = "juliaenv"
 
 
 def _naive_phrase_count(sequence):
@@ -110,20 +108,14 @@ def test_lempel_ziv_complexity_batched_matches_independent_loop():
 
 def test_lempel_ziv_complexity_rejects_multivariate():
     trajectory = torch.randn(20, 2, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         lempel_ziv_complexity(trajectory)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_lempel_ziv_complexity_rejects_too_short():
     trajectory = torch.tensor([1.0], dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         lempel_ziv_complexity(trajectory)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_lz76_count_matches_complexitymeasures_jl():
@@ -134,11 +126,8 @@ def test_lz76_count_matches_complexitymeasures_jl():
         x = [{values}]
         println(complexity(LempelZiv76(), x))
         """
-        result = subprocess.run(
-            ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-        )
-        assert result.returncode == 0, result.stderr
-        julia_count = int(result.stdout.strip())
+        stdout = run_julia(julia_code)
+        julia_count = int(stdout.strip())
         assert _lz76_count(sequence) == julia_count
 
 
@@ -154,9 +143,44 @@ def test_lempel_ziv_complexity_full_pipeline_matches_complexitymeasures_jl():
     binary = Int.(x .>= sum(x)/length(x))
     println(complexity(LempelZiv76(), binary))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code], capture_output=True, text=True, timeout=60
-    )
-    assert result.returncode == 0, result.stderr
-    julia_count = int(result.stdout.strip())
+    stdout = run_julia(julia_code)
+    julia_count = int(stdout.strip())
     assert lempel_ziv_complexity(trajectory).item() == julia_count
+
+
+def test_lempel_ziv_complexity_nonfinite_rows_give_minus_one_or_nan():
+    # Regression: every comparison with NaN is False, so a NaN used to binarize to 0 and return an ordinary count.
+    torch.manual_seed(3)
+    batch = torch.randn(5, 60, 1, dtype=torch.float64)
+    batch[1, 3] = float("nan")
+    batch[2, 5] = float("inf")
+    batch[3, 0] = -float("inf")
+    counts = lempel_ziv_complexity(batch)
+    assert counts.dtype == torch.long and (counts[1:4] == -1).all()
+    for row in (0, 4):
+        assert counts[row] == lempel_ziv_complexity(batch[row]) and counts[row] > 0
+    normalized = lempel_ziv_complexity(batch, normalize=True)
+    assert torch.isnan(normalized[1:4]).all()
+    assert torch.equal(normalized[[0, 4]], lempel_ziv_complexity(batch[[0, 4]], normalize=True))
+    series = torch.randn(300, dtype=torch.float64)
+    series[100] = float("nan")
+    assert lempel_ziv_complexity(series).item() == -1
+    assert torch.isnan(lempel_ziv_complexity(series, normalize=True))
+
+
+def test_lempel_ziv_complexity_integer_input_matches_default_float_dtype():
+    bits = torch.randint(0, 2, (100,))
+    assert lempel_ziv_complexity(bits) == lempel_ziv_complexity(bits.to(torch.get_default_dtype()))
+    assert lempel_ziv_complexity(bits, normalize=True).dtype == torch.get_default_dtype()
+
+
+def test_lempel_ziv_complexity_half_precision_normalized_matches_float32_then_cast():
+    series = torch.randn(300).to(torch.float16)
+    result = lempel_ziv_complexity(series, normalize=True)
+    assert result.dtype == torch.float16
+    assert torch.equal(result, lempel_ziv_complexity(series.float(), normalize=True).to(torch.float16))
+
+
+def test_lempel_ziv_complexity_rejects_complex():
+    with pytest.raises(ValueError):
+        lempel_ziv_complexity(torch.randn(10, dtype=torch.complex64))

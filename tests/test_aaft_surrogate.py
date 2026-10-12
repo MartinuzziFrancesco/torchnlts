@@ -1,33 +1,23 @@
 """Tests for torchnlts.surrogate.aaft.
 
-Dual ground truth:
-  1. Paper: Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) -- AAFT
-     preserves the original data's amplitude distribution exactly (an
-     exact invariant, checked directly) via a three-step recipe: rank a
-     Gaussian series to match the data, phase-randomize *that*, then
-     rank-restore the data to the result. Hand-derived consequence
-     checked with mocked randomness: for genuinely non-Gaussian data,
-     going through that Gaussian-shaped intermediate gives a different
-     answer than skipping straight to phase-randomizing the data itself
-     -- confirming the extra step is load-bearing, not a no-op.
-  2. Julia: TimeseriesSurrogates.jl's ``AAFT`` is a confirmed, deliberate
-     mismatch with the paper, not a match -- run live via subprocess,
-     seeding both its ``AAFT`` and its ``RandomFourier`` identically and
-     rank-restoring the latter to the data by hand reproduces the
-     former's output exactly, live-proving (not just by reading source)
-     that Julia's ``AAFT`` skips the Gaussian-rank-matching step the
-     paper defines and reduces to phase-randomizing the data directly.
+Ground truth:
+  1. Paper: Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) -- AAFT preserves the amplitude distribution exactly
+     (sorted values are equal) in three steps: rank Gaussian noise to match the data, phase-randomize that series,
+     rank-restore the data to the result. With mocked randomness, the Gaussian intermediate gives a different answer
+     than phase-randomizing the data directly, so the first step matters for non-Gaussian data.
+  2. Julia: TimeseriesSurrogates.jl's ``AAFT`` skips the Gaussian rank-matching step. Run via subprocess with ``AAFT``
+     and ``RandomFourier`` seeded identically, rank-restoring the ``RandomFourier`` surrogate to the data reproduces
+     the ``AAFT`` output exactly. This implementation follows the paper instead.
 """
 
-import subprocess
 from unittest import mock
 
+import pytest
 import torch
 
+from tests.conftest import run_julia
 from torchnlts.surrogate.aaft import aaft_surrogate
 from torchnlts.surrogate.phase import phase_randomized_surrogate
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_aaft_surrogate_preserves_amplitude_distribution_exactly():
@@ -99,7 +89,7 @@ def test_aaft_surrogate_handles_ties_and_constant_input():
     assert torch.equal(surrogate_constant, constant)
 
 
-def test_aaft_surrogate_matches_chaostools_jl_shortcut_confirmation():
+def test_aaft_surrogate_matches_timeseries_surrogates_jl_shortcut():
     # Julia: AAFT(x) == rank-restore(x, RandomFourier(x)), i.e. no Gaussian-rank step (see module docstring).
     trajectory = [0.01, 0.02, 0.03, 0.04, 20.0, 0.05, 0.06, 0.07]
     julia_code = f"""
@@ -115,14 +105,8 @@ def test_aaft_surrogate_matches_chaostools_jl_shortcut_confirmation():
     s_ft_rank_restored[ix] .= sorted_x
     println(s_aaft == s_ft_rank_restored)
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "true"
+    stdout = run_julia(julia_code)
+    assert stdout.strip() == "true"
 
 
 def test_aaft_surrogate_differs_from_original():
@@ -171,8 +155,5 @@ def test_aaft_surrogate_dtype_preserved_float32():
 
 
 def test_aaft_surrogate_rejects_bad_ndim():
-    try:
+    with pytest.raises(ValueError):
         aaft_surrogate(torch.zeros(2, 2, 2, 2))
-        assert False, "expected ValueError"
-    except ValueError:
-        pass

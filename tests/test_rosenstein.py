@@ -1,33 +1,18 @@
 """Tests for torchnlts.lyapunov.rosenstein.
 
-Dual ground truth:
-  1. Paper: Rosenstein, Collins & De Luca (1993) -- a hand-derived
-     5-point divergence example, a synthetic exact-linear-E(k) test for
-     the slope fit alone (mirroring
-     torchnlts.dimension.correlation.correlation_dimension's own split
-     test design), and the paper's own natural analytic benchmark: the
-     logistic map at r=4, whose largest Lyapunov exponent is exactly
-     ln(2) (the standard hand-derivable case for this kind of
-     estimator).
-  2. Julia: ChaosTools.jl's `lyapunov_from_data`, compared at tight
-     (float64-precision) tolerance -- matching it required discovering
-     and replicating a real, confirmed convention (a reference-point set
-     fixed by the sweep's largest k, not maximized independently per k;
-     see rosenstein_divergence's docstring), not a loose statistical
-     comparison.
+Ground truth: a hand-derived 5-point divergence curve; an exactly linear ``E(k)`` for the slope fit alone; the logistic
+map at r = 4, whose largest Lyapunov exponent is exactly ln(2); ChaosTools.jl's ``lyapunov_from_data`` at float64
+precision, including its reference set fixed by the largest ``k``; and plain-torch loops for delays and norms.
 """
 
 import math
-import subprocess
 
 import numpy
 import pytest
 import torch
 
-from tests.conftest import logistic_map_trajectory
+from tests.conftest import logistic_map_trajectory, run_julia
 from torchnlts.lyapunov.rosenstein import rosenstein_divergence, rosenstein_lyapunov
-
-JULIA_PROJECT = "juliaenv"
 
 
 def test_rosenstein_divergence_hand_derived():
@@ -97,58 +82,40 @@ def test_rosenstein_divergence_zero_evolved_distance_is_neg_inf_not_clamped():
 
 def test_rosenstein_divergence_rejects_negative_k():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         rosenstein_divergence(trajectory, k_values=-1, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_rosenstein_divergence_rejects_fractional_k():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         rosenstein_divergence(trajectory, k_values=1.5, embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_rosenstein_divergence_rejects_empty_k_values():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         rosenstein_divergence(trajectory, k_values=torch.tensor([]), embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_rosenstein_divergence_rejects_multidim_k_values():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         rosenstein_divergence(trajectory, k_values=torch.tensor([[1.0, 2.0]]), embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_rosenstein_divergence_rejects_infinite_k():
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         rosenstein_divergence(trajectory, k_values=float("inf"), embedding_dim=1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_rosenstein_divergence_k_validation_survives_float32_rounding():
     # -1e-50 and 1.00000001 would pass the checks if cast to float32 before validation.
     trajectory = torch.arange(5.0, dtype=torch.float64)
     for bad_k in (-1e-50, 1.00000001):
-        try:
+        with pytest.raises(ValueError):
             rosenstein_divergence(trajectory, k_values=bad_k, embedding_dim=1)
-            assert False, f"expected ValueError for k_values={bad_k}"
-        except ValueError:
-            pass
 
 
 def test_rosenstein_divergence_absurdly_large_k_is_nan_not_wrong_answer():
@@ -161,11 +128,8 @@ def test_rosenstein_divergence_absurdly_large_k_is_nan_not_wrong_answer():
 def test_rosenstein_divergence_rejects_negative_theiler_window():
     # A negative window would admit self as its own nearest neighbor.
     trajectory = torch.arange(5.0, dtype=torch.float64)
-    try:
+    with pytest.raises(ValueError):
         rosenstein_divergence(trajectory, k_values=1, embedding_dim=1, theiler_window=-1)
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_rosenstein_divergence_k_zero_is_original_neighbor_distance():
@@ -255,14 +219,8 @@ def test_rosenstein_matches_chaostools_jl():
     E = lyapunov_from_data(R, 1:8; w=10, ntype=NeighborNumber(1), distance=Euclidean())
     println(join(E, ","))
     """
-    result = subprocess.run(
-        ["julia", f"--project={JULIA_PROJECT}", "-e", julia_code],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stderr
-    julia_divergence = torch.tensor([float(v) for v in result.stdout.strip().split(",")], dtype=torch.float64)
+    stdout = run_julia(julia_code)
+    julia_divergence = torch.tensor([float(v) for v in stdout.strip().split(",")], dtype=torch.float64)
     torch_divergence = rosenstein_divergence(trajectory, k_values, embedding_dim=2, delay=1, theiler_window=10)
     # rtol=0: allclose's default rtol=1e-5 would dwarf atol=1e-9 and hide a real mismatch.
     assert torch.allclose(torch_divergence, julia_divergence, atol=1e-9, rtol=0)
@@ -348,7 +306,9 @@ def test_rosenstein_divergence_matches_independent_loop_for_delays_and_norms():
                             (embedded[start + step] - embedded[neighbor + step]).norm(p=norm_order).log()
                         )
                 expected.append(torch.stack([torch.stack(values).mean() for values in logs]))
-            result = rosenstein_divergence(trajectory, k_values, embedding_dim, delay, 4, norm_order)
+            result = rosenstein_divergence(
+                trajectory, k_values, embedding_dim=embedding_dim, delay=delay, theiler_window=4, norm_order=norm_order
+            )
             assert torch.allclose(result, torch.stack(expected, dim=1), atol=1e-12, rtol=0)
 
 
@@ -407,7 +367,7 @@ def test_rosenstein_zero_distance_row_does_not_poison_shared_gradient():
 def test_rosenstein_divergence_rejects_complex_k_values():
     trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0])
     for k_values in (torch.tensor([0.0 + 2j, 1.0 + 3j]), [0, 1j]):
-        with pytest.raises(ValueError, match="real"):
+        with pytest.raises(ValueError, match="complex"):
             rosenstein_divergence(trajectory, k_values)
 
 
@@ -433,3 +393,54 @@ def test_rosenstein_divergence_accepts_numpy_norm_order():
     trajectory = torch.arange(5.0)
     for norm_order in (numpy.float32(2), numpy.float64(2)):
         assert rosenstein_divergence(trajectory, 0, embedding_dim=1, norm_order=norm_order) == 0
+
+
+def test_rosenstein_divergence_accepts_any_integer_valued_k_sequence():
+    trajectory = torch.tensor([0.0, 5.0, 1.0, 6.0, 12.0, 3.0, 8.0, 2.0, 9.0, 4.0], dtype=torch.float64)
+    expected = rosenstein_divergence(trajectory, [0, 1, 2], embedding_dim=1)
+    assert torch.isfinite(expected).all()
+    for k_values in (numpy.array([0, 1, 2]), numpy.array([0.0, 1.0, 2.0]), torch.tensor([0, 1, 2]), (0, 1, 2)):
+        assert torch.equal(rosenstein_divergence(trajectory, k_values, embedding_dim=1), expected)
+    expected_scalar = rosenstein_divergence(trajectory, 1, embedding_dim=1)
+    for k_values in (numpy.int64(1), numpy.array(1), torch.tensor(1), 1.0):
+        scalar = rosenstein_divergence(trajectory, k_values, embedding_dim=1)
+        assert scalar.shape == () and torch.equal(scalar, expected_scalar)
+
+
+def test_rosenstein_divergence_single_element_sweep_keeps_its_axis():
+    torch.manual_seed(15)
+    trajectory = torch.randn(3, 30, 1, dtype=torch.float64)
+    assert rosenstein_divergence(trajectory, [2], embedding_dim=2).shape == (1, 3)
+    assert rosenstein_divergence(trajectory[0], [2], embedding_dim=2).shape == (1,)
+    assert rosenstein_divergence(trajectory[:1], [2], embedding_dim=2).shape == (1, 1)
+    assert rosenstein_divergence(trajectory[:1], 2, embedding_dim=2).shape == (1,)
+    assert rosenstein_divergence(trajectory[0], 2, embedding_dim=2).shape == ()
+
+
+def test_rosenstein_divergence_k_values_error_conditions():
+    trajectory = torch.arange(8.0)
+    bad_values = (
+        torch.tensor([[1, 2]]),
+        [],
+        [0, 1.5],
+        [0, -1],
+        [0, float("nan")],
+        [0, float("inf")],
+        "a",
+        None,
+        [0, 1j],
+    )
+    for k_values in bad_values:
+        with pytest.raises(ValueError, match="k_values"):
+            rosenstein_divergence(trajectory, k_values, embedding_dim=1)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_rosenstein_divergence_half_precision_is_computed_in_float32_and_cast_back(dtype):
+    torch.manual_seed(17)
+    trajectory = torch.randn(60, dtype=torch.float32).to(dtype)
+    result = rosenstein_divergence(trajectory, [1, 2], embedding_dim=2)
+    assert result.dtype == dtype
+    assert torch.isfinite(result).all()
+    expected = rosenstein_divergence(trajectory.float(), [1, 2], embedding_dim=2).to(dtype)
+    assert torch.equal(result, expected)

@@ -16,7 +16,7 @@ full_state = torch.as_tensor(Lorenz().make_trajectory(2000))
 observable = full_state[:, 0]
 
 embedding_dim, delay, theiler_window = 3, 5, 5
-reconstruction = delay_embedding(observable, embedding_dim, delay)
+reconstruction = delay_embedding(observable, embedding_dim, delay=delay)
 full_state = full_state[: reconstruction.shape[0]]
 
 _, true_neighbor = knn_search(full_state, num_neighbors=1, theiler_window=theiler_window)
