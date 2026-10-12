@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.coarse\_grain
+===============================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: coarse_grain

@@ -1,0 +1,6 @@
+﻿torchnlts.scaling.scaling\_slope
+================================
+
+.. currentmodule:: torchnlts.scaling
+
+.. autofunction:: scaling_slope

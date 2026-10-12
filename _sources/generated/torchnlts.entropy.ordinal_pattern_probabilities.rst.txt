@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.ordinal\_pattern\_probabilities
+=================================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: ordinal_pattern_probabilities

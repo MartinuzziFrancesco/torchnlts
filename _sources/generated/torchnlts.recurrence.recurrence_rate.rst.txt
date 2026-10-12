@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.recurrence\_rate
+=====================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: recurrence_rate

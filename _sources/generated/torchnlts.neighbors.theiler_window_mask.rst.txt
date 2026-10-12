@@ -1,0 +1,6 @@
+﻿torchnlts.neighbors.theiler\_window\_mask
+=========================================
+
+.. currentmodule:: torchnlts.neighbors
+
+.. autofunction:: theiler_window_mask

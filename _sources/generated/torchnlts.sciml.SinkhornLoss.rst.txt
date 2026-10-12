@@ -1,0 +1,81 @@
+﻿torchnlts.sciml.SinkhornLoss
+============================
+
+.. currentmodule:: torchnlts.sciml
+
+.. autoclass:: SinkhornLoss
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SinkhornLoss.__init__
+      ~SinkhornLoss.add_module
+      ~SinkhornLoss.apply
+      ~SinkhornLoss.bfloat16
+      ~SinkhornLoss.buffers
+      ~SinkhornLoss.children
+      ~SinkhornLoss.compile
+      ~SinkhornLoss.cpu
+      ~SinkhornLoss.cuda
+      ~SinkhornLoss.double
+      ~SinkhornLoss.eval
+      ~SinkhornLoss.extra_repr
+      ~SinkhornLoss.float
+      ~SinkhornLoss.forward
+      ~SinkhornLoss.get_buffer
+      ~SinkhornLoss.get_extra_state
+      ~SinkhornLoss.get_parameter
+      ~SinkhornLoss.get_submodule
+      ~SinkhornLoss.half
+      ~SinkhornLoss.ipu
+      ~SinkhornLoss.load_state_dict
+      ~SinkhornLoss.modules
+      ~SinkhornLoss.mtia
+      ~SinkhornLoss.named_buffers
+      ~SinkhornLoss.named_children
+      ~SinkhornLoss.named_modules
+      ~SinkhornLoss.named_parameters
+      ~SinkhornLoss.parameters
+      ~SinkhornLoss.register_backward_hook
+      ~SinkhornLoss.register_buffer
+      ~SinkhornLoss.register_forward_hook
+      ~SinkhornLoss.register_forward_pre_hook
+      ~SinkhornLoss.register_full_backward_hook
+      ~SinkhornLoss.register_full_backward_pre_hook
+      ~SinkhornLoss.register_load_state_dict_post_hook
+      ~SinkhornLoss.register_load_state_dict_pre_hook
+      ~SinkhornLoss.register_module
+      ~SinkhornLoss.register_parameter
+      ~SinkhornLoss.register_state_dict_post_hook
+      ~SinkhornLoss.register_state_dict_pre_hook
+      ~SinkhornLoss.requires_grad_
+      ~SinkhornLoss.set_extra_state
+      ~SinkhornLoss.set_submodule
+      ~SinkhornLoss.share_memory
+      ~SinkhornLoss.state_dict
+      ~SinkhornLoss.to
+      ~SinkhornLoss.to_empty
+      ~SinkhornLoss.train
+      ~SinkhornLoss.type
+      ~SinkhornLoss.xpu
+      ~SinkhornLoss.zero_grad
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SinkhornLoss.T_destination
+      ~SinkhornLoss.call_super_init
+      ~SinkhornLoss.dump_patches
+      ~SinkhornLoss.training
+   
+   

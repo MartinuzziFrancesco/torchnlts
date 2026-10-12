@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>torchnlts.entropy.generalized &#8212; torchnlts</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/torchnlts/entropy/generalized';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">torchnlts</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">torchnlts.entropy.generalized</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for torchnlts.entropy.generalized</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Rényi and Tsallis entropy of a given discrete probability distribution.</span>
+
+<span class="sd">These are the back end for the trajectory-taking entropies: pass any distribution, e.g. the one from</span>
+<span class="sd">:func:`~torchnlts.entropy.ordinal_pattern_probabilities`, and get an entropy of tunable order instead of Shannon's.</span>
+
+<span class="sd">References:</span>
+<span class="sd">  - Rényi, A. (1961), Proc. Fourth Berkeley Symp. Math. Stat. Probab., Vol. 1, 547-561.</span>
+<span class="sd">  - Tsallis, C. (1988), J. Stat. Phys. 52, 479-487.</span>
+
+<span class="sd">Definitions: ``H_alpha = log(sum p ** alpha) / (1 - alpha)`` and ``S_q = k * (1 - sum p ** q) / (q - 1)``. Both reduce</span>
+<span class="sd">to Shannon entropy at order 1, where the formulas have a removable 0/0 singularity. Rényi's order 0 (Hartley entropy,</span>
+<span class="sd">the log of the number of nonzero probabilities) and infinity (min-entropy, ``-log max p``) are further special cases.</span>
+
+<span class="sd">Conventions matching ComplexityMeasures.jl: order 1 is detected within a relative tolerance of ``sqrt(eps(Float64))``</span>
+<span class="sd">(about 1.5e-8), independent of the dtype of ``probability``; Rényi's order 0 only by exact equality (Julia's</span>
+<span class="sd">``isapprox`` has ``atol=0``); Tsallis accepts any real ``q``. Deviation: Julia's ``Tsallis`` drops ``k`` inside its</span>
+<span class="sd">``q ≈ 1`` window, a discontinuity when ``k != 1``; here the window returns the limit, ``k`` times Shannon entropy.</span>
+
+<span class="sd">Numerics: near order 1 the power sum is evaluated through ``expm1``/``log1p``, which avoids the cancellation in</span>
+<span class="sd">``sum(p ** order) - 1``. Where that form saturates (order far from 1 on a peaked distribution) a ``logsumexp`` form</span>
+<span class="sd">is used instead, selected per row with ``torch.where`` (no data-dependent Python branches, so ``torch.vmap`` works);</span>
+<span class="sd">Tsallis folds ``k`` and ``1 / (q - 1)`` into the exponent to extend its range. Zero probabilities are excluded by</span>
+<span class="sd">substituting a safe base (1) before the log or power and masking the result, so ``0 ** negative`` never occurs. A row</span>
+<span class="sd">containing ``NaN`` returns ``NaN`` (otherwise ``NaN &gt; 0`` is False and the entry would read as zero probability).</span>
+
+<span class="sd">Limitation: a single ``p ** order`` that already exceeds the dtype's range (e.g. ``0.5 ** -4096`` in float64), or a</span>
+<span class="sd">Tsallis exponent within rounding of the overflow boundary (e.g. ``q=-10, k=5e305`` in float64), overflows; there is no</span>
+<span class="sd">extended-precision fallback. For probabilities near the subnormal floor (e.g. ``1e-310`` in float64) at an extreme</span>
+<span class="sd">order the gradient, not the forward value, can be wrong.</span>
+
+<span class="sd">Gradient class: smooth for Tsallis and for Rényi at every ``alpha`` except 0, but only on a fixed support. A</span>
+<span class="sd">probability that is exactly zero gets gradient 0, a convention rather than the one-sided limit (unbounded for order</span>
+<span class="sd">below 1; a softmax can underflow entries to zero too). Rényi at ``alpha = 0`` depends only on which probabilities are</span>
+<span class="sd">nonzero: its output has no gradient path (``requires_grad=False``), which matters only if it is used alone as a loss.</span>
+<span class="sd">``alpha = inf`` is a max, with the usual subgradient at ties.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts._shape</span><span class="w"> </span><span class="kn">import</span> <span class="n">_shannon_entropy</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_isclose_to_order</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether ``value`` is within ``sqrt(eps(Float64))`` (relative) of ``target``, as Julia's default ``isapprox``."""</span>
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.220446049250313e-16</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">rel_tol</span><span class="o">=</span><span class="n">tolerance</span><span class="p">,</span> <span class="n">abs_tol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_log</span><span class="p">(</span><span class="n">probability</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">nonzero</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="n">safe_base</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">probability</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">probability</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">safe_base</span><span class="p">)</span>
+
+
+<span class="n">_MAX_SAFE_EXPONENT</span> <span class="o">=</span> <span class="mf">50.0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_deviation_from_one</span><span class="p">(</span>
+    <span class="n">probability</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">nonzero</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">log_p</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">order</span><span class="p">:</span> <span class="nb">float</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""``u = sum(probability ** order) - 1`` via ``expm1``, accurate when ``order`` is near 1.</span>
+
+<span class="sd">    Also returns whether any exponent exceeded ``_MAX_SAFE_EXPONENT`` before clamping. The exponent is clamped before</span>
+<span class="sd">    ``expm1`` because an unclamped one can overflow, and a discarded result still sends ``expm1``'s infinite local</span>
+<span class="sd">    gradient into backward (``0 * inf = NaN``). The flag is taken from the unclamped exponent: once clamped, ``u`` no</span>
+<span class="sd">    longer shows that the near-1 form is inaccurate.</span>
+<span class="sd">    """</span>
+    <span class="n">exponent</span> <span class="o">=</span> <span class="p">(</span><span class="n">order</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">log_p</span>
+    <span class="n">exponent</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">exponent</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">exponent</span><span class="p">))</span>
+    <span class="n">exponent_out_of_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">exponent</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">_MAX_SAFE_EXPONENT</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">safe_exponent</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">exponent</span><span class="p">,</span> <span class="nb">min</span><span class="o">=-</span><span class="n">_MAX_SAFE_EXPONENT</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_MAX_SAFE_EXPONENT</span><span class="p">)</span>
+    <span class="n">terms</span> <span class="o">=</span> <span class="n">probability</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">expm1</span><span class="p">(</span><span class="n">safe_exponent</span><span class="p">)</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">terms</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">terms</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">u</span><span class="p">,</span> <span class="n">exponent_out_of_range</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_log_power_sum</span><span class="p">(</span><span class="n">nonzero</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">log_p</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">order</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``log(sum(probability ** order))`` over the nonzero entries via ``logsumexp``, accurate for extreme ``order``."""</span>
+    <span class="n">log_terms</span> <span class="o">=</span> <span class="n">order</span> <span class="o">*</span> <span class="n">log_p</span>
+    <span class="n">log_terms</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">log_terms</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">log_terms</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"-inf"</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">log_terms</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_deviation_saturated</span><span class="p">(</span><span class="n">u</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">exponent_out_of_range</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether the ``u``-based near-1 form is unusable and the ``logsumexp`` form should be used: an exponent out of</span>
+<span class="sd">    range, ``u`` not finite (order far below 1 on a peaked distribution), or ``u`` within ``eps ** 0.4`` of its floor</span>
+<span class="sd">    of -1. The exponent 0.4 was found empirically: with 0.5, gradcheck still failed for some orders between 5 and 100.</span>
+<span class="sd">    """</span>
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span> <span class="o">**</span> <span class="mf">0.4</span>
+    <span class="k">return</span> <span class="n">exponent_out_of_range</span> <span class="o">|</span> <span class="p">(</span><span class="n">u</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">tolerance</span><span class="p">))</span> <span class="o">|</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="renyi_entropy">
+<a class="viewcode-back" href="../../../generated/torchnlts.entropy.renyi_entropy.html#torchnlts.entropy.renyi_entropy">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">renyi_entropy</span><span class="p">(</span><span class="n">probability</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Rényi generalized order-``alpha`` entropy.</span>
+
+<span class="sd">    Reference: Rényi (1961). Matches ComplexityMeasures.jl's ``Renyi`` over the whole range of ``alpha``, including</span>
+<span class="sd">    values near its ``alpha ≈ 1`` boundary.</span>
+
+<span class="sd">    Gradient class: smooth, but only on a fixed support: an exactly zero probability gets gradient 0 by convention, not</span>
+<span class="sd">    the one-sided limit (unbounded for ``alpha &lt; 1``). ``alpha = 0`` has no gradient path (the output does not require</span>
+<span class="sd">    grad); ``alpha = inf`` is a max, with the usual subgradient at ties.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        probability: Discrete distribution of shape ``[..., num_outcomes]``, summing to 1 along the last dimension (not</span>
+<span class="sd">            validated).</span>
+<span class="sd">        alpha: Order, ``&gt;= 0``. Special cases: 0 (Hartley entropy, ``log`` of the number of nonzero outcomes), 1</span>
+<span class="sd">            (Shannon), 2 (collision entropy, ``-log(sum(probability ** 2))``), ``inf`` (min-entropy,</span>
+<span class="sd">            ``-log(max(probability))``).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Entropy in nats, shape ``[...]``. ``NaN`` for a row of ``probability`` containing ``NaN``.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``alpha &lt; 0``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">alpha</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"alpha must be non-negative, got </span><span class="si">{</span><span class="n">alpha</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">has_nan</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">probability</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">nonzero</span> <span class="o">=</span> <span class="n">probability</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">probability</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="k">if</span> <span class="n">alpha</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">nonzero</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">_isclose_to_order</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">_shannon_entropy</span><span class="p">(</span><span class="n">probability</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">math</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">alpha</span><span class="p">):</span>
+        <span class="n">masked</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">probability</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">probability</span><span class="p">))</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">masked</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">log_p</span> <span class="o">=</span> <span class="n">_safe_log</span><span class="p">(</span><span class="n">probability</span><span class="p">,</span> <span class="n">nonzero</span><span class="p">)</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">exponent_out_of_range</span> <span class="o">=</span> <span class="n">_deviation_from_one</span><span class="p">(</span><span class="n">probability</span><span class="p">,</span> <span class="n">nonzero</span><span class="p">,</span> <span class="n">log_p</span><span class="p">,</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="n">saturated</span> <span class="o">=</span> <span class="n">_deviation_saturated</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">exponent_out_of_range</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="c1"># torch.where backprops through both branches; a safe dummy u keeps log1p's gradient finite where saturated.</span>
+        <span class="n">safe_u</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">saturated</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">u</span><span class="p">)</span>
+        <span class="n">near_one</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">safe_u</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="n">extreme</span> <span class="o">=</span> <span class="n">_log_power_sum</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">log_p</span><span class="p">,</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">saturated</span><span class="p">,</span> <span class="n">extreme</span><span class="p">,</span> <span class="n">near_one</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">has_nan</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)),</span> <span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="tsallis_entropy">
+<a class="viewcode-back" href="../../../generated/torchnlts.entropy.tsallis_entropy.html#torchnlts.entropy.tsallis_entropy">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tsallis_entropy</span><span class="p">(</span><span class="n">probability</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Tsallis generalized order-``q`` entropy.</span>
+
+<span class="sd">    Reference: Tsallis (1988). Matches ComplexityMeasures.jl's ``Tsallis`` outside its ``q ≈ 1`` window and inside it</span>
+<span class="sd">    for ``k = 1``; inside it for ``k != 1`` this function returns the true limit, ``k`` times Shannon entropy, where</span>
+<span class="sd">    Julia drops ``k``.</span>
+
+<span class="sd">    Gradient class: smooth, but only on a fixed support: an exactly zero probability gets gradient 0 by convention, not</span>
+<span class="sd">    the one-sided limit (unbounded for ``q &lt; 1``).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        probability: Discrete distribution of shape ``[..., num_outcomes]``, summing to 1 along the last dimension (not</span>
+<span class="sd">            validated).</span>
+<span class="sd">        q: Order; any real number (unlike Rényi's ``alpha``, as in ComplexityMeasures.jl). A very large ``|q|`` can</span>
+<span class="sd">            overflow the dtype's range.</span>
+<span class="sd">        k: Boltzmann-constant-like scale factor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Entropy of shape ``[...]``. ``NaN`` for a row of ``probability`` containing ``NaN``.</span>
+<span class="sd">    """</span>
+    <span class="n">has_nan</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">probability</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">nonzero</span> <span class="o">=</span> <span class="n">probability</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">probability</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="k">if</span> <span class="n">_isclose_to_order</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">k</span> <span class="o">*</span> <span class="n">_shannon_entropy</span><span class="p">(</span><span class="n">probability</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">log_p</span> <span class="o">=</span> <span class="n">_safe_log</span><span class="p">(</span><span class="n">probability</span><span class="p">,</span> <span class="n">nonzero</span><span class="p">)</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">exponent_out_of_range</span> <span class="o">=</span> <span class="n">_deviation_from_one</span><span class="p">(</span><span class="n">probability</span><span class="p">,</span> <span class="n">nonzero</span><span class="p">,</span> <span class="n">log_p</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="n">saturated</span> <span class="o">=</span> <span class="n">_deviation_saturated</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">exponent_out_of_range</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="c1"># The extreme branch's exp can overflow where it is discarded; torch.where backprops through both branches.</span>
+        <span class="n">log_sum</span> <span class="o">=</span> <span class="n">_log_power_sum</span><span class="p">(</span><span class="n">nonzero</span><span class="p">,</span> <span class="n">log_p</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="n">safe_log_sum</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">saturated</span><span class="p">,</span> <span class="n">log_sum</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">log_sum</span><span class="p">))</span>
+        <span class="c1"># Fold k into the log-space shift; multiplying by k after exponentiating overflows for extreme k.</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">q</span> <span class="o">&gt;</span> <span class="mf">1.0</span> <span class="k">else</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;=</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">shifted</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">safe_log_sum</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">q</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">k</span><span class="p">)))</span> <span class="o">*</span> <span class="n">sign</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="mf">0.0</span>
+            <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">safe_log_sum</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">extreme</span> <span class="o">=</span> <span class="n">k</span> <span class="o">/</span> <span class="p">(</span><span class="n">q</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-</span> <span class="n">shifted</span>
+        <span class="n">near_one</span> <span class="o">=</span> <span class="n">k</span> <span class="o">*</span> <span class="n">u</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">q</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">saturated</span><span class="p">,</span> <span class="n">extreme</span><span class="p">,</span> <span class="n">near_one</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">has_nan</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)),</span> <span class="n">result</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Francesco Martinuzzi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

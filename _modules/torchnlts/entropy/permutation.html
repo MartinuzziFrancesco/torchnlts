@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>torchnlts.entropy.permutation &#8212; torchnlts</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/torchnlts/entropy/permutation';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">torchnlts</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">torchnlts.entropy.permutation</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for torchnlts.entropy.permutation</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Permutation entropy: Shannon entropy of ordinal (Bandt-Pompe) patterns.</span>
+
+<span class="sd">Reference: Bandt &amp; Pompe (2002), Phys. Rev. Lett. 88(17), 174102, Sec. II-III. Each delay-embedded vector (order</span>
+<span class="sd">m = ``embedding_dim``, lag tau) is mapped to the permutation that sorts its coordinates; the entropy is that of the</span>
+<span class="sd">pattern distribution, optionally divided by ``log(m!)``. Entropies are in nats (the paper uses bits). Univariate</span>
+<span class="sd">input only.</span>
+
+<span class="sd">Weighted variants (``weighting``) replace each vector's count by a weight: ``"variance"`` (Fadlallah, Chen, Keil &amp;</span>
+<span class="sd">Principe (2013), Phys. Rev. E 87, 022911; population variance of the vector's coordinates) or ``"amplitude"``</span>
+<span class="sd">(Azami &amp; Escudero (2016), Comput. Methods Programs Biomed. 128, 40-51; ``A / m * sum|x_i| + (1 - A) / (m - 1) *</span>
+<span class="sd">sum|x_i - x_(i-1)|``). Probabilities are the summed weights over the total weight.</span>
+
+<span class="sd">Limitation: a tied window goes to one pattern by earliest index (as in plain permutation entropy and</span>
+<span class="sd">ComplexityMeasures.jl), whereas Azami &amp; Escudero split its weight equally among the compatible permutations;</span>
+<span class="sd">implement the split in ``_ordinal_pattern_codes`` if the paper's tie handling is needed.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts._shape</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_ensure_batched</span><span class="p">,</span>
+    <span class="n">_output_dtype</span><span class="p">,</span>
+    <span class="n">_pattern_counts</span><span class="p">,</span>
+    <span class="n">_power_of_two_scale</span><span class="p">,</span>
+    <span class="n">_real_scalar</span><span class="p">,</span>
+    <span class="n">_require_univariate</span><span class="p">,</span>
+    <span class="n">_shannon_entropy</span><span class="p">,</span>
+    <span class="n">_work_dtype</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.convert</span><span class="w"> </span><span class="kn">import</span> <span class="n">as_tensor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.embedding.delay</span><span class="w"> </span><span class="kn">import</span> <span class="n">delay_embedding</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.entropy.sample</span><span class="w"> </span><span class="kn">import</span> <span class="n">_mask_nonfinite_input</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ordinal_pattern_codes</span><span class="p">(</span><span class="n">embedded</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Lehmer-code each row's ordinal pattern into ``[0, order!)``; ties go to the earliest index (stable argsort)."""</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">embedded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">ranks</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">embedded</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">stable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">later</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">triu</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">order</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">embedded</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="n">diagonal</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">smaller_at_j</span> <span class="o">=</span> <span class="n">ranks</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">ranks</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># [..., i, j] = ranks[i] &gt; ranks[j]</span>
+    <span class="n">digits</span> <span class="o">=</span> <span class="p">(</span><span class="n">smaller_at_j</span> <span class="o">&amp;</span> <span class="n">later</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># digits[..., i] = #{j &gt; i : ranks[j] &lt; ranks[i]}</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">math</span><span class="o">.</span><span class="n">factorial</span><span class="p">(</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">order</span><span class="p">)],</span> <span class="n">device</span><span class="o">=</span><span class="n">embedded</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">digits</span> <span class="o">*</span> <span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_weighting</span><span class="p">(</span><span class="n">weighting</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Validate the weighting arguments; returns ``amplitude_weight`` as a float."""</span>
+    <span class="k">if</span> <span class="n">weighting</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s2">"variance"</span><span class="p">,</span> <span class="s2">"amplitude"</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"weighting must be None, 'variance' or 'amplitude', got </span><span class="si">{</span><span class="n">weighting</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">weighting</span> <span class="o">!=</span> <span class="s2">"amplitude"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.5</span>
+    <span class="n">amplitude_weight</span> <span class="o">=</span> <span class="n">_real_scalar</span><span class="p">(</span><span class="n">amplitude_weight</span><span class="p">,</span> <span class="s2">"amplitude_weight"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">amplitude_weight</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"amplitude_weight must be in [0, 1], got </span><span class="si">{</span><span class="n">amplitude_weight</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">embedding_dim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"amplitude weighting needs embedding_dim &gt;= 2 (the difference term divides by embedding_dim - 1)"</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">amplitude_weight</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_pattern_weights</span><span class="p">(</span><span class="n">embedded</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">weighting</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Per-vector weight ``[..., N]`` of a ``[..., N, order]`` embedding, up to a per-row positive factor (which</span>
+<span class="sd">    cancels in the probabilities). Variance weights are translation invariant, so each window is first shifted by its</span>
+<span class="sd">    own first coordinate (exact differences, no mean rounding); amplitude weights are not, so they are only rescaled.</span>
+<span class="sd">    The scale is a detached power of two, so squaring cannot overflow or underflow.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">weighting</span> <span class="o">==</span> <span class="s2">"variance"</span><span class="p">:</span>
+        <span class="n">embedded</span> <span class="o">=</span> <span class="n">embedded</span> <span class="o">-</span> <span class="n">embedded</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">embedded</span> <span class="o">=</span> <span class="n">embedded</span> <span class="o">/</span> <span class="n">_power_of_two_scale</span><span class="p">(</span><span class="n">embedded</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">weighting</span> <span class="o">==</span> <span class="s2">"variance"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">((</span><span class="n">embedded</span> <span class="o">-</span> <span class="n">embedded</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">embedded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="n">embedded</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">order</span>
+    <span class="n">change</span> <span class="o">=</span> <span class="p">(</span><span class="n">embedded</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">embedded</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">amplitude_weight</span> <span class="o">*</span> <span class="n">level</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">amplitude_weight</span><span class="p">)</span> <span class="o">*</span> <span class="n">change</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_probabilities</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">weighting</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">""":func:`~torchnlts.entropy.ordinal_pattern_probabilities` in the working dtype (float32 for half input)."""</span>
+    <span class="n">tensor</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_ensure_batched</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="n">_require_univariate</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="n">amplitude_weight</span> <span class="o">=</span> <span class="n">_validate_weighting</span><span class="p">(</span><span class="n">weighting</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">)</span>
+    <span class="n">trajectory</span><span class="p">,</span> <span class="n">nonfinite</span> <span class="o">=</span> <span class="n">_mask_nonfinite_input</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="n">embedded</span> <span class="o">=</span> <span class="n">delay_embedding</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="n">delay</span><span class="p">)</span>
+    <span class="n">num_patterns</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">factorial</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">)</span>
+    <span class="n">work</span> <span class="o">=</span> <span class="n">embedded</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">_work_dtype</span><span class="p">(</span><span class="n">embedded</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+    <span class="n">invalid</span> <span class="o">=</span> <span class="n">nonfinite</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">weighting</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">codes</span> <span class="o">=</span> <span class="n">_ordinal_pattern_codes</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+        <span class="n">sums</span> <span class="o">=</span> <span class="n">_pattern_counts</span><span class="p">(</span><span class="n">codes</span><span class="p">,</span> <span class="n">num_patterns</span><span class="p">,</span> <span class="n">_pattern_weights</span><span class="p">(</span><span class="n">work</span><span class="p">,</span> <span class="n">weighting</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">))</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">sums</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">invalid</span> <span class="o">=</span> <span class="n">invalid</span> <span class="o">|</span> <span class="p">(</span><span class="n">total</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">probability</span> <span class="o">=</span> <span class="n">sums</span> <span class="o">/</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invalid</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">total</span><span class="p">),</span> <span class="n">total</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">codes</span> <span class="o">=</span> <span class="n">_ordinal_pattern_codes</span><span class="p">(</span><span class="n">embedded</span><span class="p">)</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">_pattern_counts</span><span class="p">(</span><span class="n">codes</span><span class="p">,</span> <span class="n">num_patterns</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">work</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">probability</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">/</span> <span class="n">counts</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invalid</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">probability</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)),</span> <span class="n">probability</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ordinal_pattern_probabilities">
+<a class="viewcode-back" href="../../../generated/torchnlts.entropy.ordinal_pattern_probabilities.html#torchnlts.entropy.ordinal_pattern_probabilities">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ordinal_pattern_probabilities</span><span class="p">(</span>
+    <span class="n">trajectory</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">weighting</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">amplitude_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Relative frequency of each ordinal pattern in a delay-embedded trajectory, optionally weighted.</span>
+
+<span class="sd">    This is the distribution :func:`~torchnlts.entropy.permutation_entropy` applies Shannon entropy to; pass it to</span>
+<span class="sd">    :func:`~torchnlts.entropy.renyi_entropy` or :func:`~torchnlts.entropy.tsallis_entropy` for another entropy. A tied</span>
+<span class="sd">    window goes to one pattern by earliest index (as in ComplexityMeasures.jl); for ``"amplitude"`` Azami &amp; Escudero</span>
+<span class="sd">    instead split its weight among the compatible patterns.</span>
+
+<span class="sd">    Reference: Bandt &amp; Pompe (2002) for ``None``; Fadlallah et al. (2013) for ``"variance"``; Azami &amp; Escudero (2016)</span>
+<span class="sd">    for ``"amplitude"``.</span>
+
+<span class="sd">    Gradient class: none for ``weighting=None`` (ranking via ``argsort``); piecewise smooth otherwise (the pattern</span>
+<span class="sd">    assignment is piecewise constant and the weights are smooth; ``"amplitude"`` has kinks where a coordinate or an</span>
+<span class="sd">    adjacent difference is 0, and both weightings jump where two coordinates of a vector tie).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Shape ``[T]``, ``[T, 1]`` or ``[B, T, 1]`` (``D &gt; 1`` is rejected). A tensor, numpy array, or</span>
+<span class="sd">            pandas Series/DataFrame.</span>
+<span class="sd">        embedding_dim: Pattern order m.</span>
+<span class="sd">        delay: Embedding lag.</span>
+<span class="sd">        weighting: ``None`` (plain counts), ``"variance"`` or ``"amplitude"``.</span>
+<span class="sd">        amplitude_weight: Parameter A in ``[0, 1]`` of ``"amplitude"`` (``A = 1``: mean absolute level only,</span>
+<span class="sd">            ``A = 0``: adjacent differences only); ignored otherwise.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Probabilities over the ``embedding_dim!`` ordinal patterns, shape ``[embedding_dim!]`` or</span>
+<span class="sd">        ``[B, embedding_dim!]``, summing to 1 along the last dimension. A row is entirely ``NaN`` if it contains</span>
+<span class="sd">        ``NaN`` or ``inf`` or, with a weighting, if its total weight is 0 (e.g. a constant trajectory under</span>
+<span class="sd">        ``"variance"``); such rows do not affect the gradient of other rows.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``trajectory`` has a feature dim other than 1, ``embedding_dim`` or ``delay`` is not a positive</span>
+<span class="sd">            integer, or ``trajectory`` is too short for them (see :func:`torchnlts.embedding.delay_embedding`), if</span>
+<span class="sd">            ``weighting`` is unknown, or for ``"amplitude"`` if ``amplitude_weight`` is not a real number in ``[0, 1]``</span>
+<span class="sd">            or ``embedding_dim &lt; 2``.</span>
+<span class="sd">    """</span>
+    <span class="n">probability</span> <span class="o">=</span> <span class="n">_probabilities</span><span class="p">(</span>
+        <span class="n">trajectory</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">weighting</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">,</span> <span class="s2">"ordinal_pattern_probabilities"</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">probability</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">_output_dtype</span><span class="p">(</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="permutation_entropy">
+<a class="viewcode-back" href="../../../generated/torchnlts.entropy.permutation_entropy.html#torchnlts.entropy.permutation_entropy">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">permutation_entropy</span><span class="p">(</span>
+    <span class="n">trajectory</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">weighting</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">amplitude_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Permutation entropy: Shannon entropy of ordinal pattern frequencies.</span>
+
+<span class="sd">    ``weighting="variance"`` gives weighted permutation entropy and ``weighting="amplitude"`` amplitude-aware</span>
+<span class="sd">    permutation entropy.</span>
+
+<span class="sd">    Reference: Bandt &amp; Pompe (2002), Sec. II-III; Fadlallah et al. (2013); Azami &amp; Escudero (2016). Matches</span>
+<span class="sd">    ComplexityMeasures.jl's ``entropy(Shannon(base=ℯ), OrdinalPatterns(m, τ), x)`` and its weighted and</span>
+<span class="sd">    amplitude-aware counterparts (that package's default base is 2).</span>
+
+<span class="sd">    Gradient class: none for ``weighting=None``; piecewise smooth otherwise (see</span>
+<span class="sd">    :func:`~torchnlts.entropy.ordinal_pattern_probabilities`).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Forwarded to :func:`~torchnlts.entropy.ordinal_pattern_probabilities`.</span>
+<span class="sd">        embedding_dim: Pattern order m.</span>
+<span class="sd">        delay: Embedding lag.</span>
+<span class="sd">        normalize: Divide by ``log(embedding_dim!)`` so the result lies in ``[0, 1]``; ``NaN`` (``0 / 0``) at</span>
+<span class="sd">            ``embedding_dim = 1``, which has one pattern and no normalizing constant.</span>
+<span class="sd">        weighting: ``None``, ``"variance"`` or ``"amplitude"``.</span>
+<span class="sd">        amplitude_weight: Parameter A in ``[0, 1]`` of ``"amplitude"``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Scalar (unbatched trajectory) or ``[B]`` entropy in nats (dimensionless if ``normalize``). ``NaN`` for the</span>
+<span class="sd">        rows that are ``NaN`` in :func:`~torchnlts.entropy.ordinal_pattern_probabilities`.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: As :func:`~torchnlts.entropy.ordinal_pattern_probabilities`.</span>
+<span class="sd">    """</span>
+    <span class="n">probability</span> <span class="o">=</span> <span class="n">_probabilities</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">weighting</span><span class="p">,</span> <span class="n">amplitude_weight</span><span class="p">,</span> <span class="s2">"permutation_entropy"</span><span class="p">)</span>
+    <span class="n">entropy</span> <span class="o">=</span> <span class="n">_shannon_entropy</span><span class="p">(</span><span class="n">probability</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+        <span class="n">entropy</span> <span class="o">=</span> <span class="n">entropy</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">factorial</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">entropy</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">_output_dtype</span><span class="p">(</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)))</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Francesco Martinuzzi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

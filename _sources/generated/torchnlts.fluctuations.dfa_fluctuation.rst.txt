@@ -1,0 +1,6 @@
+﻿torchnlts.fluctuations.dfa\_fluctuation
+=======================================
+
+.. currentmodule:: torchnlts.fluctuations
+
+.. autofunction:: dfa_fluctuation

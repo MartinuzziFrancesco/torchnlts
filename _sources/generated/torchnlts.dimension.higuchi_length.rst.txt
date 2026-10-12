@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.higuchi\_length
+===================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: higuchi_length

@@ -1,0 +1,32 @@
+﻿torchnlts.surrogate.SurrogateTestResult
+=======================================
+
+.. currentmodule:: torchnlts.surrogate
+
+.. autoclass:: SurrogateTestResult
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SurrogateTestResult.__init__
+      ~SurrogateTestResult.count
+      ~SurrogateTestResult.index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SurrogateTestResult.p_value
+      ~SurrogateTestResult.statistic
+      ~SurrogateTestResult.surrogate_statistics
+   
+   

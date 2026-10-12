@@ -1,0 +1,6 @@
+﻿torchnlts.embedding.autocorrelation
+===================================
+
+.. currentmodule:: torchnlts.embedding
+
+.. autofunction:: autocorrelation

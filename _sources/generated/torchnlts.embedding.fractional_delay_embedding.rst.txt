@@ -1,0 +1,6 @@
+﻿torchnlts.embedding.fractional\_delay\_embedding
+================================================
+
+.. currentmodule:: torchnlts.embedding
+
+.. autofunction:: fractional_delay_embedding

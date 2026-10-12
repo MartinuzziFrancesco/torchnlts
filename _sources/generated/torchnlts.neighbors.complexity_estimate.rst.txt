@@ -1,0 +1,6 @@
+﻿torchnlts.neighbors.complexity\_estimate
+========================================
+
+.. currentmodule:: torchnlts.neighbors
+
+.. autofunction:: complexity_estimate

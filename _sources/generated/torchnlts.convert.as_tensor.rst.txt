@@ -1,0 +1,6 @@
+﻿torchnlts.convert.as\_tensor
+============================
+
+.. currentmodule:: torchnlts.convert
+
+.. autofunction:: as_tensor

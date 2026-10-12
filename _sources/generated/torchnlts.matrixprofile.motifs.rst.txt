@@ -1,0 +1,6 @@
+﻿torchnlts.matrixprofile.motifs
+==============================
+
+.. currentmodule:: torchnlts.matrixprofile
+
+.. autofunction:: motifs

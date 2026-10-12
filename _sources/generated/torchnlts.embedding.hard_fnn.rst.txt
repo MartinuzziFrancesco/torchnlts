@@ -1,0 +1,6 @@
+﻿torchnlts.embedding.hard\_fnn
+=============================
+
+.. currentmodule:: torchnlts.embedding
+
+.. autofunction:: hard_fnn

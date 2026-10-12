@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.fuzzy\_entropy
+================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: fuzzy_entropy

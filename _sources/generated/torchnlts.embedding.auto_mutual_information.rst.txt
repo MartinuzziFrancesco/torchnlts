@@ -1,0 +1,6 @@
+﻿torchnlts.embedding.auto\_mutual\_information
+=============================================
+
+.. currentmodule:: torchnlts.embedding
+
+.. autofunction:: auto_mutual_information

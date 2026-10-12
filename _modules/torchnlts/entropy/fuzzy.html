@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>torchnlts.entropy.fuzzy &#8212; torchnlts</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/torchnlts/entropy/fuzzy';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">torchnlts</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">torchnlts.entropy.fuzzy</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for torchnlts.entropy.fuzzy</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Fuzzy entropy: template matching with a continuous (fuzzy-set) similarity instead of a hard threshold.</span>
+
+<span class="sd">Reference: Chen, Wang, Xie &amp; Yu (2007), IEEE Trans. Neural Syst. Rehabil. Eng. 15(2), 266-272, eq. 2-10:</span>
+<span class="sd">FuzzyEn(m, n, r, N) = ln(phi^m(n, r)) - ln(phi^{m+1}(n, r)), where phi^m averages the fuzzy membership</span>
+<span class="sd">D_ij = exp(-(d_ij)^n / r) over template pairs, d_ij is the Chebyshev distance between mean-removed m-length templates</span>
+<span class="sd">(eq. 2-4), and both phi are restricted to the same N-m template start indices.</span>
+
+<span class="sd">The membership is already continuous, so there is no separate soft variant. For ``[T, D]`` input a template is the</span>
+<span class="sd">flattened ``m * D`` window and mean removal subtracts one scalar over all of it. phi is a flat average over all valid</span>
+<span class="sd">pairs, which equals the paper's two-level average (eq. 7) at ``theiler_window=0`` (every template then has the same</span>
+<span class="sd">number of valid neighbors) and generalizes it to larger windows as :func:`~torchnlts.entropy.sample_entropy` does.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts._shape</span><span class="w"> </span><span class="kn">import</span> <span class="n">_broadcast_over_matrix</span><span class="p">,</span> <span class="n">_output_dtype</span><span class="p">,</span> <span class="n">_work_dtype</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.entropy.sample</span><span class="w"> </span><span class="kn">import</span> <span class="n">_mask_nonfinite_input</span><span class="p">,</span> <span class="n">_matched_length_templates</span><span class="p">,</span> <span class="n">_negative_log_ratio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.neighbors.distance</span><span class="w"> </span><span class="kn">import</span> <span class="n">pairwise_distance</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.neighbors.theiler</span><span class="w"> </span><span class="kn">import</span> <span class="n">_require_self_exclusion</span><span class="p">,</span> <span class="n">theiler_window_mask</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fuzzy_membership</span><span class="p">(</span><span class="n">distance</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">radius</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">fuzzy_power</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fuzzy similarity D_ij = exp(-(d_ij)^n / r), eq. 5-6."""</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">distance</span><span class="o">**</span><span class="n">fuzzy_power</span><span class="p">)</span> <span class="o">/</span> <span class="n">radius</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fuzzy_correlation</span><span class="p">(</span>
+    <span class="n">embedded</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">fuzzy_power</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">theiler_window</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">norm_order</span><span class="p">:</span> <span class="nb">float</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="n">distance</span> <span class="o">=</span> <span class="n">pairwise_distance</span><span class="p">(</span><span class="n">embedded</span><span class="p">,</span> <span class="n">norm_order</span><span class="o">=</span><span class="n">norm_order</span><span class="p">)</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">distance</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">distance</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">theiler_window_mask</span><span class="p">(</span><span class="n">distance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">theiler_window</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">distance</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="c1"># Substitute a placeholder on the zero diagonal before the power: its gradient is infinite for fuzzy_power &lt; 1,</span>
+    <span class="c1"># and the Chebyshev and Manhattan cdist backwards give NaN at zero distance.</span>
+    <span class="n">safe_distance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">distance</span><span class="p">))</span>
+    <span class="n">weight</span> <span class="o">=</span> <span class="n">_fuzzy_membership</span><span class="p">(</span><span class="n">safe_distance</span><span class="p">,</span> <span class="n">_broadcast_over_matrix</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">distance</span><span class="p">),</span> <span class="n">fuzzy_power</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">weight</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_degenerate_unit_template_correlation</span><span class="p">(</span><span class="n">embedded</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">theiler_window</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""phi^1(n, r) for flattened-length-1 templates: exactly 1 for any trajectory and any positive n, r (a mean-removed</span>
+<span class="sd">    scalar template is zero, so every distance is 0 and D_ij = 1), or ``NaN`` if the Theiler window leaves no pair.</span>
+
+<span class="sd">    Used only for ``embedding_dim=1`` and ``D=1``. It bypasses ``_fuzzy_correlation``, whose gradient would be</span>
+<span class="sd">    ``NaN`` here for ``0 &lt; fuzzy_power &lt; 1`` (infinite slope at distance 0 times a zero derivative); the result is a</span>
+<span class="sd">    constant, disconnected from the graph. The pair count depends only on static shapes, so no ``.item()`` host sync</span>
+<span class="sd">    breaks ``torch.compile``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">embedded</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">&gt;</span> <span class="n">theiler_window</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">((),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">embedded</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">embedded</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">full</span><span class="p">((),</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">embedded</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">embedded</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="fuzzy_entropy">
+<a class="viewcode-back" href="../../../generated/torchnlts.entropy.fuzzy_entropy.html#torchnlts.entropy.fuzzy_entropy">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fuzzy_entropy</span><span class="p">(</span>
+    <span class="n">trajectory</span><span class="p">,</span>
+    <span class="n">radius</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">fuzzy_power</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">theiler_window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">norm_order</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fuzzy entropy FuzzyEn(m, n, r): -log(phi^{m+1} / phi^m) via fuzzy-matched templates.</span>
+
+<span class="sd">    Reference: Chen, Wang, Xie &amp; Yu (2007), eq. 2-10. Each template has its own mean subtracted (eq. 2-3) and the</span>
+<span class="sd">    membership ``exp(-d^fuzzy_power / radius)`` (eq. 5-6) replaces the hard threshold of</span>
+<span class="sd">    :func:`~torchnlts.entropy.sample_entropy`. ``theiler_window`` generalizes the paper's self-match exclusion as in</span>
+<span class="sd">    that function. Matches EntropyHub's ``FuzzEn`` (``Fx='default'``).</span>
+
+<span class="sd">    Gradient class: smooth (the membership is continuous), with two exceptions:</span>
+
+<span class="sd">    1. Mean removal turns every template of flattened length 2 (``embedding_dim * D`` or ``(embedding_dim + 1) * D``;</span>
+<span class="sd">       for ``D = 1``, ``embedding_dim`` 1 or 2) into ``(v, -v)``, a systematic tie in the default Chebyshev max.</span>
+<span class="sd">       ``torch.cdist``'s backward then sums over the tied components, so the gradient is wrong by a factor tied to their</span>
+<span class="sd">       number (forward values are exact). ``norm_order=2.0`` or a flattened length other than 2 on both branches avoids</span>
+<span class="sd">       it.</span>
+<span class="sd">    2. For ``0 &lt; fuzzy_power &lt; 1``, ``distance ** fuzzy_power`` has an infinite slope at distance 0, which reaches</span>
+<span class="sd">       autograd as ``NaN`` under Chebyshev and Manhattan distances (not Euclidean). The masked diagonal and the</span>
+<span class="sd">       ``D = 1``, ``embedding_dim = 1`` short templates (all zero) are handled; any other unmasked pair of exactly</span>
+<span class="sd">       coincident templates (e.g. a window and its neighbor in an arithmetic progression) still gives a ``NaN``</span>
+<span class="sd">       gradient for non-Euclidean ``norm_order``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.</span>
+<span class="sd">        radius: Membership divisor r, positive. Scalar or ``[R]`` tensor to sweep.</span>
+<span class="sd">        fuzzy_power: Membership exponent n; intended to be positive (not validated).</span>
+<span class="sd">        embedding_dim: Template length m.</span>
+<span class="sd">        delay: Embedding lag.</span>
+<span class="sd">        theiler_window: Theiler window over template start indices, ``&gt;= 0``.</span>
+<span class="sd">        norm_order: Minkowski norm order for template distances (``inf`` for the paper's Chebyshev definition).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        FuzzyEn, shape ``[]``/``[R]`` for an unbatched trajectory or ``[B]``/``[R, B]`` for a batched one. ``NaN`` for</span>
+<span class="sd">        a row containing ``NaN`` or ``inf``, when the Theiler window leaves no template pair, or when the membership</span>
+<span class="sd">        sum phi^m underflows to 0 (``radius`` small against the template distances); ``inf`` if only phi^{m+1}</span>
+<span class="sd">        underflows. Such rows put no ``NaN`` into the gradients of other rows or of ``radius``.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``embedding_dim`` or ``delay`` is not a positive integer, ``theiler_window`` is not an integer</span>
+<span class="sd">            ``&gt;= 0``, the trajectory is complex, or the trajectory is too short to embed.</span>
+<span class="sd">    """</span>
+    <span class="n">theiler_window</span> <span class="o">=</span> <span class="n">_require_self_exclusion</span><span class="p">(</span><span class="n">theiler_window</span><span class="p">,</span> <span class="s2">"fuzzy entropy"</span><span class="p">)</span>
+    <span class="n">trajectory</span><span class="p">,</span> <span class="n">nonfinite</span> <span class="o">=</span> <span class="n">_mask_nonfinite_input</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">_output_dtype</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="n">short_embed</span><span class="p">,</span> <span class="n">long_embed</span> <span class="o">=</span> <span class="n">_matched_length_templates</span><span class="p">(</span><span class="n">trajectory</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">_work_dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)),</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">delay</span><span class="p">)</span>
+    <span class="n">short_embed</span> <span class="o">=</span> <span class="n">short_embed</span> <span class="o">-</span> <span class="n">short_embed</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">long_embed</span> <span class="o">=</span> <span class="n">long_embed</span> <span class="o">-</span> <span class="n">long_embed</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">short_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">phi_short</span> <span class="o">=</span> <span class="n">_degenerate_unit_template_correlation</span><span class="p">(</span><span class="n">short_embed</span><span class="p">,</span> <span class="n">theiler_window</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">phi_short</span> <span class="o">=</span> <span class="n">_fuzzy_correlation</span><span class="p">(</span><span class="n">short_embed</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">fuzzy_power</span><span class="p">,</span> <span class="n">theiler_window</span><span class="p">,</span> <span class="n">norm_order</span><span class="p">)</span>
+    <span class="n">phi_long</span> <span class="o">=</span> <span class="n">_fuzzy_correlation</span><span class="p">(</span><span class="n">long_embed</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">fuzzy_power</span><span class="p">,</span> <span class="n">theiler_window</span><span class="p">,</span> <span class="n">norm_order</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonfinite</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">),</span> <span class="n">_negative_log_ratio</span><span class="p">(</span><span class="n">phi_long</span><span class="p">,</span> <span class="n">phi_short</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Francesco Martinuzzi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

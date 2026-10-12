@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.determinism
+================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: determinism

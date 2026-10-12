@@ -1,0 +1,6 @@
+﻿torchnlts.matrixprofile.matrix\_profile
+=======================================
+
+.. currentmodule:: torchnlts.matrixprofile
+
+.. autofunction:: matrix_profile

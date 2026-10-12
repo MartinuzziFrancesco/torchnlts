@@ -1,0 +1,6 @@
+﻿torchnlts.scaling.linear\_regions
+=================================
+
+.. currentmodule:: torchnlts.scaling
+
+.. autofunction:: linear_regions

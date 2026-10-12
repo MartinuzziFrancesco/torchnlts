@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.hard\_joint\_recurrence\_matrix
+====================================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: hard_joint_recurrence_matrix

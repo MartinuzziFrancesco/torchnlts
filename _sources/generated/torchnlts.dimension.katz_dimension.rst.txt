@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.katz\_dimension
+===================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: katz_dimension

@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.vl\_max
+============================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: vl_max

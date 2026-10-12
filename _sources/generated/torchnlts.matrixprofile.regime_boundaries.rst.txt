@@ -1,0 +1,6 @@
+﻿torchnlts.matrixprofile.regime\_boundaries
+==========================================
+
+.. currentmodule:: torchnlts.matrixprofile
+
+.. autofunction:: regime_boundaries

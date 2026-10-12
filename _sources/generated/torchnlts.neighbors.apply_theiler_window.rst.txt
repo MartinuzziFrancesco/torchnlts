@@ -1,0 +1,6 @@
+﻿torchnlts.neighbors.apply\_theiler\_window
+==========================================
+
+.. currentmodule:: torchnlts.neighbors
+
+.. autofunction:: apply_theiler_window

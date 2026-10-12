@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.power\_variogram
+====================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: power_variogram

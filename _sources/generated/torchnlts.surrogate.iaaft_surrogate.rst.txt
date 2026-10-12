@@ -1,0 +1,6 @@
+﻿torchnlts.surrogate.iaaft\_surrogate
+====================================
+
+.. currentmodule:: torchnlts.surrogate
+
+.. autofunction:: iaaft_surrogate

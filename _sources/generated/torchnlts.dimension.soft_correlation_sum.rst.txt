@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.soft\_correlation\_sum
+==========================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: soft_correlation_sum

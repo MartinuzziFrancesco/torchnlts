@@ -1,0 +1,6 @@
+﻿torchnlts.matrixprofile.corrected\_arc\_curve
+=============================================
+
+.. currentmodule:: torchnlts.matrixprofile
+
+.. autofunction:: corrected_arc_curve

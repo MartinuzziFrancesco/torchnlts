@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.trapping\_time
+===================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: trapping_time

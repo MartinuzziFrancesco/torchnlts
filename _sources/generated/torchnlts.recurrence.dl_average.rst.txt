@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.dl\_average
+================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: dl_average

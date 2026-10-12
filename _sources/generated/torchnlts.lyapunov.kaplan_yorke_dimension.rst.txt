@@ -1,0 +1,6 @@
+﻿torchnlts.lyapunov.kaplan\_yorke\_dimension
+===========================================
+
+.. currentmodule:: torchnlts.lyapunov
+
+.. autofunction:: kaplan_yorke_dimension

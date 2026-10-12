@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.permutation\_entropy
+======================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: permutation_entropy

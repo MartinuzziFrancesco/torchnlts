@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.correlation\_dimension
+==========================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: correlation_dimension

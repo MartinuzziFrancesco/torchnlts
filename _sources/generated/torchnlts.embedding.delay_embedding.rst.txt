@@ -1,0 +1,6 @@
+﻿torchnlts.embedding.delay\_embedding
+====================================
+
+.. currentmodule:: torchnlts.embedding
+
+.. autofunction:: delay_embedding

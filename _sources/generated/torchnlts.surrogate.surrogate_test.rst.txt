@@ -1,0 +1,6 @@
+﻿torchnlts.surrogate.surrogate\_test
+===================================
+
+.. currentmodule:: torchnlts.surrogate
+
+.. autofunction:: surrogate_test

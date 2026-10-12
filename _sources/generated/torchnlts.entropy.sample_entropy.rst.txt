@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.sample\_entropy
+=================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: sample_entropy

@@ -1,0 +1,6 @@
+﻿torchnlts.causality.transfer\_entropy
+=====================================
+
+.. currentmodule:: torchnlts.causality
+
+.. autofunction:: transfer_entropy

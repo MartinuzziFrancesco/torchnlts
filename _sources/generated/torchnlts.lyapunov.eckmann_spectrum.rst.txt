@@ -1,0 +1,6 @@
+﻿torchnlts.lyapunov.eckmann\_spectrum
+====================================
+
+.. currentmodule:: torchnlts.lyapunov
+
+.. autofunction:: eckmann_spectrum

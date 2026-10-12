@@ -1,0 +1,6 @@
+﻿torchnlts.lyapunov.kantz\_divergence
+====================================
+
+.. currentmodule:: torchnlts.lyapunov
+
+.. autofunction:: kantz_divergence

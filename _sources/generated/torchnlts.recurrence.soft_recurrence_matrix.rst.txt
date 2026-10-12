@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.soft\_recurrence\_matrix
+=============================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: soft_recurrence_matrix

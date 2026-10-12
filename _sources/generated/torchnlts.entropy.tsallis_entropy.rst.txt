@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.tsallis\_entropy
+==================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: tsallis_entropy

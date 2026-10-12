@@ -1,0 +1,6 @@
+﻿torchnlts.lyapunov.rosenstein\_lyapunov
+=======================================
+
+.. currentmodule:: torchnlts.lyapunov
+
+.. autofunction:: rosenstein_lyapunov

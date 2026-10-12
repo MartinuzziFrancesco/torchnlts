@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>torchnlts.embedding.delay_selection &#8212; torchnlts</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/torchnlts/embedding/delay_selection';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">torchnlts</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">torchnlts.embedding.delay_selection</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for torchnlts.embedding.delay_selection</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Embedding-delay selection for a scalar time series.</span>
+
+<span class="sd">Reference: Fraser, A. M. &amp; Swinney, H. L. (1986), "Independent coordinates for strange attractors from mutual</span>
+<span class="sd">information", Phys. Rev. A 33, 1134-1140 (first minimum of the self mutual information); Rosenstein, M. T., Collins,</span>
+<span class="sd">J. J. &amp; De Luca, C. J. (1994), Physica D 73, 82-98 (autocorrelation criteria).</span>
+
+<span class="sd">Conventions:</span>
+
+<span class="sd">- ``auto_mutual_information`` uses an equal-width ``num_bins`` x ``num_bins`` histogram over the range of the first</span>
+<span class="sd">  ``T - max_delay`` samples, the same pairs for every delay (the fixed-width variant of DelayEmbeddings.jl's</span>
+<span class="sd">  ``selfmutualinfo``), instead of Fraser and Swinney's adaptive partition, whose data-dependent shapes cannot be</span>
+<span class="sd">  vectorized. Unlike ``selfmutualinfo(...; nbins=num_bins)``, the delayed series is binned with the edges of the</span>
+<span class="sd">  original (Julia re-edges it by the largest sample of each bin) and the delayed marginal is counted from the delayed</span>
+<span class="sd">  samples (Julia reuses the original's counts). The two agree exactly at delay 0 and for a series periodic over the</span>
+<span class="sd">  pair window; otherwise they differ by about 0.01 nats at 200 points and 0.001 at 500. Julia reports bits; this</span>
+<span class="sd">  module reports nats.</span>
+<span class="sd">- ``estimate_delay`` follows DelayEmbeddings.jl's ``estimate_delay`` search rules for ``mi_min``, ``ac_zero`` and</span>
+<span class="sd">  ``ac_min`` (the ``*_min`` methods never return delay 0). ``ac_1/e`` is this library's own threshold criterion.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts._shape</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_as_int</span><span class="p">,</span>
+    <span class="n">_ensure_batched</span><span class="p">,</span>
+    <span class="n">_mask_nonfinite_rows</span><span class="p">,</span>
+    <span class="n">_output_dtype</span><span class="p">,</span>
+    <span class="n">_power_of_two_scale</span><span class="p">,</span>
+    <span class="n">_require_univariate</span><span class="p">,</span>
+    <span class="n">_restore_batch</span><span class="p">,</span>
+    <span class="n">_restore_sweep</span><span class="p">,</span>
+    <span class="n">_work_dtype</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_METHODS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"mi_min"</span><span class="p">,</span> <span class="s2">"ac_zero"</span><span class="p">,</span> <span class="s2">"ac_min"</span><span class="p">,</span> <span class="s2">"ac_1/e"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_univariate_rows</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Work-dtype ``[B, T]`` values, original ndim, validated ``max_delay``, output dtype."""</span>
+    <span class="n">max_delay</span> <span class="o">=</span> <span class="n">_as_int</span><span class="p">(</span><span class="n">max_delay</span><span class="p">,</span> <span class="s2">"max_delay"</span><span class="p">)</span>
+    <span class="n">batched</span><span class="p">,</span> <span class="n">ndim</span> <span class="o">=</span> <span class="n">_ensure_batched</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="n">_require_univariate</span><span class="p">(</span><span class="n">batched</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="n">out_dtype</span> <span class="o">=</span> <span class="n">_output_dtype</span><span class="p">(</span><span class="n">batched</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">max_delay</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">max_delay</span> <span class="o">&gt;=</span> <span class="n">batched</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"max_delay must satisfy 1 &lt;= max_delay &lt; T = </span><span class="si">{</span><span class="n">batched</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">max_delay</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">batched</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">_work_dtype</span><span class="p">(</span><span class="n">batched</span><span class="o">.</span><span class="n">dtype</span><span class="p">)),</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">out_dtype</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_autocorrelation_rows</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``[max_delay + 1, B]`` autocorrelation in the work dtype; ``NaN`` columns if constant or non-finite."""</span>
+    <span class="n">values</span><span class="p">,</span> <span class="n">nonfinite</span> <span class="o">=</span> <span class="n">_mask_nonfinite_rows</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">invalid</span> <span class="o">=</span> <span class="n">nonfinite</span> <span class="o">|</span> <span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">values</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Translate by the first sample (keeps small variations of a large offset) and divide by a detached</span>
+    <span class="c1"># power of two (the ratio is scale invariant; squares cannot overflow or underflow).</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">values</span> <span class="o">-</span> <span class="n">values</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">values</span> <span class="o">/</span> <span class="n">_power_of_two_scale</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">centered</span> <span class="o">=</span> <span class="n">values</span> <span class="o">-</span> <span class="n">values</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">denominator</span> <span class="o">=</span> <span class="p">(</span><span class="n">centered</span> <span class="o">*</span> <span class="n">centered</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">safe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invalid</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">denominator</span><span class="p">),</span> <span class="n">denominator</span><span class="p">)</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">lags</span> <span class="o">=</span> <span class="p">[(</span><span class="n">centered</span><span class="p">[:,</span> <span class="p">:</span> <span class="n">length</span> <span class="o">-</span> <span class="n">lag</span><span class="p">]</span> <span class="o">*</span> <span class="n">centered</span><span class="p">[:,</span> <span class="n">lag</span><span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">lag</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_delay</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">lags</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">safe</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invalid</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)),</span> <span class="n">result</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ami_rows</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``[max_delay + 1, B]`` self mutual information in nats, in the work dtype; ``NaN`` for non-finite rows."""</span>
+    <span class="n">num_bins</span> <span class="o">=</span> <span class="n">_as_int</span><span class="p">(</span><span class="n">num_bins</span><span class="p">,</span> <span class="s2">"num_bins"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num_bins</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"num_bins must be &gt;= 2, got </span><span class="si">{</span><span class="n">num_bins</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">values</span><span class="p">,</span> <span class="n">nonfinite</span> <span class="o">=</span> <span class="n">_mask_nonfinite_rows</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">detach</span><span class="p">())</span>
+    <span class="n">num_pairs</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">max_delay</span>
+    <span class="n">window</span> <span class="o">=</span> <span class="n">values</span><span class="p">[:,</span> <span class="p">:</span><span class="n">num_pairs</span><span class="p">]</span>
+    <span class="n">low</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">high</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fractions</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="o">/</span> <span class="n">num_bins</span>
+    <span class="n">edges</span> <span class="o">=</span> <span class="n">low</span> <span class="o">+</span> <span class="p">(</span><span class="n">high</span> <span class="o">-</span> <span class="n">low</span><span class="p">)</span> <span class="o">*</span> <span class="n">fractions</span>
+    <span class="c1"># Samples above an edge move up a bin; out-of-window samples clamp to the end bins.</span>
+    <span class="n">bins</span> <span class="o">=</span> <span class="p">(</span><span class="n">values</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">edges</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">one_hot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">one_hot</span><span class="p">(</span><span class="n">bins</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">marginal_x</span> <span class="o">=</span> <span class="n">one_hot</span><span class="p">[:,</span> <span class="p">:</span><span class="n">num_pairs</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">delay</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_delay</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">shifted</span> <span class="o">=</span> <span class="n">one_hot</span><span class="p">[:,</span> <span class="n">delay</span> <span class="p">:</span> <span class="n">delay</span> <span class="o">+</span> <span class="n">num_pairs</span><span class="p">]</span>
+        <span class="n">joint</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"bnk,bnl-&gt;bkl"</span><span class="p">,</span> <span class="n">one_hot</span><span class="p">[:,</span> <span class="p">:</span><span class="n">num_pairs</span><span class="p">],</span> <span class="n">shifted</span><span class="p">)</span>
+        <span class="n">marginal_y</span> <span class="o">=</span> <span class="n">shifted</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">outer</span> <span class="o">=</span> <span class="n">marginal_x</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">marginal_y</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">occupied</span> <span class="o">=</span> <span class="n">joint</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">safe_outer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">occupied</span><span class="p">,</span> <span class="n">outer</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">outer</span><span class="p">))</span>
+        <span class="n">ratio</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">occupied</span><span class="p">,</span> <span class="n">joint</span> <span class="o">*</span> <span class="n">num_pairs</span> <span class="o">/</span> <span class="n">safe_outer</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">joint</span><span class="p">))</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">joint</span> <span class="o">/</span> <span class="n">num_pairs</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">ratio</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nonfinite</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)),</span> <span class="n">result</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="autocorrelation">
+<a class="viewcode-back" href="../../../generated/torchnlts.embedding.autocorrelation.html#torchnlts.embedding.autocorrelation">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">autocorrelation</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Sample autocorrelation at delays ``0..max_delay``.</span>
+
+<span class="sd">    ``c(k) = sum_t (x_t - m)(x_{t+k} - m) / sum_t (x_t - m)^2`` with ``m`` the mean of the whole series (StatsBase</span>
+<span class="sd">    ``autocor``, ``demean=true``).</span>
+
+<span class="sd">    Gradient class: exact.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Shape ``[T]``, ``[T, 1]``, or ``[B, T, 1]``. A tensor, numpy array, or pandas Series/DataFrame.</span>
+<span class="sd">        max_delay: Largest delay, ``1 &lt;= max_delay &lt; T``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Shape ``[max_delay + 1]`` (or ``[max_delay + 1, B]``), in the input's floating dtype (the default dtype for</span>
+<span class="sd">        integer input). ``NaN`` for a constant or non-finite row.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``trajectory`` is not univariate or is complex, or ``max_delay`` is not an integer in</span>
+<span class="sd">            ``[1, T)``.</span>
+<span class="sd">    """</span>
+    <span class="n">values</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">out_dtype</span> <span class="o">=</span> <span class="n">_univariate_rows</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="s2">"autocorrelation"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_restore_sweep</span><span class="p">(</span><span class="n">_autocorrelation_rows</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">out_dtype</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="n">ndim</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="auto_mutual_information">
+<a class="viewcode-back" href="../../../generated/torchnlts.embedding.auto_mutual_information.html#torchnlts.embedding.auto_mutual_information">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">auto_mutual_information</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Histogram self mutual information I(x_t; x_{t+k}) in nats, ``k = 0..max_delay``.</span>
+
+<span class="sd">    Reference: Fraser &amp; Swinney (1986), Phys. Rev. A 33, 1134, with an equal-width ``num_bins`` x ``num_bins``</span>
+<span class="sd">    histogram over the range of the first ``T - max_delay`` samples instead of their adaptive partition. It agrees</span>
+<span class="sd">    with DelayEmbeddings.jl's ``selfmutualinfo(...; nbins=num_bins)`` at delay 0 and otherwise to about 0.01 nats at</span>
+<span class="sd">    200 points (the delayed series is binned with the original's edges and its marginal counted from the delayed</span>
+<span class="sd">    samples).</span>
+
+<span class="sd">    Gradient class: none (histogram bin counts are piecewise constant).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Shape ``[T]``, ``[T, 1]``, or ``[B, T, 1]``. A tensor, numpy array, or pandas Series/DataFrame.</span>
+<span class="sd">        max_delay: Largest delay, ``1 &lt;= max_delay &lt; T``.</span>
+<span class="sd">        num_bins: Histogram bins per axis, ``&gt;= 2``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Shape ``[max_delay + 1]`` (or ``[max_delay + 1, B]``), in the input's floating dtype (the default dtype for</span>
+<span class="sd">        integer input). ``0`` for a constant row, ``NaN`` for a non-finite row.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``trajectory`` is not univariate or is complex, ``max_delay`` is not an integer in ``[1, T)``,</span>
+<span class="sd">            or ``num_bins`` is not an integer ``&gt;= 2``.</span>
+<span class="sd">    """</span>
+    <span class="n">values</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">out_dtype</span> <span class="o">=</span> <span class="n">_univariate_rows</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="s2">"auto_mutual_information"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_restore_sweep</span><span class="p">(</span><span class="n">_ami_rows</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">out_dtype</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="n">ndim</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="estimate_delay">
+<a class="viewcode-back" href="../../../generated/torchnlts.embedding.estimate_delay.html#torchnlts.embedding.estimate_delay">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">estimate_delay</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"mi_min"</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Embedding delay in ``1..max_delay`` from a criterion on the self mutual information or the autocorrelation.</span>
+
+<span class="sd">    - ``"mi_min"``: first local minimum of :func:`~torchnlts.embedding.auto_mutual_information` (Fraser &amp; Swinney).</span>
+<span class="sd">    - ``"ac_min"``: first local minimum of :func:`~torchnlts.embedding.autocorrelation`.</span>
+<span class="sd">    - ``"ac_zero"``: first delay with autocorrelation ``&lt;= 0``.</span>
+<span class="sd">    - ``"ac_1/e"``: first delay with autocorrelation ``&lt; 1/e``.</span>
+
+<span class="sd">    A minimum is the first delay whose successor is not lower, so one at ``max_delay - 1`` or ``max_delay`` is not</span>
+<span class="sd">    detected (except that ``max_delay == 2`` returns 1 if the curve does not decrease from delay 1 to 2). When no delay</span>
+<span class="sd">    qualifies, ``max_delay`` is returned. DelayEmbeddings.jl does the same except that it raises ``BoundsError`` for</span>
+<span class="sd">    ``max_delay == 1`` (minimum methods and ``ac_zero``) and for a decreasing curve at ``max_delay == 2``.</span>
+
+<span class="sd">    Gradient class: none (integer output).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Shape ``[T]``, ``[T, 1]``, or ``[B, T, 1]``. A tensor, numpy array, or pandas Series/DataFrame.</span>
+<span class="sd">        max_delay: Largest delay searched, ``1 &lt;= max_delay &lt; T``.</span>
+<span class="sd">        method: One of the methods above.</span>
+<span class="sd">        num_bins: Histogram bins per axis for ``"mi_min"``, ``&gt;= 2``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Integer tensor of shape ``[]`` (or ``[B]``). ``-1`` for a non-finite or constant row.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``method`` is unknown, ``trajectory`` is not univariate or is complex, ``max_delay`` is not</span>
+<span class="sd">            an integer in ``[1, T)``, or ``num_bins`` is not an integer ``&gt;= 2``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_METHODS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"method must be one of </span><span class="si">{</span><span class="n">_METHODS</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">method</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">values</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_univariate_rows</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="s2">"estimate_delay"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"mi_min"</span><span class="p">:</span>
+        <span class="n">curve</span> <span class="o">=</span> <span class="n">_ami_rows</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">)</span>  <span class="c1"># [max_delay + 1, B]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">curve</span> <span class="o">=</span> <span class="n">_autocorrelation_rows</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">)</span>
+    <span class="n">series</span> <span class="o">=</span> <span class="n">curve</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="n">constant</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">values</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">invalid</span> <span class="o">=</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">curve</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="n">constant</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"mi_min"</span><span class="p">,</span> <span class="s2">"ac_min"</span><span class="p">):</span>
+        <span class="c1"># Julia's rule: compare successive values for the first max(count - 2, 1) delays.</span>
+        <span class="n">tests</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">count</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">hit</span> <span class="o">=</span> <span class="n">series</span><span class="p">[</span><span class="mi">1</span> <span class="p">:</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">tests</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">series</span><span class="p">[:</span><span class="n">tests</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"ac_zero"</span><span class="p">:</span>
+        <span class="n">hit</span> <span class="o">=</span> <span class="n">series</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">hit</span> <span class="o">=</span> <span class="n">series</span> <span class="o">&lt;</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="c1"># argmax of the flags is 0 when none is set; the extra True row makes "none" resolve to max_delay.</span>
+    <span class="nb">sentinel</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">curve</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">hit</span><span class="p">,</span> <span class="nb">sentinel</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">delay</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">first</span> <span class="o">&lt;</span> <span class="n">hit</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">first</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
+    <span class="n">delay</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invalid</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">delay</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_restore_batch</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="n">ndim</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Francesco Martinuzzi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

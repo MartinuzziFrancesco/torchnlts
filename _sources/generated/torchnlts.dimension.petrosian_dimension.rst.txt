@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.petrosian\_dimension
+========================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: petrosian_dimension

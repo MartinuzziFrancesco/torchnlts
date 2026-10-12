@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.box\_occupation\_probabilities
+==================================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: box_occupation_probabilities

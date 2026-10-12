@@ -1,0 +1,6 @@
+﻿torchnlts.neighbors.knn\_search
+===============================
+
+.. currentmodule:: torchnlts.neighbors
+
+.. autofunction:: knn_search

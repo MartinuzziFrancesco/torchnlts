@@ -1,0 +1,6 @@
+﻿torchnlts.neighbors.trajectory\_kernel
+======================================
+
+.. currentmodule:: torchnlts.neighbors
+
+.. autofunction:: trajectory_kernel

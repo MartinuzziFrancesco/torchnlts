@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.windowed\_rqa
+==================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: windowed_rqa

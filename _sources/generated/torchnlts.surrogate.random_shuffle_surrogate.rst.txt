@@ -1,0 +1,6 @@
+﻿torchnlts.surrogate.random\_shuffle\_surrogate
+==============================================
+
+.. currentmodule:: torchnlts.surrogate
+
+.. autofunction:: random_shuffle_surrogate

@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.mutual\_information
+=====================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: mutual_information

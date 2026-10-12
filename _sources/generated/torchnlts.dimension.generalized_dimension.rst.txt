@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.generalized\_dimension
+==========================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: generalized_dimension

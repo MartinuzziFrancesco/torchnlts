@@ -1,0 +1,6 @@
+﻿torchnlts.matrixprofile.discords
+================================
+
+.. currentmodule:: torchnlts.matrixprofile
+
+.. autofunction:: discords

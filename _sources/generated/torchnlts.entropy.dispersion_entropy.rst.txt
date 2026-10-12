@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.dispersion\_entropy
+=====================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: dispersion_entropy

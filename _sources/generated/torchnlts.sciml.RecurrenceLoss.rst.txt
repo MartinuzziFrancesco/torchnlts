@@ -1,0 +1,81 @@
+﻿torchnlts.sciml.RecurrenceLoss
+==============================
+
+.. currentmodule:: torchnlts.sciml
+
+.. autoclass:: RecurrenceLoss
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RecurrenceLoss.__init__
+      ~RecurrenceLoss.add_module
+      ~RecurrenceLoss.apply
+      ~RecurrenceLoss.bfloat16
+      ~RecurrenceLoss.buffers
+      ~RecurrenceLoss.children
+      ~RecurrenceLoss.compile
+      ~RecurrenceLoss.cpu
+      ~RecurrenceLoss.cuda
+      ~RecurrenceLoss.double
+      ~RecurrenceLoss.eval
+      ~RecurrenceLoss.extra_repr
+      ~RecurrenceLoss.float
+      ~RecurrenceLoss.forward
+      ~RecurrenceLoss.get_buffer
+      ~RecurrenceLoss.get_extra_state
+      ~RecurrenceLoss.get_parameter
+      ~RecurrenceLoss.get_submodule
+      ~RecurrenceLoss.half
+      ~RecurrenceLoss.ipu
+      ~RecurrenceLoss.load_state_dict
+      ~RecurrenceLoss.modules
+      ~RecurrenceLoss.mtia
+      ~RecurrenceLoss.named_buffers
+      ~RecurrenceLoss.named_children
+      ~RecurrenceLoss.named_modules
+      ~RecurrenceLoss.named_parameters
+      ~RecurrenceLoss.parameters
+      ~RecurrenceLoss.register_backward_hook
+      ~RecurrenceLoss.register_buffer
+      ~RecurrenceLoss.register_forward_hook
+      ~RecurrenceLoss.register_forward_pre_hook
+      ~RecurrenceLoss.register_full_backward_hook
+      ~RecurrenceLoss.register_full_backward_pre_hook
+      ~RecurrenceLoss.register_load_state_dict_post_hook
+      ~RecurrenceLoss.register_load_state_dict_pre_hook
+      ~RecurrenceLoss.register_module
+      ~RecurrenceLoss.register_parameter
+      ~RecurrenceLoss.register_state_dict_post_hook
+      ~RecurrenceLoss.register_state_dict_pre_hook
+      ~RecurrenceLoss.requires_grad_
+      ~RecurrenceLoss.set_extra_state
+      ~RecurrenceLoss.set_submodule
+      ~RecurrenceLoss.share_memory
+      ~RecurrenceLoss.state_dict
+      ~RecurrenceLoss.to
+      ~RecurrenceLoss.to_empty
+      ~RecurrenceLoss.train
+      ~RecurrenceLoss.type
+      ~RecurrenceLoss.xpu
+      ~RecurrenceLoss.zero_grad
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RecurrenceLoss.T_destination
+      ~RecurrenceLoss.call_super_init
+      ~RecurrenceLoss.dump_patches
+      ~RecurrenceLoss.training
+   
+   

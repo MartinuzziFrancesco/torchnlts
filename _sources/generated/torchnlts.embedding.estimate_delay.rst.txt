@@ -1,0 +1,6 @@
+﻿torchnlts.embedding.estimate\_delay
+===================================
+
+.. currentmodule:: torchnlts.embedding
+
+.. autofunction:: estimate_delay

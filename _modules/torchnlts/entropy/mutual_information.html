@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>torchnlts.entropy.mutual_information &#8212; torchnlts</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/torchnlts/entropy/mutual_information';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">torchnlts</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../primitives.html">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">torchnlts.entropy.mutual_information</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for torchnlts.entropy.mutual_information</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Kraskov-Stogbauer-Grassberger (KSG) mutual information estimators.</span>
+
+<span class="sd">Reference: Kraskov, Stogbauer &amp; Grassberger (2004), Phys. Rev. E 69, 066138.</span>
+
+<span class="sd">``estimator="ksg1"`` (eq. 6-8, their I^(1)): for each point, take the distance to its k-th nearest neighbor in the</span>
+<span class="sd">joint space (the larger of the two marginal distances), excluding temporally correlated points with a Theiler window.</span>
+<span class="sd">Then count, in each marginal space and without Theiler exclusion, the other points (j != i) strictly closer than that</span>
+<span class="sd">radius (``n_x(i)``, ``n_y(i)``). Averaging ``digamma(n_x(i) + 1) + digamma(n_y(i) + 1)`` gives the estimate</span>
+<span class="sd">``digamma(k) + digamma(N) - mean(...)`` in nats (eq. 8). The point itself is counted (the formula's ``+ 1``), also at</span>
+<span class="sd">zero radius, where no distance is strictly smaller.</span>
+
+<span class="sd">``estimator="ksg2"`` (eq. 9, their I^(2)): per point, the marginal radii are the extents of its ``k`` nearest joint</span>
+<span class="sd">neighbors in each marginal (``eps_x(i) / 2``, ``eps_y(i) / 2``), the other points within those radii are counted</span>
+<span class="sd">inclusively (``&lt;=``, as the paper specifies), and the estimate is ``psi(k) - 1/k - &lt;psi(n_x) + psi(n_y)&gt; + psi(N)``.</span>
+<span class="sd">Ties among equidistant joint neighbors are broken by :func:`torch.topk`'s order.</span>
+
+<span class="sd">Like :mod:`torchnlts.recurrence.joint_recurrence`, ``trajectory`` and ``other`` need not share a feature space, only</span>
+<span class="sd">a time axis; unequal lengths are truncated to the shorter one. One ``norm_order`` is shared by both marginals and the</span>
+<span class="sd">joint metric (the elementwise max of the marginal distances, which is the Chebyshev distance of their concatenation</span>
+<span class="sd">only for ``norm_order=inf``); CausalityTools.jl instead fixes the joint metric to Chebyshev.</span>
+
+<span class="sd">Deviations from CausalityTools.jl, which this module does not reproduce (it follows the paper):</span>
+
+<span class="sd">- ``KSG1`` counts marginal neighbors with an inclusive (``&lt;=``) radius instead of eq. 6-7's strict ``&lt;``. The two</span>
+<span class="sd">  differ on essentially every point, because the point that sets the joint radius lies exactly at that radius in one</span>
+<span class="sd">  marginal.</span>
+<span class="sd">- ``KSG2`` agrees at ``k=1`` at ordinary data scales but differs for ``k&gt;1`` (it uses only the ``k``-th neighbor's</span>
+<span class="sd">  marginal distance and subtracts ``1`` for ``1/k``), and at any ``k`` it adds ``10*eps()`` to each marginal radius,</span>
+<span class="sd">  which changes counts for data near 1e-16 (``[0, 1, 4, 10] * 1e-16`` gives -1/6 here and -13/6 there).</span>
+
+<span class="sd">Gradient class: none (neighbor selection and threshold counts are discrete).</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts._shape</span><span class="w"> </span><span class="kn">import</span> <span class="n">_as_int</span><span class="p">,</span> <span class="n">_ensure_batched</span><span class="p">,</span> <span class="n">_restore_batch</span><span class="p">,</span> <span class="n">_validate_matching_batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.neighbors.distance</span><span class="w"> </span><span class="kn">import</span> <span class="n">pairwise_distance</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchnlts.neighbors.theiler</span><span class="w"> </span><span class="kn">import</span> <span class="n">_require_self_exclusion</span><span class="p">,</span> <span class="n">apply_theiler_window</span>
+
+
+<div class="viewcode-block" id="mutual_information">
+<a class="viewcode-back" href="../../../generated/torchnlts.entropy.mutual_information.html#torchnlts.entropy.mutual_information">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mutual_information</span><span class="p">(</span>
+    <span class="n">trajectory</span><span class="p">,</span>
+    <span class="n">other</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">num_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">theiler_window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">norm_order</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">),</span>
+    <span class="n">estimator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"ksg1"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""KSG Shannon mutual information estimate between two paired trajectories.</span>
+
+<span class="sd">    Reference: Kraskov, Stogbauer &amp; Grassberger (2004), eq. 6-8 (KSG1) or eq. 9 (KSG2). Unlike CausalityTools.jl,</span>
+<span class="sd">    ``KSG1`` counts marginal neighbors strictly (the paper's ``&lt;``; that package uses ``&lt;=``), and ``KSG2`` uses the</span>
+<span class="sd">    paper's ``1/k`` term and all ``k`` joint neighbors (that package uses only the k-th and ``1`` for ``k &gt; 1``, and</span>
+<span class="sd">    adds ``10*eps()`` to each marginal radius, which changes counts for data near 1e-16).</span>
+
+<span class="sd">    Gradient class: none.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.</span>
+<span class="sd">        other: Second trajectory with the same batched-ness (see</span>
+<span class="sd">            :func:`torchnlts.recurrence.hard_joint_recurrence_matrix`); its time length and feature dimension may</span>
+<span class="sd">            differ, and unequal lengths are truncated to the shorter.</span>
+<span class="sd">        num_neighbors: k, the neighbor rank whose joint-space distance sets each point's marginal counting radius.</span>
+<span class="sd">        theiler_window: Theiler window for the joint-space k-th neighbor search only, not for the marginal counts (as</span>
+<span class="sd">            in CausalityTools.jl's ``KSG1``); must be ``&gt;= 0``, since the point itself must always be excluded.</span>
+<span class="sd">        norm_order: Minkowski norm order shared by both marginal distance matrices and, through them, the joint metric</span>
+<span class="sd">            (``inf`` for the paper's Chebyshev choice).</span>
+<span class="sd">        estimator: ``"ksg1"`` (default; strict marginal counts) or ``"ksg2"`` (inclusive counts within the marginal</span>
+<span class="sd">            extents of the ``k`` joint neighbors). Marginal counts exclude only the point itself, never Theiler</span>
+<span class="sd">            neighbors, for both.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Scalar (unbatched trajectories) or ``[B]`` estimate in nats. As a finite-sample estimator it can be negative</span>
+<span class="sd">        or exceed the true value, and it has no special handling of duplicate points (a radius of exactly 0 is</span>
+<span class="sd">        defined by the formula but not statistically meaningful). ``NaN`` for a batch element where some point has</span>
+<span class="sd">        fewer than ``num_neighbors`` eligible neighbors after Theiler exclusion (including ``num_neighbors &gt;= T``)</span>
+<span class="sd">        or contains ``NaN`` or ``inf`` (only the first ``min(T, T')`` points count).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``estimator`` is not ``"ksg1"`` or ``"ksg2"``, ``num_neighbors`` is not an integer ``&gt;= 1``,</span>
+<span class="sd">            ``theiler_window`` is not an integer ``&gt;= 0``, or ``trajectory`` and ``other`` disagree on batched-ness or</span>
+<span class="sd">            batch size.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">estimator</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"ksg1"</span><span class="p">,</span> <span class="s2">"ksg2"</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"estimator must be 'ksg1' or 'ksg2', got </span><span class="si">{</span><span class="n">estimator</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">num_neighbors</span> <span class="o">=</span> <span class="n">_as_int</span><span class="p">(</span><span class="n">num_neighbors</span><span class="p">,</span> <span class="s2">"num_neighbors"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num_neighbors</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"num_neighbors must be &gt;= 1, got </span><span class="si">{</span><span class="n">num_neighbors</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">theiler_window</span> <span class="o">=</span> <span class="n">_require_self_exclusion</span><span class="p">(</span><span class="n">theiler_window</span><span class="p">,</span> <span class="s2">"KSG mutual information"</span><span class="p">)</span>
+
+    <span class="n">x</span><span class="p">,</span> <span class="n">x_ndim</span> <span class="o">=</span> <span class="n">_ensure_batched</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="n">y</span><span class="p">,</span> <span class="n">y_ndim</span> <span class="o">=</span> <span class="n">_ensure_batched</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="n">_validate_matching_batch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x_ndim</span><span class="p">,</span> <span class="n">y_ndim</span><span class="p">,</span> <span class="n">check_feature_dim</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">length</span><span class="p">,</span> <span class="p">:],</span> <span class="n">y</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">length</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">invalid_point</span> <span class="o">=</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">|</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">dist_x</span> <span class="o">=</span> <span class="n">pairwise_distance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">norm_order</span><span class="o">=</span><span class="n">norm_order</span><span class="p">)</span>
+    <span class="n">dist_y</span> <span class="o">=</span> <span class="n">pairwise_distance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">norm_order</span><span class="o">=</span><span class="n">norm_order</span><span class="p">)</span>
+    <span class="n">joint_distance</span> <span class="o">=</span> <span class="n">apply_theiler_window</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">dist_x</span><span class="p">,</span> <span class="n">dist_y</span><span class="p">),</span> <span class="n">theiler_window</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num_neighbors</span> <span class="o">&gt;</span> <span class="n">length</span><span class="p">:</span>
+        <span class="n">joint_distance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">joint_distance</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_neighbors</span> <span class="o">-</span> <span class="n">length</span><span class="p">),</span> <span class="n">value</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">))</span>
+    <span class="n">nearest</span> <span class="o">=</span> <span class="n">joint_distance</span><span class="o">.</span><span class="n">topk</span><span class="p">(</span><span class="n">num_neighbors</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">largest</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">nearest</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">digamma_k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">digamma</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">num_neighbors</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dist_x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">dist_x</span><span class="o">.</span><span class="n">device</span><span class="p">))</span>
+    <span class="n">digamma_n</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">digamma</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">length</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dist_x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">dist_x</span><span class="o">.</span><span class="n">device</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">estimator</span> <span class="o">==</span> <span class="s2">"ksg2"</span><span class="p">:</span>
+        <span class="c1"># Padded neighbors have radius inf and are masked below; clamp their indices so the gather stays in range.</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">nearest</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">max</span><span class="o">=</span><span class="n">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">per_point</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dist</span> <span class="ow">in</span> <span class="p">(</span><span class="n">dist_x</span><span class="p">,</span> <span class="n">dist_y</span><span class="p">):</span>
+            <span class="n">extent</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="c1"># &lt;= includes self, which the paper's n excludes.</span>
+            <span class="n">per_point</span> <span class="o">=</span> <span class="n">per_point</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">digamma</span><span class="p">((</span><span class="n">dist</span> <span class="o">&lt;=</span> <span class="n">extent</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">invalid_point</span>
+        <span class="n">per_point</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid</span><span class="p">,</span> <span class="n">per_point</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">per_point</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)))</span>
+        <span class="n">mi</span> <span class="o">=</span> <span class="n">digamma_k</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">num_neighbors</span> <span class="o">+</span> <span class="n">digamma_n</span> <span class="o">-</span> <span class="n">per_point</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_restore_batch</span><span class="p">(</span><span class="n">mi</span><span class="p">,</span> <span class="n">x_ndim</span><span class="p">)</span>
+
+    <span class="c1"># Include self unconditionally for n_x + 1 and n_y + 1, also when duplicates make the radius zero.</span>
+    <span class="n">self_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">dist_x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">count_x</span> <span class="o">=</span> <span class="p">((</span><span class="n">dist_x</span> <span class="o">&lt;</span> <span class="n">radius</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">|</span> <span class="n">self_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dist_x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">count_y</span> <span class="o">=</span> <span class="p">((</span><span class="n">dist_y</span> <span class="o">&lt;</span> <span class="n">radius</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">|</span> <span class="n">self_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dist_y</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">per_point</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">digamma</span><span class="p">(</span><span class="n">count_x</span><span class="p">)</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">digamma</span><span class="p">(</span><span class="n">count_y</span><span class="p">)</span>
+    <span class="c1"># Mask into NaN instead of raising, so vmap's BatchedTensor inputs work.</span>
+    <span class="n">valid</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">invalid_point</span>
+    <span class="n">per_point</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid</span><span class="p">,</span> <span class="n">per_point</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">per_point</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">"nan"</span><span class="p">)))</span>
+    <span class="n">mi</span> <span class="o">=</span> <span class="n">digamma_k</span> <span class="o">+</span> <span class="n">digamma_n</span> <span class="o">-</span> <span class="n">per_point</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_restore_batch</span><span class="p">(</span><span class="n">mi</span><span class="p">,</span> <span class="n">x_ndim</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Francesco Martinuzzi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

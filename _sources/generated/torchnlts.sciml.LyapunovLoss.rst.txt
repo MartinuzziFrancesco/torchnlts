@@ -1,0 +1,81 @@
+﻿torchnlts.sciml.LyapunovLoss
+============================
+
+.. currentmodule:: torchnlts.sciml
+
+.. autoclass:: LyapunovLoss
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LyapunovLoss.__init__
+      ~LyapunovLoss.add_module
+      ~LyapunovLoss.apply
+      ~LyapunovLoss.bfloat16
+      ~LyapunovLoss.buffers
+      ~LyapunovLoss.children
+      ~LyapunovLoss.compile
+      ~LyapunovLoss.cpu
+      ~LyapunovLoss.cuda
+      ~LyapunovLoss.double
+      ~LyapunovLoss.eval
+      ~LyapunovLoss.extra_repr
+      ~LyapunovLoss.float
+      ~LyapunovLoss.forward
+      ~LyapunovLoss.get_buffer
+      ~LyapunovLoss.get_extra_state
+      ~LyapunovLoss.get_parameter
+      ~LyapunovLoss.get_submodule
+      ~LyapunovLoss.half
+      ~LyapunovLoss.ipu
+      ~LyapunovLoss.load_state_dict
+      ~LyapunovLoss.modules
+      ~LyapunovLoss.mtia
+      ~LyapunovLoss.named_buffers
+      ~LyapunovLoss.named_children
+      ~LyapunovLoss.named_modules
+      ~LyapunovLoss.named_parameters
+      ~LyapunovLoss.parameters
+      ~LyapunovLoss.register_backward_hook
+      ~LyapunovLoss.register_buffer
+      ~LyapunovLoss.register_forward_hook
+      ~LyapunovLoss.register_forward_pre_hook
+      ~LyapunovLoss.register_full_backward_hook
+      ~LyapunovLoss.register_full_backward_pre_hook
+      ~LyapunovLoss.register_load_state_dict_post_hook
+      ~LyapunovLoss.register_load_state_dict_pre_hook
+      ~LyapunovLoss.register_module
+      ~LyapunovLoss.register_parameter
+      ~LyapunovLoss.register_state_dict_post_hook
+      ~LyapunovLoss.register_state_dict_pre_hook
+      ~LyapunovLoss.requires_grad_
+      ~LyapunovLoss.set_extra_state
+      ~LyapunovLoss.set_submodule
+      ~LyapunovLoss.share_memory
+      ~LyapunovLoss.state_dict
+      ~LyapunovLoss.to
+      ~LyapunovLoss.to_empty
+      ~LyapunovLoss.train
+      ~LyapunovLoss.type
+      ~LyapunovLoss.xpu
+      ~LyapunovLoss.zero_grad
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~LyapunovLoss.T_destination
+      ~LyapunovLoss.call_super_init
+      ~LyapunovLoss.dump_patches
+      ~LyapunovLoss.training
+   
+   

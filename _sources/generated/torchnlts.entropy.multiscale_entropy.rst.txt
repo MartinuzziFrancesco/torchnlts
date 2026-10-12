@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.multiscale\_entropy
+=====================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: multiscale_entropy

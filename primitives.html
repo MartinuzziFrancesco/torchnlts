@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Primitives &#8212; torchnlts</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="_static/documentation_options.js?v=01f34227"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'primitives';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Manual" href="api/index.html" />
+    <link rel="prev" title="torchnlts" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">torchnlts</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#" aria-current="page">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#" aria-current="page">
+    Primitives
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Manual
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-external" href="https://github.com/MartinuzziFrancesco/torchnlts">
+    GitHub
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/MartinuzziFrancesco/torchnlts" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"></div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Primitives</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="primitives">
+<h1>Primitives<a class="headerlink" href="#primitives" title="Link to this heading">#</a></h1>
+<p>This page lists every public torchnlts primitive with its gradient
+class (<em>exact</em>, <em>smooth</em>, <em>piecewise</em>,
+<em>implicit</em>, or <em>none</em>) and the reference(s) it’s validated against.
+Updated in the same commit that adds or changes a primitive.</p>
+<p>Conventions. Trajectories are <code class="docutils literal notranslate"><span class="pre">[T]</span></code>, <code class="docutils literal notranslate"><span class="pre">[T,</span> <span class="pre">D]</span></code> or <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">T,</span> <span class="pre">D]</span></code> tensors, numpy arrays or pandas objects.
+Integer input is computed in the default floating dtype; float16 and bfloat16 are computed in float32 and, unless a
+docstring says otherwise, cast back; complex input raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. Exceptions:
+<a class="reference internal" href="generated/torchnlts.embedding.delay_embedding.html#torchnlts.embedding.delay_embedding" title="torchnlts.embedding.delay_embedding"><code class="xref py py-func docutils literal notranslate"><span class="pre">delay_embedding()</span></code></a>, <a class="reference internal" href="generated/torchnlts.surrogate.random_shuffle_surrogate.html#torchnlts.surrogate.random_shuffle_surrogate" title="torchnlts.surrogate.random_shuffle_surrogate"><code class="xref py py-func docutils literal notranslate"><span class="pre">random_shuffle_surrogate()</span></code></a> and
+<a class="reference internal" href="generated/torchnlts.surrogate.random_shift_surrogate.html#torchnlts.surrogate.random_shift_surrogate" title="torchnlts.surrogate.random_shift_surrogate"><code class="xref py py-func docutils literal notranslate"><span class="pre">random_shift_surrogate()</span></code></a> only index their input, so they keep any dtype, integer and complex
+included; <a class="reference internal" href="generated/torchnlts.lyapunov.lyapunov_spectrum.html#torchnlts.lyapunov.lyapunov_spectrum" title="torchnlts.lyapunov.lyapunov_spectrum"><code class="xref py py-func docutils literal notranslate"><span class="pre">lyapunov_spectrum()</span></code></a> needs a float32 or float64 state (QR has no half-precision
+kernel) and <a class="reference internal" href="generated/torchnlts.lyapunov.step_jacobian.html#torchnlts.lyapunov.step_jacobian" title="torchnlts.lyapunov.step_jacobian"><code class="xref py py-func docutils literal notranslate"><span class="pre">step_jacobian()</span></code></a> a real floating one. Parameters with a default value are
+keyword-only. Scalar integer parameters such as <code class="docutils literal notranslate"><span class="pre">embedding_dim</span></code>, <code class="docutils literal notranslate"><span class="pre">delay</span></code> and <code class="docutils literal notranslate"><span class="pre">theiler_window</span></code> must be integers: a
+float (even <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) or a string raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, and so does <code class="docutils literal notranslate"><span class="pre">None</span></code> unless it is the parameter’s default, where
+it selects the default behavior (<code class="docutils literal notranslate"><span class="pre">max_lag</span></code> of <a class="reference internal" href="generated/torchnlts.chaos.zero_one_growth_rate.html#torchnlts.chaos.zero_one_growth_rate" title="torchnlts.chaos.zero_one_growth_rate"><code class="xref py py-func docutils literal notranslate"><span class="pre">zero_one_growth_rate()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">num_exponents</span></code> of
+<a class="reference internal" href="generated/torchnlts.lyapunov.lyapunov_spectrum.html#torchnlts.lyapunov.lyapunov_spectrum" title="torchnlts.lyapunov.lyapunov_spectrum"><code class="xref py py-func docutils literal notranslate"><span class="pre">lyapunov_spectrum()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">library_size</span></code> of <a class="reference internal" href="generated/torchnlts.causality.cross_map_estimate.html#torchnlts.causality.cross_map_estimate" title="torchnlts.causality.cross_map_estimate"><code class="xref py py-func docutils literal notranslate"><span class="pre">cross_map_estimate()</span></code></a>,
+<code class="docutils literal notranslate"><span class="pre">exclusion_zone</span></code> of <a class="reference internal" href="generated/torchnlts.matrixprofile.matrix_profile.html#torchnlts.matrixprofile.matrix_profile" title="torchnlts.matrixprofile.matrix_profile"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix_profile()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">num_neighbors</span></code> of
+<a class="reference internal" href="generated/torchnlts.lyapunov.eckmann_spectrum.html#torchnlts.lyapunov.eckmann_spectrum" title="torchnlts.lyapunov.eckmann_spectrum"><code class="xref py py-func docutils literal notranslate"><span class="pre">eckmann_spectrum()</span></code></a>). The swept integer parameters (<code class="docutils literal notranslate"><span class="pre">k</span></code>
+of <a class="reference internal" href="generated/torchnlts.dimension.higuchi_length.html#torchnlts.dimension.higuchi_length" title="torchnlts.dimension.higuchi_length"><code class="xref py py-func docutils literal notranslate"><span class="pre">higuchi_length()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">lag</span></code> of <a class="reference internal" href="generated/torchnlts.dimension.power_variogram.html#torchnlts.dimension.power_variogram" title="torchnlts.dimension.power_variogram"><code class="xref py py-func docutils literal notranslate"><span class="pre">power_variogram()</span></code></a>,
+<code class="docutils literal notranslate"><span class="pre">window_size</span></code> of <a class="reference internal" href="generated/torchnlts.fluctuations.dfa_fluctuation.html#torchnlts.fluctuations.dfa_fluctuation" title="torchnlts.fluctuations.dfa_fluctuation"><code class="xref py py-func docutils literal notranslate"><span class="pre">dfa_fluctuation()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">k_values</span></code> of the Rosenstein and Kantz
+estimators) take a number or a 1-D sequence of integer-valued numbers: <code class="docutils literal notranslate"><span class="pre">[4.0,</span> <span class="pre">8.0]</span></code> is accepted, <code class="docutils literal notranslate"><span class="pre">[4.5]</span></code> raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>; the <code class="docutils literal notranslate"><span class="pre">scales</span></code> of the multiscale entropies are integers. A result evaluated over a swept parameter
+(radii, scales, window sizes, lags, …) has the sweep on its first axis: <code class="docutils literal notranslate"><span class="pre">[K]</span></code> for one trajectory, <code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">B]</span></code> for a
+batch (so
+<a class="reference internal" href="generated/torchnlts.embedding.autocorrelation.html#torchnlts.embedding.autocorrelation" title="torchnlts.embedding.autocorrelation"><code class="xref py py-func docutils literal notranslate"><span class="pre">autocorrelation()</span></code></a> and <a class="reference internal" href="generated/torchnlts.embedding.auto_mutual_information.html#torchnlts.embedding.auto_mutual_information" title="torchnlts.embedding.auto_mutual_information"><code class="xref py py-func docutils literal notranslate"><span class="pre">auto_mutual_information()</span></code></a> give
+<code class="docutils literal notranslate"><span class="pre">[max_delay</span> <span class="pre">+</span> <span class="pre">1]</span></code> or <code class="docutils literal notranslate"><span class="pre">[max_delay</span> <span class="pre">+</span> <span class="pre">1,</span> <span class="pre">B]</span></code>). <a class="reference internal" href="generated/torchnlts.causality.cross_map_estimate.html#torchnlts.causality.cross_map_estimate" title="torchnlts.causality.cross_map_estimate"><code class="xref py py-func docutils literal notranslate"><span class="pre">cross_map_estimate()</span></code></a> returns one estimate
+per embedded point with the rank of its estimated series (<code class="docutils literal notranslate"><span class="pre">[N]</span></code>, <code class="docutils literal notranslate"><span class="pre">[N,</span> <span class="pre">D]</span></code> or <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">N,</span> <span class="pre">D]</span></code>), and
+<a class="reference internal" href="generated/torchnlts.causality.ccm_skill.html#torchnlts.causality.ccm_skill" title="torchnlts.causality.ccm_skill"><code class="xref py py-func docutils literal notranslate"><span class="pre">ccm_skill()</span></code></a> reduces the time axis (<code class="docutils literal notranslate"><span class="pre">[]</span></code>, <code class="docutils literal notranslate"><span class="pre">[D]</span></code> or <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code>).</p>
+<p>Numerical range limits. Outside these, results or gradients can be
+<code class="docutils literal notranslate"><span class="pre">inf</span></code>, <code class="docutils literal notranslate"><span class="pre">NaN</span></code> or inaccurate even when the exact answer is representable:</p>
+<ul class="simple">
+<li><p>Magnitudes within a few orders of the dtype’s largest finite value
+(about <code class="docutils literal notranslate"><span class="pre">1e38</span></code> for float32, <code class="docutils literal notranslate"><span class="pre">1e308</span></code> for float64): intermediate sums,
+squares and differences can overflow.</p></li>
+<li><p>Magnitude ratios beyond about <code class="docutils literal notranslate"><span class="pre">1e30</span></code> within one series: the small
+values are lost relative to the large ones.</p></li>
+<li><p>Distance-based primitives (everything built on
+<a class="reference internal" href="generated/torchnlts.neighbors.pairwise_distance.html#torchnlts.neighbors.pairwise_distance" title="torchnlts.neighbors.pairwise_distance"><code class="xref py py-func docutils literal notranslate"><span class="pre">pairwise_distance()</span></code></a>: neighbor
+searches, recurrence, correlation sums, entropies, Lyapunov estimators,
+…) raise coordinate differences to the power <code class="docutils literal notranslate"><span class="pre">norm_order</span></code>. In
+float32 with <code class="docutils literal notranslate"><span class="pre">norm_order=2</span></code>, distances more than about <code class="docutils literal notranslate"><span class="pre">1e19</span></code> times
+smaller than the trajectory’s largest magnitude underflow to zero; use
+float64 for such data. Larger <code class="docutils literal notranslate"><span class="pre">norm_order</span></code> narrows this range to about
+<code class="docutils literal notranslate"><span class="pre">2**(-126</span> <span class="pre">/</span> <span class="pre">norm_order)</span></code> in float32 (<code class="docutils literal notranslate"><span class="pre">2**(-1022</span> <span class="pre">/</span> <span class="pre">norm_order)</span></code> in
+float64); <code class="docutils literal notranslate"><span class="pre">norm_order=float('inf')</span></code> (max-norm) and <code class="docutils literal notranslate"><span class="pre">norm_order=1</span></code>
+are not affected.</p></li>
+<li><p>Absolute accuracy is about the working dtype’s epsilon times the
+series’ largest magnitude. A result far smaller than that and resolved
+only by cancellation (e.g. a DFA residual of <code class="docutils literal notranslate"><span class="pre">0.5</span></code> next to a <code class="docutils literal notranslate"><span class="pre">1e20</span></code>
+spike in float64) is not accurate. Katz, DFA, the variogram and the 0-1 test compute in float64, or in
+float32 on Apple MPS (which has no float64), where the limits above are those of float32.</p></li>
+</ul>
+<p>Non-finite input. Higuchi, Katz, Petrosian, DFA, the variogram, the 0-1 test,
+<a class="reference internal" href="generated/torchnlts.scaling.scaling_slope.html#torchnlts.scaling.scaling_slope" title="torchnlts.scaling.scaling_slope"><code class="xref py py-func docutils literal notranslate"><span class="pre">scaling_slope()</span></code></a>, Rosenstein, Kantz, Eckmann, the correlation sums (and so sample entropy,
+multiscale and composite multiscale entropy), approximate, fuzzy,
+permutation and dispersion entropy, mutual information (both estimators), conditional mutual information, transfer
+entropy, <a class="reference internal" href="generated/torchnlts.embedding.hard_fnn.html#torchnlts.embedding.hard_fnn" title="torchnlts.embedding.hard_fnn"><code class="xref py py-func docutils literal notranslate"><span class="pre">hard_fnn()</span></code></a>, <a class="reference internal" href="generated/torchnlts.embedding.cao_e1.html#torchnlts.embedding.cao_e1" title="torchnlts.embedding.cao_e1"><code class="xref py py-func docutils literal notranslate"><span class="pre">cao_e1()</span></code></a>,
+<a class="reference internal" href="generated/torchnlts.embedding.cao_e2.html#torchnlts.embedding.cao_e2" title="torchnlts.embedding.cao_e2"><code class="xref py py-func docutils literal notranslate"><span class="pre">cao_e2()</span></code></a>, <a class="reference internal" href="generated/torchnlts.embedding.autocorrelation.html#torchnlts.embedding.autocorrelation" title="torchnlts.embedding.autocorrelation"><code class="xref py py-func docutils literal notranslate"><span class="pre">autocorrelation()</span></code></a> and
+<a class="reference internal" href="generated/torchnlts.embedding.auto_mutual_information.html#torchnlts.embedding.auto_mutual_information" title="torchnlts.embedding.auto_mutual_information"><code class="xref py py-func docutils literal notranslate"><span class="pre">auto_mutual_information()</span></code></a> return <code class="docutils literal notranslate"><span class="pre">NaN</span></code> for any batch row
+containing <code class="docutils literal notranslate"><span class="pre">NaN</span></code> or <code class="docutils literal notranslate"><span class="pre">inf</span></code> instead of raising, so they work under
+<code class="docutils literal notranslate"><span class="pre">torch.vmap</span></code>. <a class="reference internal" href="generated/torchnlts.embedding.estimate_delay.html#torchnlts.embedding.estimate_delay" title="torchnlts.embedding.estimate_delay"><code class="xref py py-func docutils literal notranslate"><span class="pre">estimate_delay()</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">-1</span></code> for such a row. Lempel-Ziv complexity
+marks such a row too, with <code class="docutils literal notranslate"><span class="pre">-1</span></code> for the integer count (<code class="docutils literal notranslate"><span class="pre">NaN</span></code> with <code class="docutils literal notranslate"><span class="pre">normalize=True</span></code>), but it runs a Python loop
+per row and does not work under <code class="docutils literal notranslate"><span class="pre">torch.vmap</span></code>. The entropy functions check the whole row, including samples that
+enter no embedded window (a large <code class="docutils literal notranslate"><span class="pre">delay</span></code>) or that <code class="docutils literal notranslate"><span class="pre">coarse_grain</span></code> drops; <code class="docutils literal notranslate"><span class="pre">mutual_information</span></code> ignores samples
+beyond the common length of its two inputs.
+<a class="reference internal" href="generated/torchnlts.causality.cross_map_estimate.html#torchnlts.causality.cross_map_estimate" title="torchnlts.causality.cross_map_estimate"><code class="xref py py-func docutils literal notranslate"><span class="pre">cross_map_estimate()</span></code></a> marks single estimates instead: an estimate is <code class="docutils literal notranslate"><span class="pre">NaN</span></code> when its
+embedded point has a non-finite coordinate, when fewer than <code class="docutils literal notranslate"><span class="pre">embedding_dim</span> <span class="pre">+</span> <span class="pre">1</span></code> neighbors are left by the Theiler
+window and <code class="docutils literal notranslate"><span class="pre">library_size</span></code>, or when a neighbor’s target is non-finite.
+<a class="reference internal" href="generated/torchnlts.causality.ccm_skill.html#torchnlts.causality.ccm_skill" title="torchnlts.causality.ccm_skill"><code class="xref py py-func docutils literal notranslate"><span class="pre">ccm_skill()</span></code></a> is <code class="docutils literal notranslate"><span class="pre">NaN</span></code> for each <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code> entry whose estimate or actual is constant or
+non-finite. <a class="reference internal" href="generated/torchnlts.lyapunov.lyapunov_spectrum.html#torchnlts.lyapunov.lyapunov_spectrum" title="torchnlts.lyapunov.lyapunov_spectrum"><code class="xref py py-func docutils literal notranslate"><span class="pre">lyapunov_spectrum()</span></code></a> and <a class="reference internal" href="generated/torchnlts.lyapunov.step_jacobian.html#torchnlts.lyapunov.step_jacobian" title="torchnlts.lyapunov.step_jacobian"><code class="xref py py-func docutils literal notranslate"><span class="pre">step_jacobian()</span></code></a> give <code class="docutils literal notranslate"><span class="pre">NaN</span></code>
+for a state, or a row of a batched state, containing <code class="docutils literal notranslate"><span class="pre">NaN</span></code> or <code class="docutils literal notranslate"><span class="pre">inf</span></code>; <code class="docutils literal notranslate"><span class="pre">step_fn</span></code> is evaluated at the zero state in
+its place. The <code class="docutils literal notranslate"><span class="pre">torchnlts.sciml</span></code> losses give a <code class="docutils literal notranslate"><span class="pre">NaN</span></code> loss for a
+batch row whose predicted or target trajectory (<code class="docutils literal notranslate"><span class="pre">LyapunovLoss</span></code>: initial state) contains <code class="docutils literal notranslate"><span class="pre">NaN</span></code> or <code class="docutils literal notranslate"><span class="pre">inf</span></code>, so the
+<code class="docutils literal notranslate"><span class="pre">&quot;mean&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;sum&quot;</span></code> reductions are <code class="docutils literal notranslate"><span class="pre">NaN</span></code> too.
+<a class="reference internal" href="generated/torchnlts.surrogate.surrogate_test.html#torchnlts.surrogate.surrogate_test" title="torchnlts.surrogate.surrogate_test"><code class="xref py py-func docutils literal notranslate"><span class="pre">surrogate_test()</span></code></a> returns a
+<code class="docutils literal notranslate"><span class="pre">NaN</span></code> p-value for a row whose trajectory has a non-finite entry or whose
+data or any surrogate statistic is non-finite (<code class="docutils literal notranslate"><span class="pre">NaN</span></code> or <code class="docutils literal notranslate"><span class="pre">inf</span></code>); the shuffle and shift surrogates move non-finite values like any
+other.
+<a class="reference internal" href="generated/torchnlts.neighbors.pairwise_distance.html#torchnlts.neighbors.pairwise_distance" title="torchnlts.neighbors.pairwise_distance"><code class="xref py py-func docutils literal notranslate"><span class="pre">pairwise_distance()</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">NaN</span></code> for
+every pair involving a point with a <code class="docutils literal notranslate"><span class="pre">NaN</span></code>/<code class="docutils literal notranslate"><span class="pre">inf</span></code> coordinate. Other rows
+(or pairs, or estimates) and their gradients are unaffected, and a non-finite row
+receives a zero gradient. Exceptions: Petrosian has no gradient at all, and
+a result that is <code class="docutils literal notranslate"><span class="pre">NaN</span></code> for another reason (e.g. a series too short for
+the requested sweep) is not connected to the input’s graph. The hard
+recurrence matrices with <code class="docutils literal notranslate"><span class="pre">recurrence_rate</span></code>, <code class="docutils literal notranslate"><span class="pre">local_rate</span></code> or <code class="docutils literal notranslate"><span class="pre">scale</span></code>
+compute their thresholds over the finite distances of each batch row (a row
+with none gives an all-False matrix) and work under <code class="docutils literal notranslate"><span class="pre">torch.vmap</span></code>.</p>
+<ul class="simple">
+<li><p>Clicking the <strong>primitive name</strong> links to its API documentation.</p></li>
+<li><p>Clicking the <strong>reference</strong> links to the defining paper.</p></li>
+<li><p>The <strong>Julia ground truth</strong> column links the DynamicalSystems.jl
+sibling package function it’s cross-validated against, where one
+exists.</p></li>
+</ul>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 15.0%" />
+<col style="width: 30.0%" />
+<col style="width: 30.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Primitive</p></th>
+<th class="head"><p>Gradient class</p></th>
+<th class="head"><p>Reference</p></th>
+<th class="head"><p>Julia ground truth</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.pairwise_distance.html"><span class="doc">pairwise_distance</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(83)90298-1">Grassberger &amp; Procaccia (1983)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaStats/Distances.jl">Distances.jl</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.theiler_window_mask.html"><span class="doc">theiler_window_mask</span></a> / <a class="reference internal" href="generated/torchnlts.neighbors.apply_theiler_window.html"><span class="doc">apply_theiler_window</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevA.34.2427">Theiler (1986)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/Neighborhood.jl">Neighborhood.jl</a> (<code class="docutils literal notranslate"><span class="pre">Theiler</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.knn_search.html"><span class="doc">knn_search</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p>Kantz &amp; Schreiber (2004), <em>Nonlinear Time Series Analysis</em>, Ch. 3</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/Neighborhood.jl">Neighborhood.jl</a> (<code class="docutils literal notranslate"><span class="pre">bulksearch</span></code> + <code class="docutils literal notranslate"><span class="pre">NeighborNumber</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.radius_neighbors.html"><span class="doc">radius_neighbors</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(83)90298-1">Grassberger &amp; Procaccia (1983)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/Neighborhood.jl">Neighborhood.jl</a> (<code class="docutils literal notranslate"><span class="pre">bulksearch</span></code> + <code class="docutils literal notranslate"><span class="pre">WithinRange</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.trajectory_kernel.html"><span class="doc">trajectory_kernel</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(92)90028-B">Judd (1992)</a> (gaussian); <a class="reference external" href="https://doi.org/10.1126/science.1227079">Sugihara et al. (2012)</a> (exponential)</p></td>
+<td><p>none (no Julia package implements these kernels; hand-derived values from Judd (1992) and Sugihara et al. (2012), and a gradcheck)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.complexity_estimate.html"><span class="doc">complexity_estimate</span></a></p></td>
+<td><p>exact (zero subgradient at a constant series)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1007/s10618-013-0312-3">Batista et al. (2014)</a></p></td>
+<td><p>none in Julia; <a class="reference external" href="https://github.com/blue-yonder/tsfresh">tsfresh</a> (<code class="docutils literal notranslate"><span class="pre">cid_ce</span></code>, with and without <code class="docutils literal notranslate"><span class="pre">normalize</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.neighbors.complexity_invariant_distance.html"><span class="doc">complexity_invariant_distance</span></a></p></td>
+<td><p>piecewise (<code class="docutils literal notranslate"><span class="pre">max</span></code>/<code class="docutils literal notranslate"><span class="pre">min</span></code> of the two complexity estimates)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1007/s10618-013-0312-3">Batista et al. (2014)</a></p></td>
+<td><p>none (hand-derived values and Euclidean distance times the ratio of tsfresh <code class="docutils literal notranslate"><span class="pre">cid_ce</span></code> values). Both estimates zero gives a correction factor of 1, one zero gives <code class="docutils literal notranslate"><span class="pre">inf</span></code>; the paper leaves both cases undefined.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.embedding.delay_embedding.html"><span class="doc">delay_embedding</span></a></p></td>
+<td><p>exact</p></td>
+<td><p>Takens (1981), <em>Detecting Strange Attractors in Turbulence</em></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/DelayEmbeddings.jl">DelayEmbeddings.jl</a> (<code class="docutils literal notranslate"><span class="pre">embed</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.embedding.fractional_delay_embedding.html"><span class="doc">fractional_delay_embedding</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/79.482137">Laakso et al. (1996)</a> (linear-interpolation fractional delay)</p></td>
+<td><p>none (DelayEmbeddings.jl’s <code class="docutils literal notranslate"><span class="pre">embed</span></code> takes integer lags only; at integer lags the result equals <code class="docutils literal notranslate"><span class="pre">delay_embedding</span></code> exactly, which is checked)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.embedding.hard_fnn.html"><span class="doc">hard_fnn</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevA.45.3403">Kennel, Brown &amp; Abarbanel (1992)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/DelayEmbeddings.jl">DelayEmbeddings.jl</a> (<code class="docutils literal notranslate"><span class="pre">delay_fnn</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.embedding.cao_e1.html"><span class="doc">cao_e1</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/S0167-2789(97)00118-8">Cao (1997)</a>, eq. 1-3</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/DelayEmbeddings.jl">DelayEmbeddings.jl</a> (<code class="docutils literal notranslate"><span class="pre">delay_afnn</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.embedding.cao_e2.html"><span class="doc">cao_e2</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/S0167-2789(97)00118-8">Cao (1997)</a>, eq. 4-5</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/DelayEmbeddings.jl">DelayEmbeddings.jl</a> (<code class="docutils literal notranslate"><span class="pre">stochastic_indicator</span></code>; agrees to about 0.5% at 500 points and 5% at 100, the gap shrinking as 1/N, because Julia divides each E* by the embedded length instead of the number of summed terms and leaves the last <code class="docutils literal notranslate"><span class="pre">delay</span> <span class="pre">+</span> <span class="pre">1</span></code> points out of its neighbor search)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.embedding.autocorrelation.html"><span class="doc">autocorrelation</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(94)90134-1">Rosenstein, Collins &amp; De Luca (1994)</a> (delay criteria)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaStats/StatsBase.jl">StatsBase.jl</a> (<code class="docutils literal notranslate"><span class="pre">autocor</span></code>, <code class="docutils literal notranslate"><span class="pre">demean=true</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.embedding.auto_mutual_information.html"><span class="doc">auto_mutual_information</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevA.33.1134">Fraser &amp; Swinney (1986)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/DelayEmbeddings.jl">DelayEmbeddings.jl</a> (<code class="docutils literal notranslate"><span class="pre">selfmutualinfo</span></code>, <code class="docutils literal notranslate"><span class="pre">nbins</span></code>; exact at delay 0 and for a series periodic over the pair window, otherwise within ~0.01 nats at 200 points and ~0.001 at 500, because the delayed marginal is counted from the delayed samples)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.embedding.estimate_delay.html"><span class="doc">estimate_delay</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevA.33.1134">Fraser &amp; Swinney (1986)</a> (<code class="docutils literal notranslate"><span class="pre">mi_min</span></code>)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/DelayEmbeddings.jl">DelayEmbeddings.jl</a> (<code class="docutils literal notranslate"><span class="pre">estimate_delay</span></code>: <code class="docutils literal notranslate"><span class="pre">mi_min</span></code>, <code class="docutils literal notranslate"><span class="pre">ac_zero</span></code>, <code class="docutils literal notranslate"><span class="pre">ac_min</span></code>; <code class="docutils literal notranslate"><span class="pre">ac_1/e</span></code> has no Julia counterpart)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.hard_recurrence_matrix.html"><span class="doc">hard_recurrence_matrix</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 1</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">RecurrenceMatrix</span></code>; <code class="docutils literal notranslate"><span class="pre">recurrence_rate=</span></code> matches <code class="docutils literal notranslate"><span class="pre">GlobalRecurrenceRate</span></code> and <code class="docutils literal notranslate"><span class="pre">scale=</span></code> matches <code class="docutils literal notranslate"><span class="pre">RecurrenceThresholdScaled</span></code> with <code class="docutils literal notranslate"><span class="pre">maximum</span></code>/<code class="docutils literal notranslate"><span class="pre">mean</span></code>/<code class="docutils literal notranslate"><span class="pre">std</span></code> exactly; <code class="docutils literal notranslate"><span class="pre">local_rate=</span></code> gives each column about that fraction of neighbours (quantile-derived; ties can add recurrences, and rate 1 saturates where Julia rejects it), while Julia’s <code class="docutils literal notranslate"><span class="pre">LocalRecurrenceRate</span></code> keeps only the upper triangle and mirrors it, so Julia’s matrix is the mirrored upper triangle of this one)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.soft_recurrence_matrix.html"><span class="doc">soft_recurrence_matrix</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 1 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>)</p></td>
+<td><p>none (consistency-checked against <code class="docutils literal notranslate"><span class="pre">hard_recurrence_matrix</span></code>’s epsilon=0 limit as the temperature goes to 0)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.hard_cross_recurrence_matrix.html"><span class="doc">hard_cross_recurrence_matrix</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.3</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">CrossRecurrenceMatrix</span></code>, including <code class="docutils literal notranslate"><span class="pre">GlobalRecurrenceRate</span></code>, <code class="docutils literal notranslate"><span class="pre">LocalRecurrenceRate</span></code> and <code class="docutils literal notranslate"><span class="pre">RecurrenceThresholdScaled</span></code>; exact)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.soft_cross_recurrence_matrix.html"><span class="doc">soft_cross_recurrence_matrix</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.3 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>)</p></td>
+<td><p>none (consistency-checked against <code class="docutils literal notranslate"><span class="pre">hard_cross_recurrence_matrix</span></code>’s epsilon=0 limit as the temperature goes to 0)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.hard_joint_recurrence_matrix.html"><span class="doc">hard_joint_recurrence_matrix</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.4</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">JointRecurrenceMatrix</span></code>’s definition, via element-wise AND of two <code class="docutils literal notranslate"><span class="pre">RecurrenceMatrix</span></code> because the two-argument <code class="docutils literal notranslate"><span class="pre">JointRecurrenceMatrix(R1,</span> <span class="pre">R2)</span></code> constructor errors in the tested version; rate-based and scaled thresholds are computed per trajectory after truncation to the common length, as in Julia)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.soft_joint_recurrence_matrix.html"><span class="doc">soft_joint_recurrence_matrix</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.4 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>)</p></td>
+<td><p>none (consistency-checked against <code class="docutils literal notranslate"><span class="pre">hard_joint_recurrence_matrix</span></code>’s epsilon=0 limit as the temperature goes to 0)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.recurrence_rate.html"><span class="doc">recurrence_rate</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 11</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">recurrencerate</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.determinism.html"><span class="doc">determinism</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 13</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">determinism</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.dl_average.html"><span class="doc">dl_average</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 12</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">dl_average</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.dl_max.html"><span class="doc">dl_max</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 2.1 (no separate numbered equation: the max of the same distribution <code class="docutils literal notranslate"><span class="pre">dl_average</span></code>/eq. 12 draws on)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">dl_max</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.dl_entropy.html"><span class="doc">dl_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 14</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">dl_entropy</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.laminarity.html"><span class="doc">laminarity</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 62 (LAM)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">rqa</span></code> <code class="docutils literal notranslate"><span class="pre">:LAM</span></code>; standalone <code class="docutils literal notranslate"><span class="pre">laminarity</span></code> ignores <code class="docutils literal notranslate"><span class="pre">theiler</span></code> in its numerator for <code class="docutils literal notranslate"><span class="pre">theiler</span> <span class="pre">!=</span> <span class="pre">1</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.trapping_time.html"><span class="doc">trapping_time</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 63 (TT)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">trappingtime</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.vl_max.html"><span class="doc">vl_max</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, eq. 64 (Vmax)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">vl_max</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.vl_entropy.html"><span class="doc">vl_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.5.3 (vertical lines; the Shannon entropy of their length histogram is the vertical analogue of <code class="docutils literal notranslate"><span class="pre">dl_entropy</span></code>)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">vl_entropy</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.rt_entropy.html"><span class="doc">rt_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1186/1475-925X-6-23">Little et al. (2007)</a> (RPDE; the concept – Little uses first returns after leaving a neighbourhood, this uses RecurrenceAnalysis.jl’s gaps plus floored half-line lengths)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">rt_entropy</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.ratio.html"><span class="doc">ratio</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.5.2 (DET / RR)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (no <code class="docutils literal notranslate"><span class="pre">ratio</span></code>; <code class="docutils literal notranslate"><span class="pre">determinism</span></code> / <code class="docutils literal notranslate"><span class="pre">recurrencerate</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.divergence.html"><span class="doc">divergence</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.5.2 (1 / Lmax)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">divergence</span></code>, <code class="docutils literal notranslate"><span class="pre">rqa</span></code> <code class="docutils literal notranslate"><span class="pre">:DIV</span></code>; <code class="docutils literal notranslate"><span class="pre">inf</span></code> when Lmax = 0)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.recurrence.windowed_rqa.html"><span class="doc">windowed_rqa</span></a></p></td>
+<td><p>inherits <code class="docutils literal notranslate"><span class="pre">measure</span></code>’s</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.physrep.2006.11.001">Marwan et al. (2007)</a>, Sec. 3.5 (RQA in windows along the main diagonal)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/RecurrenceAnalysis.jl">RecurrenceAnalysis.jl</a> (<code class="docutils literal notranslate"><span class="pre">windowed</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.dimension.correlation_sum.html"><span class="doc">correlation_sum</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(83)90298-1">Grassberger &amp; Procaccia (1983)</a>, eq. 1</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/FractalDimensions.jl">FractalDimensions.jl</a> (<code class="docutils literal notranslate"><span class="pre">correlationsum</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.dimension.soft_correlation_sum.html"><span class="doc">soft_correlation_sum</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(83)90298-1">Grassberger &amp; Procaccia (1983)</a>, eq. 1 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>)</p></td>
+<td><p>none (consistency-checked against <code class="docutils literal notranslate"><span class="pre">correlation_sum</span></code>’s radius=0 limit as the temperature goes to 0)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.dimension.correlation_dimension.html"><span class="doc">correlation_dimension</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(83)90298-1">Grassberger &amp; Procaccia (1983)</a>, eq. 1 and surrounding discussion</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/FractalDimensions.jl">FractalDimensions.jl</a> (<code class="docutils literal notranslate"><span class="pre">slopefit</span></code> with <code class="docutils literal notranslate"><span class="pre">LinearRegression</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.dimension.box_occupation_probabilities.html"><span class="doc">box_occupation_probabilities</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.45.1175">Russell, Hanson &amp; Ott (1980)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">probabilities(ValueHistogram(ε),</span> <span class="pre">X)</span></code>; exact match, including box occupancy on a multivariate point set)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.dimension.box_counting_entropy.html"><span class="doc">box_counting_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.45.1175">Russell, Hanson &amp; Ott (1980)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">entropy(Renyi(;q,base=ℯ),</span> <span class="pre">ValueHistogram(ε),</span> <span class="pre">X)</span></code>; exact match across <code class="docutils literal notranslate"><span class="pre">q</span></code> in <code class="docutils literal notranslate"><span class="pre">{0,</span> <span class="pre">1,</span> <span class="pre">2,</span> <span class="pre">3.5}</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.dimension.generalized_dimension.html"><span class="doc">generalized_dimension</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.45.1175">Russell, Hanson &amp; Ott (1980)</a></p></td>
+<td><p>none directly (FractalDimensions.jl’s <code class="docutils literal notranslate"><span class="pre">generalized_dim</span></code> picks the box sizes and the scaling region automatically, while here the caller supplies the sizes and every point is fitted, as in <code class="docutils literal notranslate"><span class="pre">correlation_dimension</span></code>); validated instead against a p-weighted binary cascade’s known strongly non-increasing-in-<code class="docutils literal notranslate"><span class="pre">q</span></code> D_q spectrum (Rényi’s own theorem) and a uniform interval’s known D_q=1 for every <code class="docutils literal notranslate"><span class="pre">q</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.dimension.higuchi_length.html"><span class="doc">higuchi_length</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(88)90081-4">Higuchi (1988)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/FractalDimensions.jl">FractalDimensions.jl</a> (<code class="docutils literal notranslate"><span class="pre">higuchi_length</span></code>; exact match, including its <code class="docutils literal notranslate"><span class="pre">k**2</span></code> (not <code class="docutils literal notranslate"><span class="pre">k</span></code>) normalization, which is Higuchi’s own formula)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.dimension.higuchi_dimension.html"><span class="doc">higuchi_dimension</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(88)90081-4">Higuchi (1988)</a></p></td>
+<td><p>none directly (FractalDimensions.jl’s <code class="docutils literal notranslate"><span class="pre">higuchi_dim</span></code> selects a linear region of the sweep automatically, while here every given <code class="docutils literal notranslate"><span class="pre">k</span></code> is fitted, as in <code class="docutils literal notranslate"><span class="pre">correlation_dimension</span></code>; the two can differ, e.g. a sine wave over strides 1-20 gives 1.274 here against Julia’s 1.052); <code class="docutils literal notranslate"><span class="pre">higuchi_length</span></code> itself is validated against Julia’s above, and the OLS-slope formula against hand-derived power-law examples</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.dimension.katz_dimension.html"><span class="doc">katz_dimension</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0010-4825(88)90041-8">Katz (1988)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/raphaelvallat/antropy">antropy</a> (<code class="docutils literal notranslate"><span class="pre">katz_fd</span></code>; exact match with <code class="docutils literal notranslate"><span class="pre">amplitude_only=True</span></code>, antropy’s amplitude-differences-only variant; the default measures distances in the (index, amplitude) plane); no Julia equivalent</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.dimension.petrosian_dimension.html"><span class="doc">petrosian_dimension</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/CBMS.1995.465426">Petrosian (1995)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/raphaelvallat/antropy">antropy</a> (<code class="docutils literal notranslate"><span class="pre">petrosian_fd</span></code>; exact match, including its zero/negative-zero sign convention); no Julia equivalent</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.dimension.power_variogram.html"><span class="doc">power_variogram</span></a></p></td>
+<td><p>exact (<code class="docutils literal notranslate"><span class="pre">power=2</span></code>), piecewise (<code class="docutils literal notranslate"><span class="pre">power&lt;=1</span></code>)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1214/11-STS370">Gneiting, Ševčíková &amp; Percival (2012)</a>, eq. 16</p></td>
+<td><p><a class="reference external" href="https://github.com/cran/fractaldim">fractaldim</a> (<code class="docutils literal notranslate"><span class="pre">fd.Variation</span></code>; the normalization follows its R source, which was not run); hand-derived example; no Python/Julia equivalent</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.dimension.variogram_dimension.html"><span class="doc">variogram_dimension</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1214/11-STS370">Gneiting, Ševčíková &amp; Percival (2012)</a>, eqs. 17-18</p></td>
+<td><p><a class="reference external" href="https://github.com/cran/fractaldim">fractaldim</a> (<code class="docutils literal notranslate"><span class="pre">fd.estim.variogram</span></code>/<code class="docutils literal notranslate"><span class="pre">fd.estim.madogram</span></code>, formulas from the R source, which was not run); validated on a straight line (D=1), Brownian motion (D near 1.5) and exact Davies-Harte fBm (D near 2 - H for H in 0.2-0.8)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.fluctuations.dfa_fluctuation.html"><span class="doc">dfa_fluctuation</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevE.49.1685">Peng et al. (1994)</a>; order-n detrending from <a class="reference external" href="https://doi.org/10.1016/S0378-4371(01)00144-3">Kantelhardt et al. (2001)</a></p></td>
+<td><p>FluctuationAnalysis.jl (<code class="docutils literal notranslate"><span class="pre">dfa</span></code> with <code class="docutils literal notranslate"><span class="pre">bidirectional=false</span></code>; fluctuation values match to 1e-12 at orders 1-2); hand-derived example</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.fluctuations.dfa_exponent.html"><span class="doc">dfa_exponent</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevE.49.1685">Peng et al. (1994)</a></p></td>
+<td><p>FluctuationAnalysis.jl (<code class="docutils literal notranslate"><span class="pre">scaling_exponent</span></code>, to 1e-12); <a class="reference external" href="https://github.com/CSchoel/nolds">nolds</a> (<code class="docutils literal notranslate"><span class="pre">dfa</span></code> with <code class="docutils literal notranslate"><span class="pre">overlap=False,</span> <span class="pre">fit_trend='poly',</span> <span class="pre">fit_exp='poly'</span></code>; exponent to 1e-9 at orders 0-3) and <a class="reference external" href="https://github.com/raphaelvallat/antropy">antropy</a> (<code class="docutils literal notranslate"><span class="pre">detrended_fluctuation</span></code>, order 1; exponent to 1e-6); also checked on white noise (alpha near 0.5) and Brownian motion (alpha near 1.5)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.sample_entropy.html"><span class="doc">sample_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1152/ajpheart.2000.278.6.H2039">Richman &amp; Moorman (2000)</a>, eq. 1-3</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">SampleEntropy</span></code>; its B(r) counts one extra neighbour taken from the untruncated embedding at <code class="docutils literal notranslate"><span class="pre">delay=1</span></code>, so the values agree only when no such match exists, which the test arranges with far outliers at the end of the series; it also returns <code class="docutils literal notranslate"><span class="pre">NaN</span></code> rather than <code class="docutils literal notranslate"><span class="pre">inf</span></code> when A(r)=0)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.soft_sample_entropy.html"><span class="doc">soft_sample_entropy</span></a></p></td>
+<td><p>smooth (except at exact Chebyshev-distance ties, see docstring)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1152/ajpheart.2000.278.6.H2039">Richman &amp; Moorman (2000)</a>, eq. 1-3 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>)</p></td>
+<td><p>none (built on <code class="docutils literal notranslate"><span class="pre">soft_correlation_sum</span></code>, which is validated against its radius=0 hard limit)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.approximate_entropy.html"><span class="doc">approximate_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1073/pnas.88.6.2297">Pincus (1991)</a>, eq. 1-4</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">ApproximateEntropy</span></code>; matches at <code class="docutils literal notranslate"><span class="pre">embedding_dim</span> <span class="pre">&gt;=</span> <span class="pre">2</span></code>. At <code class="docutils literal notranslate"><span class="pre">embedding_dim=1</span></code> that package returns <code class="docutils literal notranslate"><span class="pre">phi(1)</span></code> alone, a non-Pincus definition, and a test pins the disagreement)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.soft_approximate_entropy.html"><span class="doc">soft_approximate_entropy</span></a></p></td>
+<td><p>smooth (except at exact Chebyshev-distance ties, see docstring)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1073/pnas.88.6.2297">Pincus (1991)</a>, eq. 1-4 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>)</p></td>
+<td><p>none (checked against <code class="docutils literal notranslate"><span class="pre">approximate_entropy</span></code>’s radius=0 hard limit)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.ordinal_pattern_probabilities.html"><span class="doc">ordinal_pattern_probabilities</span></a></p></td>
+<td><p>none; piecewise smooth with <code class="docutils literal notranslate"><span class="pre">weighting=&quot;variance&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;amplitude&quot;</span></code> (pattern assignment piecewise constant, weights smooth; jumps at ties, kinks at zero differences)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.88.174102">Bandt &amp; Pompe (2002)</a>, Sec. II-III</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">OrdinalPatterns</span></code>; validated via <code class="docutils literal notranslate"><span class="pre">permutation_entropy</span></code>’s own tests plus a direct composition check)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.permutation_entropy.html"><span class="doc">permutation_entropy</span></a></p></td>
+<td><p>none; piecewise smooth with <code class="docutils literal notranslate"><span class="pre">weighting=&quot;variance&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;amplitude&quot;</span></code> (pattern assignment piecewise constant, weights smooth; jumps at ties, kinks at zero differences)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.88.174102">Bandt &amp; Pompe (2002)</a>, Sec. II-III; <a class="reference external" href="https://doi.org/10.1103/PhysRevE.87.022911">Fadlallah et al. (2013)</a> (variance weights); <a class="reference external" href="https://doi.org/10.1016/j.cmpb.2016.02.008">Azami &amp; Escudero (2016)</a> (amplitude-aware weights)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">OrdinalPatterns</span></code>, <code class="docutils literal notranslate"><span class="pre">WeightedOrdinalPatterns</span></code>, <code class="docutils literal notranslate"><span class="pre">AmplitudeAwareOrdinalPatterns</span></code> + <code class="docutils literal notranslate"><span class="pre">Shannon</span></code>; weighted variants match to 1e-9)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.mutual_information.html"><span class="doc">mutual_information</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevE.69.066138">Kraskov, Stogbauer &amp; Grassberger (2004)</a>, eq. 6-8 (KSG1) and the second estimator I^(2) (<code class="docutils literal notranslate"><span class="pre">estimator=&quot;ksg2&quot;</span></code>)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/CausalityTools.jl">CausalityTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">KSG1</span></code>: counts marginal neighbours inclusively where this function follows the paper’s strict count; <code class="docutils literal notranslate"><span class="pre">KSG2</span></code>: agrees at <code class="docutils literal notranslate"><span class="pre">k=1</span></code> for data at ordinary scales, differs for <code class="docutils literal notranslate"><span class="pre">k&gt;1</span></code> (uses only the k-th neighbour’s marginal distance and <code class="docutils literal notranslate"><span class="pre">1</span></code> in place of <code class="docutils literal notranslate"><span class="pre">1/k</span></code>) and at any <code class="docutils literal notranslate"><span class="pre">k</span></code> for data near 1e-16 (adds <code class="docutils literal notranslate"><span class="pre">10*eps()</span></code> to each marginal radius). Tests pin these differences; see the module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.coarse_grain.html"><span class="doc">coarse_grain</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.89.068102">Costa, Goldberger &amp; Peng (2002)</a>, the unnumbered coarse-graining formula on p. 2 (their eq. 1 is Shannon entropy, not this)</p></td>
+<td><p>none (hand-derived examples; <code class="docutils literal notranslate"><span class="pre">multiscale_entropy</span></code> and <code class="docutils literal notranslate"><span class="pre">composite_multiscale_entropy</span></code>, which use it, are cross-checked below)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.multiscale_entropy.html"><span class="doc">multiscale_entropy</span></a></p></td>
+<td><p>none (inherits <code class="docutils literal notranslate"><span class="pre">sample_entropy</span></code>’s)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.89.068102">Costa, Goldberger &amp; Peng (2002)</a>, the unnumbered coarse-graining formula on p. 2</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">multiscale(RegularDownsampling,</span> <span class="pre">SampleEntropy)</span></code>; inherits <code class="docutils literal notranslate"><span class="pre">sample_entropy</span></code>’s boundary-handling deviation, neutralized the same way at every scale)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.soft_multiscale_entropy.html"><span class="doc">soft_multiscale_entropy</span></a></p></td>
+<td><p>smooth (inherits <code class="docutils literal notranslate"><span class="pre">soft_sample_entropy</span></code>’s, including its Chebyshev-tie caveat)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.89.068102">Costa, Goldberger &amp; Peng (2002)</a>, the unnumbered coarse-graining formula on p. 2 (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">soft_sample_entropy</span></code>)</p></td>
+<td><p>none (built on <code class="docutils literal notranslate"><span class="pre">soft_sample_entropy</span></code> and <code class="docutils literal notranslate"><span class="pre">coarse_grain</span></code>; gradcheck on both temperature and trajectory)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.composite_multiscale_entropy.html"><span class="doc">composite_multiscale_entropy</span></a></p></td>
+<td><p>none (inherits <code class="docutils literal notranslate"><span class="pre">sample_entropy</span></code>’s)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.3390/e15031069">Wu, Wu, Lin, Wang &amp; Lee (2013)</a>, sample entropy averaged over all coarse-graining offsets (<code class="docutils literal notranslate"><span class="pre">coarse_grain(...,</span> <span class="pre">offset=)</span></code>)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">multiscale(CompositeDownsampling,</span> <span class="pre">SampleEntropy)</span></code>; matches to 2e-16. Julia truncates every offset series to the common length <code class="docutils literal notranslate"><span class="pre">(N</span> <span class="pre">-</span> <span class="pre">s</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">//</span> <span class="pre">s</span></code>, this function keeps each offset’s natural length <code class="docutils literal notranslate"><span class="pre">(N</span> <span class="pre">-</span> <span class="pre">offset)</span> <span class="pre">//</span> <span class="pre">s</span></code>; the test uses a length where both agree. Inherits <code class="docutils literal notranslate"><span class="pre">sample_entropy</span></code>’s boundary-handling deviation, neutralized with far outliers at the end of the series)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.soft_composite_multiscale_entropy.html"><span class="doc">soft_composite_multiscale_entropy</span></a></p></td>
+<td><p>smooth (inherits <code class="docutils literal notranslate"><span class="pre">soft_sample_entropy</span></code>’s, including its Chebyshev-tie caveat)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.3390/e15031069">Wu, Wu, Lin, Wang &amp; Lee (2013)</a> (kernel-relaxed via <code class="docutils literal notranslate"><span class="pre">soft_sample_entropy</span></code>)</p></td>
+<td><p>none (composition of <code class="docutils literal notranslate"><span class="pre">coarse_grain</span></code> offsets and <code class="docutils literal notranslate"><span class="pre">soft_sample_entropy</span></code>; gradcheck on both temperature and trajectory)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.lempel_ziv_complexity.html"><span class="doc">lempel_ziv_complexity</span></a></p></td>
+<td><p>none (sequential incremental-parsing algorithm, no soft variant)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/TIT.1976.1055501">Lempel &amp; Ziv (1976)</a> (complexity c(n)); <a class="reference external" href="https://doi.org/10.1103/PhysRevA.36.842">Kaspar &amp; Schuster (1987)</a> (the algorithm implemented; its comparison-based parsing is closer to quadratic than linear in the length)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">LempelZiv76</span></code>; the same algorithm, identical counts)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.dispersion_entropy.html"><span class="doc">dispersion_entropy</span></a></p></td>
+<td><p>none (Gaussian-CDF classification + histogram-based Shannon entropy, no soft variant – same reasoning as <code class="docutils literal notranslate"><span class="pre">permutation_entropy</span></code>); works under <code class="docutils literal notranslate"><span class="pre">torch.vmap</span></code></p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/LSP.2016.2542880">Rostaghi &amp; Azami (2016)</a>, eqs. as restated in <a class="reference external" href="https://doi.org/10.1109/TBME.2017.2679136">Azami, Rostaghi, Abasolo &amp; Escudero (2017)</a>, eqs. 2-4</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">Dispersion</span></code> + <code class="docutils literal notranslate"><span class="pre">Shannon</span></code>; exact float64-precision match on ordinary input, including an exact tie in the class-rounding step. For an exactly constant trajectory Julia returns <code class="docutils literal notranslate"><span class="pre">-0.0</span></code> where this function returns <code class="docutils literal notranslate"><span class="pre">NaN</span></code>; a test pins the difference)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.renyi_entropy.html"><span class="doc">renyi_entropy</span></a></p></td>
+<td><p>smooth, except at <code class="docutils literal notranslate"><span class="pre">alpha=0</span></code> (no gradient path) and, for every <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, only on a fixed support (an exactly zero probability gets gradient 0 by convention)</p></td>
+<td><p><a class="reference external" href="https://projecteuclid.org/euclid.bsmsp/1200512181">Rényi (1961)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">Renyi</span></code>; exact match for <code class="docutils literal notranslate"><span class="pre">alpha</span></code> in <code class="docutils literal notranslate"><span class="pre">{0,</span> <span class="pre">0.5,</span> <span class="pre">1,</span> <span class="pre">2,</span> <span class="pre">5,</span> <span class="pre">inf}</span></code>, including near its <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">≈</span> <span class="pre">1</span></code> tolerance window, not only exactly at 1. The tolerance conventions at <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">≈</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">≈</span> <span class="pre">1</span></code> differ; see the module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.entropy.tsallis_entropy.html"><span class="doc">tsallis_entropy</span></a></p></td>
+<td><p>smooth, only on a fixed support (an exactly zero probability gets gradient 0 by convention)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1007/BF01016429">Tsallis (1988)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ComplexityMeasures.jl">ComplexityMeasures.jl</a> (<code class="docutils literal notranslate"><span class="pre">Tsallis</span></code>; exact match including negative <code class="docutils literal notranslate"><span class="pre">q</span></code>. Inside Julia’s <code class="docutils literal notranslate"><span class="pre">q</span> <span class="pre">≈</span> <span class="pre">1</span></code> tolerance window with <code class="docutils literal notranslate"><span class="pre">k!=1</span></code>, Julia drops <code class="docutils literal notranslate"><span class="pre">k</span></code>, unlike its general-formula branch just outside the window; this function returns <code class="docutils literal notranslate"><span class="pre">k</span></code> times Shannon entropy there. A test pins the difference)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.entropy.fuzzy_entropy.html"><span class="doc">fuzzy_entropy</span></a></p></td>
+<td><p>smooth, except a systematic (not measure-zero) Chebyshev-distance tie for any flattened length-2 template, and (outside the always-zero univariate <code class="docutils literal notranslate"><span class="pre">embedding_dim=1</span></code> short-template case, handled exactly) an inherent singularity at exactly coincident templates for <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;</span> <span class="pre">fuzzy_power</span> <span class="pre">&lt;</span> <span class="pre">1</span></code> – see docstring</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/TNSRE.2007.897025">Chen, Wang, Xie &amp; Yu (2007)</a>, eq. 2-10</p></td>
+<td><p><a class="reference external" href="https://github.com/MattWillFlood/EntropyHub">EntropyHub</a> (<code class="docutils literal notranslate"><span class="pre">FuzzEn</span></code>, <code class="docutils literal notranslate"><span class="pre">Fx='default'</span></code>; exact match, and a test re-derives the paper’s formula by hand. No Julia comparison exists: <code class="docutils literal notranslate"><span class="pre">ComplexityMeasures.jl</span></code> has no fuzzy entropy estimator)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.rosenstein_divergence.html"><span class="doc">rosenstein_divergence</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(93)90009-P">Rosenstein, Collins &amp; De Luca (1993)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ChaosTools.jl">ChaosTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">lyapunov_from_data</span></code> with <code class="docutils literal notranslate"><span class="pre">ntype=NeighborNumber(1)</span></code>, <code class="docutils literal notranslate"><span class="pre">distance=Euclidean()</span></code>; matches to float64 precision, including its reference set fixed by the largest <code class="docutils literal notranslate"><span class="pre">k</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.rosenstein_lyapunov.html"><span class="doc">rosenstein_lyapunov</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(93)90009-P">Rosenstein, Collins &amp; De Luca (1993)</a>, eq. 12-13 and surrounding discussion</p></td>
+<td><p>none (closed-form OLS slope; checked against the logistic map’s exact exponent ln 2)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.kantz_divergence.html"><span class="doc">kantz_divergence</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0375-9601(94)90991-1">Kantz (1994)</a>, eq. 1-2</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ChaosTools.jl">ChaosTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">lyapunov_from_data</span></code> with <code class="docutils literal notranslate"><span class="pre">ntype=WithinRange</span></code>; it averages the log of each neighbor distance where the paper takes the log of the mean, so the two differ – see module docstring). The slope is taken with <code class="docutils literal notranslate"><span class="pre">rosenstein_lyapunov</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.step_jacobian.html"><span class="doc">step_jacobian</span></a></p></td>
+<td><p>exact</p></td>
+<td><p>none (a direct <code class="docutils literal notranslate"><span class="pre">torch.func.jacrev</span></code>/<code class="docutils literal notranslate"><span class="pre">vmap</span></code> application, not a published algorithm of its own)</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.lyapunov_spectrum.html"><span class="doc">lyapunov_spectrum</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1007/BF02128236">Benettin, Galgani, Giorgilli &amp; Strelcyn (1980)</a>; Geist, Parlitz &amp; Lauterborn (1990), <em>Prog. Theor. Phys.</em> 83(5), 875-893 (QR “H2” variant)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ChaosTools.jl">ChaosTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">lyapunovspectrum</span></code> on <code class="docutils literal notranslate"><span class="pre">PredefinedDynamicalSystems.henon()</span></code>; matches to float64 precision, including its <code class="docutils literal notranslate"><span class="pre">Ttr</span></code> transient convention; shares the non-descending order for a linear map with an unsorted diagonal – see module docstring)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.chaos.zero_one_growth_rate.html"><span class="doc">zero_one_growth_rate</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1137/080718851">Gottwald &amp; Melbourne (2009)</a> (correlation method on the modified mean square displacement); first version: <a class="reference external" href="https://doi.org/10.1098/rspa.2003.1183">Gottwald &amp; Melbourne (2004)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ChaosTools.jl">ChaosTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">testchaos01(x,</span> <span class="pre">c,</span> <span class="pre">N0)</span></code>, run via subprocess; exact match per frequency when ChaosTools is given <code class="docutils literal notranslate"><span class="pre">[x[2:N];</span> <span class="pre">x[1]]</span></code>, because it starts its sums at <code class="docutils literal notranslate"><span class="pre">p(1)</span> <span class="pre">=</span> <span class="pre">0</span></code> and never uses the last sample while this module follows the paper’s window convention – see module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.chaos.zero_one_test.html"><span class="doc">zero_one_test</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1137/080718851">Gottwald &amp; Melbourne (2009)</a> (median of <code class="docutils literal notranslate"><span class="pre">K_c</span></code> over frequencies)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/ChaosTools.jl">ChaosTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">testchaos01(x,</span> <span class="pre">cs,</span> <span class="pre">N0)</span></code> returns only <code class="docutils literal notranslate"><span class="pre">median(K_c)</span> <span class="pre">&gt;</span> <span class="pre">0.5</span></code>, so the per-frequency <code class="docutils literal notranslate"><span class="pre">K_c</span></code> comparison above is the ground truth; the median here averages the two middle values for an even count, as Julia’s <code class="docutils literal notranslate"><span class="pre">median</span></code> does)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.eckmann_spectrum.html"><span class="doc">eckmann_spectrum</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevA.34.4971">Eckmann, Kamphorst, Ruelle &amp; Ciliberto (1986)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/CSchoel/nolds">nolds</a> (<code class="docutils literal notranslate"><span class="pre">lyap_e</span></code>; matches to float64 precision for matrix step 1 on well-conditioned fits. For matrix step &gt; 1 nolds composes the fitted maps at every consecutive point where the paper’s Sec. 2c composes them at stride <code class="docutils literal notranslate"><span class="pre">m</span></code>, so this follows the paper, checked against an independent NumPy implementation; degenerate or rank-deficient rows are <code class="docutils literal notranslate"><span class="pre">NaN</span></code> and ties beyond <code class="docutils literal notranslate"><span class="pre">num_neighbors</span></code> are dropped – see module docstring); no Julia equivalent</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.lyapunov.kaplan_yorke_dimension.html"><span class="doc">kaplan_yorke_dimension</span></a></p></td>
+<td><p>piecewise (continuous, with kinks where a partial sum crosses zero or sorted exponents tie; jumps where the largest exponent crosses zero)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1007/BFb0064319">Kaplan &amp; Yorke (1979)</a>; Frederickson, Kaplan, Yorke &amp; Yorke (1983), <em>J. Diff. Eq.</em> 49, 185-207</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/FractalDimensions.jl">FractalDimensions.jl</a> (<code class="docutils literal notranslate"><span class="pre">kaplanyorke_dim</span></code>; matches to float64 precision, including zero and all-negative edge cases); literature Hénon (1.258) and Lorenz (2.06) values</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.surrogate.phase_randomized_surrogate.html"><span class="doc">phase_randomized_surrogate</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(92)90102-S">Theiler, Eubank, Longtin, Galdrikian &amp; Farmer (1992)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/TimeseriesSurrogates.jl">TimeseriesSurrogates.jl</a> (<code class="docutils literal notranslate"><span class="pre">RandomFourier</span></code>, run via subprocess; both implementations share the literal recipe’s property of not preserving the Nyquist magnitude for even-length input – see module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.surrogate.aaft_surrogate.html"><span class="doc">aaft_surrogate</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(92)90102-S">Theiler, Eubank, Longtin, Galdrikian &amp; Farmer (1992)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/TimeseriesSurrogates.jl">TimeseriesSurrogates.jl</a> (<code class="docutils literal notranslate"><span class="pre">AAFT</span></code>, run via subprocess; Julia skips the paper’s Gaussian rank-matching step and equals <code class="docutils literal notranslate"><span class="pre">RandomFourier</span></code> on the raw data followed by rank restoration, so the two differ for non-Gaussian data. This implementation follows the paper – see module docstring)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.surrogate.iaaft_surrogate.html"><span class="doc">iaaft_surrogate</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.77.635">Schreiber &amp; Schmitz (1996)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/TimeseriesSurrogates.jl">TimeseriesSurrogates.jl</a> (<code class="docutils literal notranslate"><span class="pre">IAAFT</span></code>, run via subprocess; both show the same seed-dependent spread of the converged spectral error. Differences: a random-permutation start instead of resampling with replacement, and a fixed iteration count instead of early stopping – see module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.surrogate.random_shuffle_surrogate.html"><span class="doc">random_shuffle_surrogate</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(92)90102-S">Theiler, Eubank, Longtin, Galdrikian &amp; Farmer (1992)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/TimeseriesSurrogates.jl">TimeseriesSurrogates.jl</a> (<code class="docutils literal notranslate"><span class="pre">RandomShuffle</span></code>; uniform permutation, checked by property since RNG streams differ)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.surrogate.random_shift_surrogate.html"><span class="doc">random_shift_surrogate</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(92)90102-S">Theiler, Eubank, Longtin, Galdrikian &amp; Farmer (1992)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/TimeseriesSurrogates.jl">TimeseriesSurrogates.jl</a> (<code class="docutils literal notranslate"><span class="pre">CircShift</span></code>; Julia takes the shifts from the caller, here uniform on 0..T-1, the whole cyclic group including the identity, so the rank test is exact)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.surrogate.surrogate_test.html"><span class="doc">surrogate_test</span></a></p></td>
+<td><p>none (rank count)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/0167-2789(92)90102-S">Theiler et al. (1992)</a>; <a class="reference external" href="https://doi.org/10.1016/S0167-2789(00)00043-9">Schreiber &amp; Schmitz (2000)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/TimeseriesSurrogates.jl">TimeseriesSurrogates.jl</a> (<code class="docutils literal notranslate"><span class="pre">pvalue(SurrogateTest(...))</span></code>, run via subprocess; Julia returns k/M, here (1+k)/(M+1) with the same k; two-sided 2(1+min)/(M+1) clipped to 1)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.causality.cross_map_estimate.html"><span class="doc">cross_map_estimate</span></a></p></td>
+<td><p>piecewise</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1126/science.1227079">Sugihara et al. (2012)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/CausalityTools.jl">CausalityTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">ConvergentCrossMapping</span></code>/<code class="docutils literal notranslate"><span class="pre">predict</span></code> in the <code class="docutils literal notranslate"><span class="pre">juliaenv_causality</span></code> project; matches to float64 precision (~1e-16 per point) with <code class="docutils literal notranslate"><span class="pre">theiler_window</span> <span class="pre">=</span> <span class="pre">w</span> <span class="pre">+</span> <span class="pre">1</span></code> for Julia’s <code class="docutils literal notranslate"><span class="pre">w</span></code>, whose Theiler window excludes <code class="docutils literal notranslate"><span class="pre">|i</span> <span class="pre">-</span> <span class="pre">j|</span> <span class="pre">&lt;=</span> <span class="pre">w</span> <span class="pre">+</span> <span class="pre">1</span></code> – see module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.causality.ccm_skill.html"><span class="doc">ccm_skill</span></a></p></td>
+<td><p>exact</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1126/science.1227079">Sugihara et al. (2012)</a></p></td>
+<td><p>none (a Pearson correlation, not a published algorithm of its own; the Julia comparison of <code class="docutils literal notranslate"><span class="pre">cross_map_estimate</span></code> includes the correlation)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.causality.conditional_mutual_information.html"><span class="doc">conditional_mutual_information</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.99.204101">Frenzel &amp; Pompe (2007)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/CausalityTools.jl">CausalityTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">FPVP</span></code>; it counts marginal neighbors with <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code> where Frenzel &amp; Pompe use <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, the same <code class="docutils literal notranslate"><span class="pre">Neighborhood.jl</span></code> primitive behind <code class="docutils literal notranslate"><span class="pre">mutual_information</span></code>’s <code class="docutils literal notranslate"><span class="pre">KSG1</span></code> difference, so the estimates differ – see module docstring)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.causality.transfer_entropy.html"><span class="doc">transfer_entropy</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1103/PhysRevLett.85.461">Schreiber (2000)</a></p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/CausalityTools.jl">CausalityTools.jl</a> (<code class="docutils literal notranslate"><span class="pre">TEShannon</span></code> through <code class="docutils literal notranslate"><span class="pre">CMIDecomposition</span></code>/<code class="docutils literal notranslate"><span class="pre">FPVP</span></code>; matches to float64 precision when both count inclusively, which checks the alignment of the source past, target past and target future – see module docstring)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.sciml.LyapunovLoss.html"><span class="doc">LyapunovLoss</span></a></p></td>
+<td><p>exact</p></td>
+<td><p>none (wraps <code class="docutils literal notranslate"><span class="pre">lyapunov_spectrum</span></code>)</p></td>
+<td><p>none (compared with a direct call of <code class="docutils literal notranslate"><span class="pre">lyapunov_spectrum</span></code>; the gradient inherits its exploding-variance caveat for chaotic maps)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.sciml.CorrelationDimensionLoss.html"><span class="doc">CorrelationDimensionLoss</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p>none (wraps <code class="docutils literal notranslate"><span class="pre">soft_correlation_sum</span></code> and <code class="docutils literal notranslate"><span class="pre">correlation_dimension</span></code>)</p></td>
+<td><p>none (compared with a direct call of those functions)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.sciml.RecurrenceLoss.html"><span class="doc">RecurrenceLoss</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p>none (wraps <code class="docutils literal notranslate"><span class="pre">soft_recurrence_matrix</span></code> and <code class="docutils literal notranslate"><span class="pre">recurrence_rate</span></code>)</p></td>
+<td><p>none (compared with a direct call of those functions)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.sciml.AttractorLoss.html"><span class="doc">AttractorLoss</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://jmlr.org/papers/v13/gretton12a.html">Gretton et al. (2012)</a> (Maximum Mean Discrepancy)</p></td>
+<td><p>none (composes <code class="docutils literal notranslate"><span class="pre">trajectory_kernel</span></code>; the biased MMD estimator is compared with an independent computation, not with a published MMD implementation)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.sciml.SinkhornLoss.html"><span class="doc">SinkhornLoss</span></a></p></td>
+<td><p>smooth</p></td>
+<td><p><a class="reference external" href="https://proceedings.mlr.press/v89/feydy19a.html">Feydy et al. (2019)</a> (Sinkhorn divergence); <a class="reference external" href="https://arxiv.org/abs/2306.01187">Jiang, Lu, Orlova &amp; Willett (2023)</a> (applied to chaotic attractors)</p></td>
+<td><p>none (entropic optimal transport is not implemented elsewhere in the library). As the regularization shrinks, the cost converges to the exact optimal transport cost between two equal-size uniform point clouds, computed with <code class="docutils literal notranslate"><span class="pre">scipy.optimize.linear_sum_assignment</span></code>; the regularized objective also matches a brute-force computation from the explicit transport plan.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.scaling.linear_regions.html"><span class="doc">linear_regions</span></a> / <a class="reference internal" href="generated/torchnlts.scaling.largest_linear_region.html"><span class="doc">largest_linear_region</span></a></p></td>
+<td><p>none (integer labels and indices)</p></td>
+<td><p>none (sequential <code class="docutils literal notranslate"><span class="pre">dxi</span> <span class="pre">=</span> <span class="pre">1</span></code> linear-region scan of FractalDimensions.jl)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/FractalDimensions.jl">FractalDimensions.jl</a> (<code class="docutils literal notranslate"><span class="pre">linear_regions</span></code>, <code class="docutils literal notranslate"><span class="pre">linear_region</span></code> with <code class="docutils literal notranslate"><span class="pre">LargestLinearRegion</span></code>; regions and largest region match exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve). Not implemented: <code class="docutils literal notranslate"><span class="pre">dxi</span></code> stride, <code class="docutils literal notranslate"><span class="pre">:overlap</span></code> method.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.scaling.scaling_slope.html"><span class="doc">scaling_slope</span></a></p></td>
+<td><p>exact (the region choice is piecewise constant and carries no gradient)</p></td>
+<td><p>none (sequential <code class="docutils literal notranslate"><span class="pre">dxi</span> <span class="pre">=</span> <span class="pre">1</span></code> linear-region scan of FractalDimensions.jl)</p></td>
+<td><p><a class="reference external" href="https://github.com/JuliaDynamics/FractalDimensions.jl">FractalDimensions.jl</a> (<code class="docutils literal notranslate"><span class="pre">slopefit</span></code> with <code class="docutils literal notranslate"><span class="pre">LargestLinearRegion</span></code>; the slope matches exactly on hand-built curves, a saturating curve and a Lorenz correlation-sum curve)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.matrixprofile.matrix_profile.html"><span class="doc">matrix_profile</span></a></p></td>
+<td><p>piecewise (the index has none)</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/ICDM.2016.0179">Yeh et al. (2016)</a>, <a class="reference external" href="https://doi.org/10.1109/ICDM.2016.0085">Zhu et al. (2016)</a></p></td>
+<td><p>none in Julia; <a class="reference external" href="https://github.com/stumpy-dev/stumpy">stumpy</a> (<code class="docutils literal notranslate"><span class="pre">stump</span></code>, self-join and AB-join; profile to 1e-6 in float64, index up to ties). Forms the full distance matrix, O(T^2) memory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/torchnlts.matrixprofile.motifs.html"><span class="doc">motifs</span></a> / <a class="reference internal" href="generated/torchnlts.matrixprofile.discords.html"><span class="doc">discords</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/ICDM.2016.0179">Yeh et al. (2016)</a></p></td>
+<td><p>none in Julia; <a class="reference external" href="https://github.com/stumpy-dev/stumpy">stumpy</a> (<code class="docutils literal notranslate"><span class="pre">motifs</span></code> with <code class="docutils literal notranslate"><span class="pre">max_matches=2</span></code>); discords hand-derived</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/torchnlts.matrixprofile.corrected_arc_curve.html"><span class="doc">corrected_arc_curve</span></a> / <a class="reference internal" href="generated/torchnlts.matrixprofile.regime_boundaries.html"><span class="doc">regime_boundaries</span></a></p></td>
+<td><p>none</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1109/ICDM.2017.21">Gharghabi et al. (2017)</a></p></td>
+<td><p>none in Julia; <a class="reference external" href="https://github.com/stumpy-dev/stumpy">stumpy</a> (<code class="docutils literal notranslate"><span class="pre">fluss</span></code> with <code class="docutils literal notranslate"><span class="pre">custom_iac</span></code> set to the paper’s parabola <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">j</span> <span class="pre">(n</span> <span class="pre">-</span> <span class="pre">j)</span> <span class="pre">/</span> <span class="pre">n</span></code>; stumpy’s default idealized arc curve is a fitted beta density, so its default curve differs)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">torchnlts</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="api/index.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">API Manual</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/MartinuzziFrancesco/torchnlts/edit/main/docs/primitives.rst">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Francesco Martinuzzi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

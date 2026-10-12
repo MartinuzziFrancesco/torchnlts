@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.laminarity
+===============================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: laminarity

@@ -1,0 +1,6 @@
+﻿torchnlts.surrogate.phase\_randomized\_surrogate
+================================================
+
+.. currentmodule:: torchnlts.surrogate
+
+.. autofunction:: phase_randomized_surrogate

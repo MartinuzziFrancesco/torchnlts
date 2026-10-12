@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.divergence
+===============================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: divergence

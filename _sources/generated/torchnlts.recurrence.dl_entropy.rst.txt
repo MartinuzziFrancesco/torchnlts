@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.dl\_entropy
+================================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: dl_entropy

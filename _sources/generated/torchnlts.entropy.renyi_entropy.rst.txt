@@ -1,0 +1,6 @@
+﻿torchnlts.entropy.renyi\_entropy
+================================
+
+.. currentmodule:: torchnlts.entropy
+
+.. autofunction:: renyi_entropy

@@ -1,0 +1,6 @@
+﻿torchnlts.scaling.largest\_linear\_region
+=========================================
+
+.. currentmodule:: torchnlts.scaling
+
+.. autofunction:: largest_linear_region

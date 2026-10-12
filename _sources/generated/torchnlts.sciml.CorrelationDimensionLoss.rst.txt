@@ -1,0 +1,81 @@
+﻿torchnlts.sciml.CorrelationDimensionLoss
+========================================
+
+.. currentmodule:: torchnlts.sciml
+
+.. autoclass:: CorrelationDimensionLoss
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CorrelationDimensionLoss.__init__
+      ~CorrelationDimensionLoss.add_module
+      ~CorrelationDimensionLoss.apply
+      ~CorrelationDimensionLoss.bfloat16
+      ~CorrelationDimensionLoss.buffers
+      ~CorrelationDimensionLoss.children
+      ~CorrelationDimensionLoss.compile
+      ~CorrelationDimensionLoss.cpu
+      ~CorrelationDimensionLoss.cuda
+      ~CorrelationDimensionLoss.double
+      ~CorrelationDimensionLoss.eval
+      ~CorrelationDimensionLoss.extra_repr
+      ~CorrelationDimensionLoss.float
+      ~CorrelationDimensionLoss.forward
+      ~CorrelationDimensionLoss.get_buffer
+      ~CorrelationDimensionLoss.get_extra_state
+      ~CorrelationDimensionLoss.get_parameter
+      ~CorrelationDimensionLoss.get_submodule
+      ~CorrelationDimensionLoss.half
+      ~CorrelationDimensionLoss.ipu
+      ~CorrelationDimensionLoss.load_state_dict
+      ~CorrelationDimensionLoss.modules
+      ~CorrelationDimensionLoss.mtia
+      ~CorrelationDimensionLoss.named_buffers
+      ~CorrelationDimensionLoss.named_children
+      ~CorrelationDimensionLoss.named_modules
+      ~CorrelationDimensionLoss.named_parameters
+      ~CorrelationDimensionLoss.parameters
+      ~CorrelationDimensionLoss.register_backward_hook
+      ~CorrelationDimensionLoss.register_buffer
+      ~CorrelationDimensionLoss.register_forward_hook
+      ~CorrelationDimensionLoss.register_forward_pre_hook
+      ~CorrelationDimensionLoss.register_full_backward_hook
+      ~CorrelationDimensionLoss.register_full_backward_pre_hook
+      ~CorrelationDimensionLoss.register_load_state_dict_post_hook
+      ~CorrelationDimensionLoss.register_load_state_dict_pre_hook
+      ~CorrelationDimensionLoss.register_module
+      ~CorrelationDimensionLoss.register_parameter
+      ~CorrelationDimensionLoss.register_state_dict_post_hook
+      ~CorrelationDimensionLoss.register_state_dict_pre_hook
+      ~CorrelationDimensionLoss.requires_grad_
+      ~CorrelationDimensionLoss.set_extra_state
+      ~CorrelationDimensionLoss.set_submodule
+      ~CorrelationDimensionLoss.share_memory
+      ~CorrelationDimensionLoss.state_dict
+      ~CorrelationDimensionLoss.to
+      ~CorrelationDimensionLoss.to_empty
+      ~CorrelationDimensionLoss.train
+      ~CorrelationDimensionLoss.type
+      ~CorrelationDimensionLoss.xpu
+      ~CorrelationDimensionLoss.zero_grad
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~CorrelationDimensionLoss.T_destination
+      ~CorrelationDimensionLoss.call_super_init
+      ~CorrelationDimensionLoss.dump_patches
+      ~CorrelationDimensionLoss.training
+   
+   

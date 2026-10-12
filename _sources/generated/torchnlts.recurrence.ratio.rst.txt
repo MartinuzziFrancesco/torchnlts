@@ -1,0 +1,6 @@
+﻿torchnlts.recurrence.ratio
+==========================
+
+.. currentmodule:: torchnlts.recurrence
+
+.. autofunction:: ratio

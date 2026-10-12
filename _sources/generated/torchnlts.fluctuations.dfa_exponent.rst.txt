@@ -1,0 +1,6 @@
+﻿torchnlts.fluctuations.dfa\_exponent
+====================================
+
+.. currentmodule:: torchnlts.fluctuations
+
+.. autofunction:: dfa_exponent

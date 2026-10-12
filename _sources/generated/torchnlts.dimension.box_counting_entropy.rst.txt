@@ -1,0 +1,6 @@
+﻿torchnlts.dimension.box\_counting\_entropy
+==========================================
+
+.. currentmodule:: torchnlts.dimension
+
+.. autofunction:: box_counting_entropy

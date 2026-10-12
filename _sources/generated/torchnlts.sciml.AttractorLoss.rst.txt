@@ -1,0 +1,81 @@
+﻿torchnlts.sciml.AttractorLoss
+=============================
+
+.. currentmodule:: torchnlts.sciml
+
+.. autoclass:: AttractorLoss
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~AttractorLoss.__init__
+      ~AttractorLoss.add_module
+      ~AttractorLoss.apply
+      ~AttractorLoss.bfloat16
+      ~AttractorLoss.buffers
+      ~AttractorLoss.children
+      ~AttractorLoss.compile
+      ~AttractorLoss.cpu
+      ~AttractorLoss.cuda
+      ~AttractorLoss.double
+      ~AttractorLoss.eval
+      ~AttractorLoss.extra_repr
+      ~AttractorLoss.float
+      ~AttractorLoss.forward
+      ~AttractorLoss.get_buffer
+      ~AttractorLoss.get_extra_state
+      ~AttractorLoss.get_parameter
+      ~AttractorLoss.get_submodule
+      ~AttractorLoss.half
+      ~AttractorLoss.ipu
+      ~AttractorLoss.load_state_dict
+      ~AttractorLoss.modules
+      ~AttractorLoss.mtia
+      ~AttractorLoss.named_buffers
+      ~AttractorLoss.named_children
+      ~AttractorLoss.named_modules
+      ~AttractorLoss.named_parameters
+      ~AttractorLoss.parameters
+      ~AttractorLoss.register_backward_hook
+      ~AttractorLoss.register_buffer
+      ~AttractorLoss.register_forward_hook
+      ~AttractorLoss.register_forward_pre_hook
+      ~AttractorLoss.register_full_backward_hook
+      ~AttractorLoss.register_full_backward_pre_hook
+      ~AttractorLoss.register_load_state_dict_post_hook
+      ~AttractorLoss.register_load_state_dict_pre_hook
+      ~AttractorLoss.register_module
+      ~AttractorLoss.register_parameter
+      ~AttractorLoss.register_state_dict_post_hook
+      ~AttractorLoss.register_state_dict_pre_hook
+      ~AttractorLoss.requires_grad_
+      ~AttractorLoss.set_extra_state
+      ~AttractorLoss.set_submodule
+      ~AttractorLoss.share_memory
+      ~AttractorLoss.state_dict
+      ~AttractorLoss.to
+      ~AttractorLoss.to_empty
+      ~AttractorLoss.train
+      ~AttractorLoss.type
+      ~AttractorLoss.xpu
+      ~AttractorLoss.zero_grad
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~AttractorLoss.T_destination
+      ~AttractorLoss.call_super_init
+      ~AttractorLoss.dump_patches
+      ~AttractorLoss.training
+   
+   

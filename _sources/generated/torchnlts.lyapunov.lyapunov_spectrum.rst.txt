@@ -1,0 +1,6 @@
+﻿torchnlts.lyapunov.lyapunov\_spectrum
+=====================================
+
+.. currentmodule:: torchnlts.lyapunov
+
+.. autofunction:: lyapunov_spectrum
