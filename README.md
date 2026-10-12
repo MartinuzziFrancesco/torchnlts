@@ -50,21 +50,28 @@ Functions and classes are importable from their subpackage, for example
 
 ## Installation
 
-Requires Python 3.10 or later and PyTorch 2.2 or later. From a checkout:
+Requires Python 3.10 or later and PyTorch 2.5 or later.
+
+```shell
+pip install torchnlts
+```
+
+Optional extras: `pandas`, `tutorials` (dysts and torchdiffeq, used by the
+scripts in `tutorials/`) and `test` (pytest, dysts, and the reference
+packages EntropyHub, antropy, nolds, stumpy and tsfresh), for example
+`pip install "torchnlts[pandas]"`.
+
+From a checkout:
 
 ```shell
 pip install -e .
 ```
 
-Optional extras: `pandas`, `tutorials` (dysts and torchdiffeq, used by the
-scripts in `tutorials/`) and `test` (pytest, dysts, and the reference
-packages EntropyHub, antropy, nolds, stumpy and tsfresh).
-
 ## Example
 
 Correlation dimension of the Lorenz attractor, and the gradient of a soft
 sample entropy with respect to the input series. The trajectory comes from
-[dysts](https://github.com/williamgilpin/dysts) (`pip install -e ".[tutorials]"`):
+[dysts](https://github.com/williamgilpin/dysts) (`pip install "torchnlts[tutorials]"`):
 
 ```python
 import torch
@@ -97,28 +104,46 @@ counterparts do. `docs/primitives.rst` lists the class of every function,
 the paper it follows, and the reference implementation it was checked
 against where one exists.
 
-## Documentation and tests
+## Development
+
+Formatting and linting use [ruff](https://github.com/astral-sh/ruff), pinned in
+the `dev` dependency group (installing a group needs pip 25.1 or later) and
+configured in `pyproject.toml`:
 
 ```shell
-pip install -r docs/requirements.txt
-sphinx-build docs docs/_build/html
+pip install --group dev
+ruff format .
+ruff check .
 ```
+
+Tests:
 
 ```shell
 pip install -e ".[test]"
 pytest
 ```
 
-Formatting and linting use [ruff](https://github.com/astral-sh/ruff), with the
-settings in `pyproject.toml`:
+The comparisons against Julia call `julia` with the environments in
+`juliaenv/` and `juliaenv_causality/`. They are skipped when `julia` is not on
+`PATH` (`pytest -rs` lists them). With `julia` on `PATH`, both environments must
+be instantiated, otherwise the comparisons fail with Julia's error message:
 
 ```shell
-ruff format .
-ruff check .
+julia --project=juliaenv -e 'import Pkg; Pkg.instantiate()'
+julia --project=juliaenv_causality -e 'import Pkg; Pkg.instantiate()'
 ```
 
-Tests that compare against Julia call `julia` with the environments in
-`juliaenv/` and `juliaenv_causality/`, so they need a Julia installation.
+Setting `TORCHNLTS_REQUIRE_JULIA=1` turns a missing Julia into a failure
+instead of a skip, as in the Julia CI job. One DFA comparison also needs a
+development checkout of FluctuationAnalysis.jl in
+`~/.julia/dev/FluctuationAnalysis` and is skipped without it.
+
+Documentation:
+
+```shell
+pip install -r docs/requirements.txt
+sphinx-build -W docs docs/_build/html
+```
 
 ## License
 
@@ -135,7 +160,6 @@ entry in `CITATION.bib`:
   author = {Martinuzzi, Francesco},
   title = {torchnlts: Nonlinear time series analysis in PyTorch},
   year = {2026},
-  version = {0.1.0},
   url = {https://github.com/MartinuzziFrancesco/torchnlts}
 }
 ```

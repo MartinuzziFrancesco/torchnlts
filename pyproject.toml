@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,7 +13,7 @@ authors = [
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
-    "torch>=2.2",
+    "torch>=2.5",
     "numpy",
 ]
 requires-python = ">=3.10"
@@ -50,13 +50,19 @@ test = [
     "scipy",
     "EntropyHub",
     "antropy",
-    "nolds",
+    "nolds; python_version >= '3.12'",
     "tsfresh",
     "stumpy",
 ]
 
+[dependency-groups]
+dev = ["ruff==0.12.11"]
+
 [tool.setuptools.packages.find]
 include = ["torchnlts*"]
+
+[tool.setuptools.package-data]
+torchnlts = ["py.typed"]
 
 [tool.ruff]
 line-length = 120
