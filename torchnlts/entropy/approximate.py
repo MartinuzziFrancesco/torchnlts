@@ -110,8 +110,8 @@ def soft_approximate_entropy(
     """Kernel-weighted approximate entropy, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (a relaxation of :func:`~torchnlts.entropy.approximate_entropy` built on
-    :func:`~torchnlts.neighbors.trajectory_kernel`), except at ties in the default Chebyshev (``norm_order=inf``)
-    distance, as for :func:`~torchnlts.entropy.soft_sample_entropy`.
+    :func:`~torchnlts.neighbors.trajectory_kernel`). At an exact tie in the default Chebyshev (``norm_order=inf``)
+    distance one tied coordinate carries the gradient (a subgradient).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.

@@ -20,7 +20,7 @@ import math
 import pytest
 import torch
 
-from tests.conftest import assert_first_row_gradients_unaffected, run_julia
+from tests.conftest import assert_first_row_gradients_unaffected, pseudo_random_series, run_julia
 from torchnlts.entropy.approximate import approximate_entropy, soft_approximate_entropy
 
 NONFINITE = [float("nan"), float("inf"), -float("inf")]
@@ -180,6 +180,33 @@ def test_soft_approximate_entropy_hand_derived_finite_temperature():
     trajectory = torch.tensor([0.0, 1.0, 3.0], dtype=torch.float64)
     result = soft_approximate_entropy(trajectory, temperature=1.0, embedding_dim=1)
     assert torch.isclose(result, torch.tensor(-0.14152971049673713, dtype=torch.float64))
+
+
+def test_soft_approximate_entropy_chebyshev_tie_gradient_is_finite_on_integer_data():
+    # Distinct tied coordinates are different functions of the input, so a pick-one subgradient need not equal
+    # the central difference there; only finiteness is guaranteed.
+    series = torch.floor((pseudo_random_series(40, seed=3) + 1) * 2).clamp(max=3).requires_grad_()
+    soft_approximate_entropy(series, 0.8).backward()
+    assert torch.isfinite(series.grad).all()
+
+
+def test_soft_approximate_entropy_chebyshev_tie_of_identical_columns_matches_central_difference():
+    # Regression: torch.cdist credited both tied coordinates, doubling the gradient; here they are the same function.
+    series = pseudo_random_series(40, seed=5)
+
+    def entropy(values):
+        return soft_approximate_entropy(torch.stack([values, values], dim=-1), 0.8, embedding_dim=1)
+
+    trajectory = series.clone().requires_grad_()
+    entropy(trajectory).backward()
+    eps = 1e-6
+    central_difference = torch.empty_like(series)
+    for i in range(len(series)):
+        bumped_up, bumped_down = series.clone(), series.clone()
+        bumped_up[i] += eps
+        bumped_down[i] -= eps
+        central_difference[i] = (entropy(bumped_up) - entropy(bumped_down)) / (2 * eps)
+    assert torch.allclose(trajectory.grad, central_difference, atol=1e-6)
 
 
 def test_soft_approximate_entropy_nan_input_gives_nan_output():

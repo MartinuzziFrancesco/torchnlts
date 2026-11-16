@@ -135,8 +135,8 @@ def soft_multiscale_entropy(
 ) -> torch.Tensor:
     """Kernel-weighted multiscale entropy, a smooth stand-in for :func:`~torchnlts.entropy.multiscale_entropy`.
 
-    Gradient class: smooth (inherits :func:`~torchnlts.entropy.soft_sample_entropy`'s, including its Chebyshev-tie
-    caveat).
+    Gradient class: smooth (inherits :func:`~torchnlts.entropy.soft_sample_entropy`'s, including its subgradient
+    at exact Chebyshev ties).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.
@@ -259,8 +259,8 @@ def soft_composite_multiscale_entropy(
     """Kernel-weighted composite multiscale entropy, a smooth stand-in for
     :func:`~torchnlts.entropy.composite_multiscale_entropy`.
 
-    Gradient class: smooth (inherits :func:`~torchnlts.entropy.soft_sample_entropy`'s, including its Chebyshev-tie
-    caveat).
+    Gradient class: smooth (inherits :func:`~torchnlts.entropy.soft_sample_entropy`'s, including its subgradient
+    at exact Chebyshev ties).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``.

@@ -132,3 +132,41 @@ def test_pairwise_distance_matches_julia_distances_jl():
     )
     assert d_julia.shape == d_torch.shape == (6, 6)
     assert torch.allclose(d_julia, d_torch, atol=1e-10, rtol=0)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_pairwise_distance_chebyshev_matches_cdist(dtype):
+    torch.manual_seed(0)
+    trajectory = torch.randn(3, 20, 4, dtype=dtype)
+    other = torch.randn(3, 15, 4, dtype=dtype) + 1e4
+    assert torch.equal(
+        pairwise_distance(trajectory, other=other, norm_order=float("inf")),
+        torch.cdist(trajectory, other, p=float("inf")),
+    )
+    assert torch.equal(
+        pairwise_distance(trajectory, norm_order=float("inf")), torch.cdist(trajectory, trajectory, p=float("inf"))
+    )
+
+
+def test_pairwise_distance_chebyshev_gradient_on_two_way_tie_matches_central_difference():
+    # Regression: torch.cdist(p=inf) credits every tied coordinate, so the (v, -v) tie gave twice the slope.
+    def distance(values):
+        points = torch.stack([values, -values], dim=-1)
+        return pairwise_distance(points[:1], other=points[1:], norm_order=float("inf")).sum()
+
+    values = torch.tensor([0.3, -1.1], dtype=torch.float64, requires_grad=True)
+    distance(values).backward()
+    eps = 1e-6
+    central_difference = torch.empty_like(values)
+    for i in range(2):
+        up, down = values.detach().clone(), values.detach().clone()
+        up[i] += eps
+        down[i] -= eps
+        central_difference[i] = (distance(up) - distance(down)) / (2 * eps)
+    assert torch.allclose(values.grad, central_difference, atol=1e-8)
+
+
+def test_pairwise_distance_chebyshev_zero_distance_gradient_is_zero():
+    trajectory = torch.tensor([[1.0, 2.0], [1.0, 2.0], [0.0, 5.0]], dtype=torch.float64, requires_grad=True)
+    pairwise_distance(trajectory[:2], norm_order=float("inf")).sum().backward()
+    assert torch.equal(trajectory.grad[:2], torch.zeros(2, 2, dtype=torch.float64))
