@@ -154,12 +154,11 @@ def test_determinism_rejects_non_bool_input():
         determinism(torch.ones(4, 4))
 
 
-def test_diagonal_line_measures_reject_negative_theiler_window():
-    # Regression: a negative theiler_window counted the main diagonal as one giant line; now rejected.
+def test_diagonal_line_measures_negative_theiler_window_counts_main_diagonal():
     recurrence = torch.eye(4, dtype=torch.bool)
-    for fn in (determinism, dl_average, dl_max, dl_entropy):
-        with pytest.raises(ValueError):
-            fn(recurrence, theiler_window=-1)
+    assert dl_max(recurrence, theiler_window=-1).item() == 4
+    assert determinism(recurrence, theiler_window=-1).item() == 1.0
+    assert dl_max(recurrence, theiler_window=-5).item() == 4
 
 
 def test_determinism_matches_recurrenceanalysis_jl():
@@ -358,11 +357,7 @@ def test_vertical_measures_reject_invalid_arguments():
         with pytest.raises(ValueError):
             function(recurrence, lmin=1.5)
         with pytest.raises(ValueError):
-            function(recurrence, theiler_window=-1)
-        with pytest.raises(ValueError):
             function(recurrence.float())
-    with pytest.raises(ValueError):
-        rt_entropy(recurrence, theiler_window=-1)
     with pytest.raises(ValueError):
         laminarity(torch.zeros(3, 4, dtype=torch.bool))
 

@@ -12,7 +12,7 @@ import torch
 from torchnlts._shape import _as_int, _validate_square_matrix
 
 
-def theiler_window_mask(num_points: int, window: int, *, device=None) -> torch.Tensor:
+def theiler_window_mask(num_points: int, window: int, *, num_columns: int | None = None, device=None) -> torch.Tensor:
     """Boolean mask of valid (temporally uncorrelated) index pairs.
 
     Reference: Theiler (1986), Phys. Rev. A 34, 2427, Sec. III.
@@ -20,24 +20,29 @@ def theiler_window_mask(num_points: int, window: int, *, device=None) -> torch.T
     Gradient class: exact (the mask depends only on time indices).
 
     Args:
-        num_points: Number of points in the trajectory.
+        num_points: Number of points in the trajectory (rows of the mask).
         window: Theiler window. Pairs with ``|i - j| <= window`` are excluded, so ``0`` excludes only the diagonal.
             A negative window excludes nothing (the whole matrix, as some recurrence-quantification formulas use).
+        num_columns: Number of columns for a rectangular mask (cross-recurrence); defaults to ``num_points``.
         device: Device of the returned mask.
 
     Returns:
-        Bool tensor of shape ``[T, T]``, ``True`` where ``|i - j| > window``.
+        Bool tensor of shape ``[T, T]`` (``[T, num_columns]``), ``True`` where ``|i - j| > window``.
 
     Raises:
-        ValueError: If ``num_points`` is not a non-negative integer or ``window`` is not an integer.
+        ValueError: If ``num_points`` or ``num_columns`` is not a non-negative integer or ``window`` is not an integer.
     """
     num_points = _as_int(num_points, "num_points")
     if num_points < 0:
         raise ValueError(f"num_points must be >= 0, got {num_points}")
-    # Clamped to [-1, T] (same mask) so a huge Python int cannot overflow the int64 comparison.
-    window = max(min(_as_int(window, "theiler_window"), num_points), -1)
-    index = torch.arange(num_points, device=device)
-    return (index.unsqueeze(0) - index.unsqueeze(1)).abs() > window
+    num_columns = num_points if num_columns is None else _as_int(num_columns, "num_columns")
+    if num_columns < 0:
+        raise ValueError(f"num_columns must be >= 0, got {num_columns}")
+    # Clamped to [-1, max size] (same mask) so a huge Python int cannot overflow the int64 comparison.
+    window = max(min(_as_int(window, "theiler_window"), max(num_points, num_columns)), -1)
+    rows = torch.arange(num_points, device=device)
+    columns = torch.arange(num_columns, device=device)
+    return (columns.unsqueeze(0) - rows.unsqueeze(1)).abs() > window
 
 
 def _require_self_exclusion(theiler_window: int, context: str) -> int:
