@@ -478,7 +478,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
    * - :doc:`phase_randomized_surrogate <generated/torchnlts.surrogate.phase_randomized_surrogate>`
      - none
      - `Theiler, Eubank, Longtin, Galdrikian & Farmer (1992) <https://doi.org/10.1016/0167-2789(92)90102-S>`__
-     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``RandomFourier``, run via subprocess; both implementations share the literal recipe's property of not preserving the Nyquist magnitude for even-length input -- see module docstring)
+     - `TimeseriesSurrogates.jl <https://github.com/JuliaDynamics/TimeseriesSurrogates.jl>`__ (``RandomFourier``, run via subprocess; Julia draws a uniform phase for the Nyquist bin of an even-length series and so does not preserve its magnitude; this implementation uses 0 or pi there and preserves every magnitude -- see module docstring)
 
    * - :doc:`aaft_surrogate <generated/torchnlts.surrogate.aaft_surrogate>`
      - none
