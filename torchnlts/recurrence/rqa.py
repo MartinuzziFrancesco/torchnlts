@@ -5,8 +5,8 @@ Reference: Marwan, Romano, Thiel & Kurths (2007), Physics Reports 438(5-6), 237-
 ``theiler_window`` excludes the pairs with ``|i - j| <= theiler_window``; RecurrenceAnalysis.jl's ``theiler``
 keyword is ``theiler_window + 1``. A negative window excludes nothing and is what cross-recurrence matrices
 (:func:`~torchnlts.recurrence.hard_cross_recurrence_matrix`, no trivially recurrent diagonal) need; only then are
-rectangular ``[T, T']`` matrices accepted (rows index the first series, columns the second). The average and maximum line lengths return ``0`` when no line reaches ``lmin``,
-as in Julia; the entropies return ``NaN``.
+rectangular ``[T, T']`` matrices accepted (rows index the first series, columns the second). The average and
+maximum line lengths return ``0`` when no line reaches ``lmin``, as in Julia; the entropies return ``NaN``.
 """
 
 from __future__ import annotations
