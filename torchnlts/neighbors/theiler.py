@@ -10,6 +10,7 @@ from __future__ import annotations
 import torch
 
 from torchnlts._shape import _as_int, _validate_square_matrix
+from torchnlts.convert import as_tensor
 
 
 def theiler_window_mask(num_points: int, window: int, *, device=None) -> torch.Tensor:
@@ -71,6 +72,7 @@ def apply_theiler_window(distance: torch.Tensor, window: int, *, fill_value: flo
         ValueError: If ``distance`` is not a square ``[T, T]`` or ``[B, T, T]`` matrix, or ``window`` is not an
             integer.
     """
+    distance = as_tensor(distance)
     _validate_square_matrix(distance)
     mask = theiler_window_mask(distance.shape[-1], window, device=distance.device)
     return torch.where(mask, distance, torch.full_like(distance, fill_value))

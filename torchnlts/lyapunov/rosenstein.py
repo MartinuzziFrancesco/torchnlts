@@ -31,6 +31,7 @@ from torchnlts._shape import (
     _restore_sweep,
     _work_dtype,
 )
+from torchnlts.convert import as_tensor
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.neighbors.distance import _validate_norm_order
 from torchnlts.neighbors.knn import _gather_neighbors, knn_search
@@ -160,4 +161,5 @@ def rosenstein_lyapunov(k_values: torch.Tensor, divergence: torch.Tensor) -> tor
     Raises:
         ValueError: If the inputs do not have the documented shapes with matching sweep lengths.
     """
+    divergence = as_tensor(divergence)
     return _ols_slope(_as_sweep(k_values, divergence.device), divergence)

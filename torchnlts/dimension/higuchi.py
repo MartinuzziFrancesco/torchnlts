@@ -35,6 +35,7 @@ from torchnlts._shape import (
     _safe_log,
     _work_dtype,
 )
+from torchnlts.convert import as_tensor
 
 
 def _higuchi_length_single_k(values: torch.Tensor, k: int) -> torch.Tensor:
@@ -110,5 +111,6 @@ def higuchi_dimension(k, length: torch.Tensor) -> torch.Tensor:
     Raises:
         ValueError: If ``k``/``length`` do not have the documented shapes with matching sweep lengths.
     """
+    length = as_tensor(length)
     neg_log_k = -_safe_log(_as_sweep(k, length.device))
     return _ols_slope(neg_log_k, _safe_log(length)).to(_output_dtype(length))

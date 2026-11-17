@@ -42,6 +42,7 @@ import math
 import torch
 
 from torchnlts._shape import _shannon_entropy
+from torchnlts.convert import as_tensor
 
 
 def _isclose_to_order(value: float, target: float) -> bool:
@@ -93,6 +94,11 @@ def _deviation_saturated(u: torch.Tensor, exponent_out_of_range: torch.Tensor, d
     return exponent_out_of_range | (u <= (-1.0 + tolerance)) | ~torch.isfinite(u)
 
 
+def _as_probability(probability) -> torch.Tensor:
+    probability = as_tensor(probability)
+    return probability if probability.is_floating_point() else probability.to(torch.get_default_dtype())
+
+
 def renyi_entropy(probability: torch.Tensor, alpha: float) -> torch.Tensor:
     """Rényi generalized order-``alpha`` entropy.
 
@@ -118,6 +124,7 @@ def renyi_entropy(probability: torch.Tensor, alpha: float) -> torch.Tensor:
     """
     if alpha < 0:
         raise ValueError(f"alpha must be non-negative, got {alpha!r}")
+    probability = _as_probability(probability)
     has_nan = torch.isnan(probability).any(dim=-1)
     nonzero = probability > 0
     dtype = probability.dtype
@@ -160,6 +167,7 @@ def tsallis_entropy(probability: torch.Tensor, q: float, *, k: float = 1.0) -> t
     Returns:
         Entropy of shape ``[...]``. ``NaN`` for a row of ``probability`` containing ``NaN``.
     """
+    probability = _as_probability(probability)
     has_nan = torch.isnan(probability).any(dim=-1)
     nonzero = probability > 0
     dtype = probability.dtype

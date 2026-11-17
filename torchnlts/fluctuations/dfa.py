@@ -23,6 +23,7 @@ from torchnlts._shape import (
     _restore_sweep,
     _safe_log,
 )
+from torchnlts.convert import as_tensor
 
 
 def _detrending_basis(window_size: int, order: int, device: torch.device) -> torch.Tensor:
@@ -127,5 +128,6 @@ def dfa_exponent(window_size, fluctuation: torch.Tensor) -> torch.Tensor:
     Raises:
         ValueError: If ``window_size``/``fluctuation`` do not have the documented shapes with matching sweep lengths.
     """
+    fluctuation = as_tensor(fluctuation)
     log_window_size = _safe_log(_as_sweep(window_size, fluctuation.device))
     return _ols_slope(log_window_size, _safe_log(fluctuation)).to(_output_dtype(fluctuation))

@@ -34,6 +34,7 @@ from torchnlts._shape import (
     _safe_log,
     _work_dtype,
 )
+from torchnlts.convert import as_tensor
 from torchnlts.entropy.generalized import renyi_entropy
 
 
@@ -136,5 +137,6 @@ def generalized_dimension(box_size, entropy: torch.Tensor) -> torch.Tensor:
     Raises:
         ValueError: If ``box_size``/``entropy`` do not have the documented shapes with matching sweep lengths.
     """
+    entropy = as_tensor(entropy)
     neg_log_size = -_safe_log(_as_sweep(box_size, entropy.device))
     return _ols_slope(neg_log_size, entropy)

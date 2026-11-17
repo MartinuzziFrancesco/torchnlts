@@ -30,6 +30,7 @@ import torch
 from torch.func import vmap
 
 from torchnlts._shape import _as_int, _real_scalar
+from torchnlts.convert import as_tensor
 from torchnlts.lyapunov.jacobian import _mask_nonfinite_states, step_jacobian
 
 
@@ -71,6 +72,7 @@ def lyapunov_spectrum(
             positive integer, ``num_exponents`` is not an integer in ``[1, D]``, ``dt`` is not a positive real
             number, or ``transient_steps`` is not a non-negative integer.
     """
+    initial_state = as_tensor(initial_state)
     if initial_state.dim() not in (1, 2):
         raise ValueError(f"expected initial_state of shape [D] or [B, D], got {tuple(initial_state.shape)}")
     if initial_state.dtype not in (torch.float32, torch.float64):

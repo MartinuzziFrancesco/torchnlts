@@ -14,6 +14,8 @@ from typing import Callable
 import torch
 from torch.func import jacrev, vmap
 
+from torchnlts.convert import as_tensor
+
 
 def _mask_nonfinite_states(state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """``state`` ``[D]`` or ``[B, D]`` with every state containing NaN/inf replaced by zeros, so ``step_fn`` is never
@@ -45,6 +47,7 @@ def step_jacobian(step_fn: Callable[[torch.Tensor], torch.Tensor], state: torch.
     Raises:
         ValueError: If ``state`` is not 1-D or 2-D, or not a real floating-point tensor.
     """
+    state = as_tensor(state)
     if state.dim() not in (1, 2):
         raise ValueError(f"expected state of shape [D] or [B, D], got {tuple(state.shape)}")
     if not state.is_floating_point():
