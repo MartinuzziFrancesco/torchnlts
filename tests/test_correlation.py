@@ -267,3 +267,22 @@ def test_soft_correlation_sum_nonfinite_row_gradient_isolated():
     assert torch.isnan(values[1]) and torch.isfinite(gradient).all()
     (expected,) = torch.autograd.grad(soft_correlation_sum(batch[0], 0.5), batch)
     assert torch.equal(gradient, expected)
+
+
+def test_correlation_sums_sweep_matches_scalar_calls():
+    trajectory = torch.randn(3, 60, 2, dtype=torch.float64, generator=torch.Generator().manual_seed(0))
+    sweep = torch.tensor([0.3, 0.8, 1.5, 4.0], dtype=torch.float64)
+    for function in (correlation_sum, soft_correlation_sum):
+        swept = function(trajectory, sweep, theiler_window=2)
+        assert swept.shape == (4, 3)
+        for index, value in enumerate(sweep):
+            torch.testing.assert_close(swept[index], function(trajectory, value, theiler_window=2))
+
+
+def test_correlation_sum_sweep_matches_dense_count():
+    trajectory = torch.randn(50, 2, dtype=torch.float64, generator=torch.Generator().manual_seed(1))
+    sweep = torch.tensor([0.2, 0.9, 2.0], dtype=torch.float64)
+    distance = torch.cdist(trajectory, trajectory)
+    pairs = ~torch.eye(50, dtype=torch.bool)
+    expected = ((distance <= sweep[:, None, None]) & pairs).sum(dim=(-2, -1)).double() / pairs.sum()
+    torch.testing.assert_close(correlation_sum(trajectory, sweep, theiler_window=0), expected)
