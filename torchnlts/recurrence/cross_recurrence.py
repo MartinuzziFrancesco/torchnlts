@@ -49,7 +49,7 @@ def hard_cross_recurrence_matrix(
 
     Raises:
         ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``, ``local_rate`` is given, ``scale`` is
-            invalid or given without ``epsilon``, a rate is outside ``(0, 1]``, or the trajectories do not match in
+            invalid or given without ``epsilon``, a rate is outside ``(0, 1]``, ``epsilon`` is not a real scalar ``>= 0``, or the trajectories do not match in
             batchedness, feature dim or batch size.
     """
     distance = pairwise_distance(trajectory, other=other, norm_order=norm_order)

@@ -22,10 +22,12 @@ import torch
 
 from torchnlts._shape import (
     _as_int,
+    _as_radius_sweep,
     _ensure_batched,
     _is_complex,
     _mask_nonfinite_rows,
     _output_dtype,
+    _real_scalar,
     _restore_batch,
     _validate_matching_batch,
     _work_dtype,
@@ -33,8 +35,8 @@ from torchnlts._shape import (
 from torchnlts.convert import as_tensor
 from torchnlts.dimension.correlation import correlation_dimension, soft_correlation_sum
 from torchnlts.lyapunov.spectrum import lyapunov_spectrum
-from torchnlts.neighbors.distance import pairwise_distance
-from torchnlts.neighbors.kernels import trajectory_kernel
+from torchnlts.neighbors.distance import _validate_norm_order, pairwise_distance
+from torchnlts.neighbors.kernels import _validate_kind, _validate_temperature, trajectory_kernel
 from torchnlts.recurrence.matrix import soft_recurrence_matrix
 from torchnlts.recurrence.rqa import recurrence_rate
 
@@ -45,6 +47,13 @@ def _check_reduction(reduction: str) -> str:
     if reduction not in _REDUCTIONS:
         raise ValueError(f"reduction must be one of {_REDUCTIONS}, got {reduction!r}")
     return reduction
+
+
+def _check_temperature(temperature, *, sweep: bool) -> torch.Tensor:
+    if sweep:
+        return _as_radius_sweep(temperature, "temperature", positive=True)
+    _validate_temperature(temperature)
+    return torch.as_tensor(temperature)
 
 
 def _reduce(loss: torch.Tensor, reduction: str) -> torch.Tensor:
@@ -139,7 +148,9 @@ class LyapunovLoss(torch.nn.Module):
         reduction: ``"mean"``, ``"sum"`` or ``"none"``.
 
     Raises:
-        ValueError: If ``reduction`` is not one of the three.
+        ValueError: If ``reduction`` is not one of the three, ``num_steps`` is not a positive integer,
+            ``num_exponents`` is not an integer ``>= 1``, ``dt`` is not a positive real number, or
+            ``transient_steps`` is not a non-negative integer.
     """
 
     def __init__(
@@ -154,10 +165,20 @@ class LyapunovLoss(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.register_buffer("target", torch.as_tensor(target))
-        self.num_steps = num_steps
-        self.num_exponents = num_exponents
-        self.dt = dt
-        self.transient_steps = transient_steps
+        self.num_steps = _as_int(num_steps, "num_steps")
+        self.num_exponents = None if num_exponents is None else _as_int(num_exponents, "num_exponents")
+        self.dt = _real_scalar(dt, "dt")
+        self.transient_steps = _as_int(transient_steps, "transient_steps")
+        if (
+            self.num_steps <= 0
+            or self.dt <= 0
+            or self.transient_steps < 0
+            or (self.num_exponents is not None and self.num_exponents < 1)
+        ):
+            raise ValueError(
+                "expected num_steps > 0, num_exponents >= 1, dt > 0 and transient_steps >= 0, got "
+                f"{num_steps!r}, {num_exponents!r}, {dt!r}, {transient_steps!r}"
+            )
         self.reduction = _check_reduction(reduction)
 
     def forward(self, step_fn, initial_state: torch.Tensor) -> torch.Tensor:
@@ -202,7 +223,8 @@ class CorrelationDimensionLoss(torch.nn.Module):
         reduction: ``"mean"``, ``"sum"`` or ``"none"``.
 
     Raises:
-        ValueError: If ``reduction`` is not one of the three.
+        ValueError: If ``reduction`` is not one of the three, ``temperature`` is not positive, ``kind`` is unknown,
+            ``theiler_window`` is not an integer, or ``norm_order`` is not a real number ``>= 0``.
     """
 
     def __init__(
@@ -217,10 +239,11 @@ class CorrelationDimensionLoss(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.register_buffer("target", torch.as_tensor(target))
-        self.register_buffer("temperature", torch.as_tensor(temperature))
+        self.register_buffer("temperature", _check_temperature(temperature, sweep=True))
+        _validate_kind(kind)
         self.kind = kind
-        self.theiler_window = theiler_window
-        self.norm_order = norm_order
+        self.theiler_window = _as_int(theiler_window, "theiler_window")
+        self.norm_order = _validate_norm_order(norm_order)
         self.reduction = _check_reduction(reduction)
 
     def forward(self, predicted_trajectory) -> torch.Tensor:
@@ -267,7 +290,8 @@ class RecurrenceLoss(torch.nn.Module):
         reduction: ``"mean"``, ``"sum"`` or ``"none"``.
 
     Raises:
-        ValueError: If ``reduction`` is not one of the three.
+        ValueError: If ``reduction`` is not one of the three, ``temperature`` is not positive, ``kind`` is unknown,
+            ``theiler_window`` is not an integer, or ``norm_order`` is not a real number ``>= 0``.
     """
 
     def __init__(
@@ -282,10 +306,11 @@ class RecurrenceLoss(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.register_buffer("target", torch.as_tensor(target))
-        self.register_buffer("temperature", torch.as_tensor(temperature))
+        self.register_buffer("temperature", _check_temperature(temperature, sweep=False))
+        _validate_kind(kind)
         self.kind = kind
-        self.theiler_window = theiler_window
-        self.norm_order = norm_order
+        self.theiler_window = _as_int(theiler_window, "theiler_window")
+        self.norm_order = _validate_norm_order(norm_order)
         self.reduction = _check_reduction(reduction)
 
     def forward(self, predicted_trajectory) -> torch.Tensor:
@@ -330,7 +355,8 @@ class AttractorLoss(torch.nn.Module):
         reduction: ``"mean"``, ``"sum"`` or ``"none"``.
 
     Raises:
-        ValueError: If ``reduction`` is not one of the three.
+        ValueError: If ``reduction`` is not one of the three, ``temperature`` is not positive, or ``kind`` is
+            unknown.
     """
 
     def __init__(
@@ -341,7 +367,8 @@ class AttractorLoss(torch.nn.Module):
         reduction: str = "mean",
     ) -> None:
         super().__init__()
-        self.register_buffer("temperature", torch.as_tensor(temperature))
+        self.register_buffer("temperature", _check_temperature(temperature, sweep=False))
+        _validate_kind(kind)
         self.kind = kind
         self.reduction = _check_reduction(reduction)
 

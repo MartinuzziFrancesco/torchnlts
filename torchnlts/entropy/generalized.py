@@ -41,7 +41,7 @@ import math
 
 import torch
 
-from torchnlts._shape import _shannon_entropy
+from torchnlts._shape import _real_scalar, _shannon_entropy
 
 
 def _isclose_to_order(value: float, target: float) -> bool:
@@ -104,8 +104,8 @@ def renyi_entropy(probability: torch.Tensor, alpha: float) -> torch.Tensor:
     grad); ``alpha = inf`` is a max, with the usual subgradient at ties.
 
     Args:
-        probability: Discrete distribution of shape ``[..., num_outcomes]``, summing to 1 along the last dimension (not
-            validated).
+        probability: Discrete distribution of shape ``[..., num_outcomes]``, non-negative, summing to 1 along the last
+            dimension (not validated).
         alpha: Order, ``>= 0``. Special cases: 0 (Hartley entropy, ``log`` of the number of nonzero outcomes), 1
             (Shannon), 2 (collision entropy, ``-log(sum(probability ** 2))``), ``inf`` (min-entropy,
             ``-log(max(probability))``).
@@ -114,10 +114,11 @@ def renyi_entropy(probability: torch.Tensor, alpha: float) -> torch.Tensor:
         Entropy in nats, shape ``[...]``. ``NaN`` for a row of ``probability`` containing ``NaN``.
 
     Raises:
-        ValueError: If ``alpha < 0``.
+        ValueError: If ``alpha`` is not a real number ``>= 0`` (NaN included).
     """
-    if alpha < 0:
-        raise ValueError(f"alpha must be non-negative, got {alpha!r}")
+    alpha = _real_scalar(alpha, "alpha")
+    if not alpha >= 0:
+        raise ValueError(f"alpha must be >= 0 and not NaN, got {alpha!r}")
     has_nan = torch.isnan(probability).any(dim=-1)
     nonzero = probability > 0
     dtype = probability.dtype
@@ -151,15 +152,21 @@ def tsallis_entropy(probability: torch.Tensor, q: float, *, k: float = 1.0) -> t
     the one-sided limit (unbounded for ``q < 1``).
 
     Args:
-        probability: Discrete distribution of shape ``[..., num_outcomes]``, summing to 1 along the last dimension (not
-            validated).
+        probability: Discrete distribution of shape ``[..., num_outcomes]``, non-negative, summing to 1 along the last
+            dimension (not validated).
         q: Order; any real number (unlike Rényi's ``alpha``, as in ComplexityMeasures.jl). A very large ``|q|`` can
             overflow the dtype's range.
         k: Boltzmann-constant-like scale factor.
 
     Returns:
         Entropy of shape ``[...]``. ``NaN`` for a row of ``probability`` containing ``NaN``.
+
+    Raises:
+        ValueError: If ``q`` is not a real number or is NaN.
     """
+    q = _real_scalar(q, "q")
+    if math.isnan(q):
+        raise ValueError("q must not be NaN")
     has_nan = torch.isnan(probability).any(dim=-1)
     nonzero = probability > 0
     dtype = probability.dtype

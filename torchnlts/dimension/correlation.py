@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_sweep, _broadcast_over_matrix, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_radius_sweep, _as_sweep, _broadcast_over_matrix, _ols_slope, _output_dtype, _safe_log
 from torchnlts.convert import as_tensor
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
@@ -46,11 +46,12 @@ def correlation_sum(trajectory, radius, *, theiler_window: int = 0, norm_order: 
         ``theiler_window`` excludes every pair and for any row containing NaN/inf.
 
     Raises:
-        ValueError: If ``theiler_window`` is not an integer, ``norm_order`` is not a real number ``>= 0``, or the
-            trajectory is complex or has an invalid shape.
+        ValueError: If ``theiler_window`` is not an integer, ``norm_order`` is not a real number ``>= 0``,
+            ``radius`` is not a real scalar or 1-D sweep of values ``>= 0``, or the trajectory is complex or has an
+            invalid shape.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
-    radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
+    radius = _as_radius_sweep(radius, "radius", distance.device, distance.dtype)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     within_radius = distance <= _broadcast_over_matrix(radius, distance)
     total = (within_radius & mask).sum(dim=(-2, -1)).to(distance.dtype) / mask.sum()
@@ -85,11 +86,11 @@ def soft_correlation_sum(
 
     Raises:
         ValueError: If ``theiler_window`` is not an integer, ``kind`` is unknown, ``temperature`` is not a positive
-            real number or tensor, ``norm_order`` is not a real number ``>= 0``, or the trajectory is complex or has
+            real scalar or 1-D sweep, ``norm_order`` is not a real number ``>= 0``, or the trajectory is complex or has
             an invalid shape.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
-    temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
+    temperature = _as_radius_sweep(temperature, "temperature", distance.device, distance.dtype, positive=True)
     weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     total = torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()

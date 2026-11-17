@@ -31,7 +31,7 @@ def knn_search(
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
         num_neighbors: Neighbors per point, an integer ``>= 1``.
-        theiler_window: Theiler window, applied only for a self-search (``other is None``).
+        theiler_window: Theiler window, self-search only (``other is None``); must be 0 with ``other``.
         other: Optional second trajectory to search into, same convention as ``trajectory``. Default: a self-search.
         norm_order: Minkowski norm order, forwarded to :func:`~torchnlts.neighbors.pairwise_distance`.
 
@@ -41,12 +41,14 @@ def knn_search(
         or the point has a NaN/inf coordinate) has distance ``inf`` and index ``-1``.
 
     Raises:
-        ValueError: If ``num_neighbors`` is not an integer ``>= 1``, ``theiler_window`` is not an integer (self-search
-            only), ``norm_order`` is invalid, or the trajectories do not match in shape.
+        ValueError: If ``num_neighbors`` is not an integer ``>= 1``, ``theiler_window`` is not an integer or is
+            nonzero together with ``other``, ``norm_order`` is invalid, or the trajectories do not match in shape.
     """
     num_neighbors = _as_int(num_neighbors, "num_neighbors")
     if num_neighbors < 1:
         raise ValueError(f"num_neighbors must be >= 1, got {num_neighbors}")
+    if other is not None and theiler_window != 0:
+        raise ValueError("theiler_window applies to a self-search only; do not pass it with other")
     distance = pairwise_distance(trajectory, other=other, norm_order=norm_order)
     if other is None:
         distance = apply_theiler_window(distance, theiler_window, fill_value=float("inf"))
