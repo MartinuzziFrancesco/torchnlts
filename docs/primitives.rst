@@ -442,8 +442,8 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
 
    * - :doc:`kantz_divergence <generated/torchnlts.lyapunov.kantz_divergence>`
      - piecewise
-     - `Kantz (1994) <https://doi.org/10.1016/0375-9601(94)90991-1>`__, eq. 1-2
-     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=WithinRange``; it averages the log of each neighbor distance where the paper takes the log of the mean, so the two differ -- see module docstring). The slope is taken with ``rosenstein_lyapunov``.
+     - `Kantz (1994) <https://doi.org/10.1016/0375-9601(94)90991-1>`__, eq. 1-2; Kantz & Schreiber (2004), eq. 5.2
+     - `ChaosTools.jl <https://github.com/JuliaDynamics/ChaosTools.jl>`__ (``lyapunov_from_data`` with ``ntype=WithinRange``, ``distance=FirstElement()`` for the default ``distance="first"`` and ``Euclidean()`` for ``"norm"``; it averages the log of each neighbor distance where the paper takes the log of the mean, so the two differ -- see module docstring). The slope is taken with ``rosenstein_lyapunov``.
 
    * - :doc:`step_jacobian <generated/torchnlts.lyapunov.step_jacobian>`
      - exact
