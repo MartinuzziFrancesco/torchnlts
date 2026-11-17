@@ -10,7 +10,9 @@ Conventions:
 
 - Eq. 4 is evaluated as ``high**2 > low**2 * (1 + distance_tol**2)``, equivalent to Kennel's
   ``sqrt(high**2 - low**2) / low > distance_tol`` without a division, so ``low == 0`` needs no special case.
-- A nearest neighbor at distance 0 is replaced by the second nearest, as in DelayEmbeddings.jl and Cao's method.
+- A nearest neighbor at distance 0 is replaced by the second nearest, as in Cao's method. DelayEmbeddings.jl's
+  ``delay_fnn`` intends the same rule but throws a ``BoundsError`` when it is reached (it indexes the
+  ``(indices, distances)`` tuple of ``Neighborhood.knn``).
 - The defaults (``distance_tol=10``, ``attractor_tol=2``) and the returned fraction match DelayEmbeddings.jl's
   ``delay_fnn``, whose docstring says "number of" but which divides by the point count.
 """

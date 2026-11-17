@@ -196,7 +196,7 @@ def test_hard_fnn_zero_distance_neighbor_falls_back_to_second_nearest():
         assert math.isclose(hard_fnn(series, embedding_dim).item(), expected), embedding_dim
 
 
-def test_hard_fnn_quantized_series_matches_delayembeddings_jl():
+def test_hard_fnn_duplicate_windows_matches_corrected_delay_fnn_loop():
     # delay_fnn's zero-distance fallback indexes the (indices, distances) tuple of Neighborhood.knn and throws a
     # BoundsError, so its loop is repeated here with the intended ``[1][end]``.
     series = _series_with_duplicate_windows()

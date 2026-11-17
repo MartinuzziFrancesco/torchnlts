@@ -75,7 +75,7 @@ def _nearest_noncoincident(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Nearest-neighbor ``(distance, index)`` ``[..., T]`` of ``points`` ``[..., T, D]``.
 
-    A nearest neighbor at distance 0 is replaced by the second nearest (as in DelayEmbeddings.jl); the second may
+    A nearest neighbor at distance 0 is replaced by the second nearest (as in Cao's method); the second may
     also be at distance 0.
     """
     distances, indices = knn_search(points, num_neighbors=2, theiler_window=theiler_window, norm_order=norm_order)
