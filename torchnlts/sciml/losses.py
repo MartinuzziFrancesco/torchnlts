@@ -408,7 +408,8 @@ class SinkhornLoss(torch.nn.Module):
         num_iters: Maximum number of Sinkhorn iterations, ``>= 1``.
         tolerance: If given, a real number ``> 0``: stop early once the largest absolute change of the source
             potential in one iteration, over the whole batch, is at most ``tolerance`` (in cost units). Each of the
-            three transport problems is stopped separately.
+            three transport problems is stopped separately. The early stop is data-dependent, so it does not work
+            under ``torch.vmap``; leave it ``None`` there.
         reduction: ``"mean"``, ``"sum"`` or ``"none"``.
 
     Raises:
