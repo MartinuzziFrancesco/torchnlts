@@ -286,3 +286,10 @@ def test_correlation_sum_sweep_matches_dense_count():
     pairs = ~torch.eye(50, dtype=torch.bool)
     expected = ((distance <= sweep[:, None, None]) & pairs).sum(dim=(-2, -1)).double() / pairs.sum()
     torch.testing.assert_close(correlation_sum(trajectory, sweep, theiler_window=0), expected)
+
+
+def test_empty_sweep_returns_empty_result():
+    trajectory = torch.randn(3, 30, 1, dtype=torch.float64, generator=torch.Generator().manual_seed(0))
+    empty = torch.tensor([], dtype=torch.float64)
+    assert correlation_sum(trajectory, empty).shape == (0, 3)
+    assert soft_correlation_sum(trajectory, empty).shape == (0, 3)

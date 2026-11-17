@@ -78,7 +78,10 @@ def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.T
 def _stack_over_sweep(function, sweep: torch.Tensor) -> torch.Tensor:
     """Stack ``function(value)`` over the entries of a scalar or ``[R]`` sweep as a leading ``R`` axis (none for a
     scalar), so a sweep never materializes a ``[R, ..., T, T]`` tensor."""
-    values = torch.stack([function(value) for value in sweep.reshape(-1)])
+    if sweep.numel() == 0:
+        values = function(sweep.new_ones(())).unsqueeze(0)[:0]
+    else:
+        values = torch.stack([function(value) for value in sweep.reshape(-1)])
     return values.reshape(sweep.shape + values.shape[1:])
 
 

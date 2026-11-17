@@ -153,9 +153,10 @@ def ordinal_pattern_probabilities(
     Returns:
         Probabilities over the ``embedding_dim!`` ordinal patterns, shape ``[embedding_dim!]`` or
         ``[B, embedding_dim!]`` (a dense histogram, so memory grows factorially with ``embedding_dim``;
-        :func:`~torchnlts.entropy.permutation_entropy` does not allocate it), summing to 1 along the last dimension. A row is entirely ``NaN`` if it contains
-        ``NaN`` or ``inf`` or, with a weighting, if its total weight is 0 (e.g. a constant trajectory under
-        ``"variance"``); such rows do not affect the gradient of other rows.
+        :func:`~torchnlts.entropy.permutation_entropy` does not allocate it), summing to 1 along the last
+        dimension. A row is entirely ``NaN`` if it contains ``NaN`` or ``inf`` or, with a weighting, if its total
+        weight is 0 (e.g. a constant trajectory under ``"variance"``); such rows do not affect the gradient of other
+        rows.
 
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1, ``embedding_dim`` or ``delay`` is not a positive
