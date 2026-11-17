@@ -33,15 +33,14 @@ def _brute_force_fnn(trajectory, embedding_dim, delay, theiler_window, distance_
 
     count, valid_count = 0, 0
     for i in range(num_common):
-        best_j, best_d = None, math.inf
-        for j in range(num_common):
-            if abs(i - j) <= theiler_window:
-                continue
-            d = torch.linalg.vector_norm(embedded_low[i] - embedded_low[j]).item()
-            if d < best_d:
-                best_d, best_j = d, j
-        if best_j is None:
+        candidates = sorted(
+            (torch.linalg.vector_norm(embedded_low[i] - embedded_low[j]).item(), j)
+            for j in range(num_common)
+            if abs(i - j) > theiler_window
+        )
+        if not candidates:
             continue
+        best_d, best_j = candidates[1] if candidates[0][0] == 0.0 and len(candidates) > 1 else candidates[0]
         valid_count += 1
         r_low = best_d
         r_high = torch.linalg.vector_norm(embedded_high[i] - embedded_high[best_j]).item()
@@ -183,3 +182,46 @@ def test_hard_fnn_matches_delayembeddings_jl():
     julia_fraction = float(stdout.strip())
     torch_fraction = hard_fnn(trajectory, embedding_dim, delay=delay, theiler_window=0).item()
     assert math.isclose(torch_fraction, julia_fraction), (torch_fraction, julia_fraction)
+
+
+def _series_with_duplicate_windows():
+    base = torch.randn(60, dtype=torch.float64, generator=torch.Generator().manual_seed(0))
+    return torch.cat([base, base[:30]])
+
+
+def test_hard_fnn_zero_distance_neighbor_falls_back_to_second_nearest():
+    series = _series_with_duplicate_windows()
+    for embedding_dim in (1, 2, 3):
+        expected = _brute_force_fnn(series, embedding_dim, 1, 0, 10.0, 2.0)
+        assert math.isclose(hard_fnn(series, embedding_dim).item(), expected), embedding_dim
+
+
+def test_hard_fnn_quantized_series_matches_delayembeddings_jl():
+    # delay_fnn's zero-distance fallback indexes the (indices, distances) tuple of Neighborhood.knn and throws a
+    # BoundsError, so its loop is repeated here with the intended ``[1][end]``.
+    series = _series_with_duplicate_windows()
+    values = ", ".join(f"{v:.17g}" for v in series.tolist())
+    julia_code = f"""
+    using DelayEmbeddings, Neighborhood, LinearAlgebra, Statistics
+    s = [{values}]
+    Ra = std(s, corrected=false)
+    for d in 1:3
+        y = embed(s[1:end-1], d, 1)
+        tree = KDTree(y)
+        nind = [x[1] for x in bulkisearch(tree, y, NeighborNumber(1), Theiler(0))]
+        count = 0
+        for (i, j) in enumerate(nind)
+            δ = norm(y[i] - y[j])
+            if δ == 0.0
+                j = Neighborhood.knn(tree, y[i], 2, Theiler(0)(i))[1][end]
+                δ = norm(y[i] - y[j])
+            end
+            δ1 = sqrt(δ * δ + abs2(s[i + d] - s[j + d]))
+            count += ((δ1 / δ)^2 - 1 > 100.0) | (δ1 / Ra > 2.0)
+        end
+        println(count / length(nind))
+    end
+    """
+    julia_fractions = [float(value) for value in run_julia(julia_code).split()]
+    torch_fractions = [hard_fnn(series, dim).item() for dim in (1, 2, 3)]
+    assert torch_fractions == pytest.approx(julia_fractions, abs=1e-12), (torch_fractions, julia_fractions)

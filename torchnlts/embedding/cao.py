@@ -29,7 +29,7 @@ from torchnlts._shape import (
     _work_dtype,
 )
 from torchnlts.embedding.delay import delay_embedding
-from torchnlts.neighbors.knn import _gather_neighbors, knn_search
+from torchnlts.neighbors.knn import _gather_neighbors, _nearest_noncoincident
 
 
 def _cao_step(
@@ -47,11 +47,7 @@ def _cao_step(
     num_common = embedded_high.shape[-2]
     embedded_low = embedded_low[..., :num_common, :]
 
-    distances, indices = knn_search(embedded_low, num_neighbors=2, theiler_window=theiler_window, norm_order=norm_order)
-    # A coincident nearest neighbor (distance 0) falls back to the second-nearest, as in delay_afnn.
-    use_second = distances[..., 0] == 0
-    neighbor_index = torch.where(use_second, indices[..., 1], indices[..., 0])
-    low_distance = torch.where(use_second, distances[..., 1], distances[..., 0])
+    low_distance, neighbor_index = _nearest_noncoincident(embedded_low, theiler_window, norm_order)
     valid = (neighbor_index != -1) & (low_distance > 0)
 
     target = embedded_high[..., -dim:] if new_coordinate_only else embedded_high

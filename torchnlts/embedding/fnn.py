@@ -10,6 +10,7 @@ Conventions:
 
 - Eq. 4 is evaluated as ``high**2 > low**2 * (1 + distance_tol**2)``, equivalent to Kennel's
   ``sqrt(high**2 - low**2) / low > distance_tol`` without a division, so ``low == 0`` needs no special case.
+- A nearest neighbor at distance 0 is replaced by the second nearest, as in DelayEmbeddings.jl and Cao's method.
 - The defaults (``distance_tol=10``, ``attractor_tol=2``) and the returned fraction match DelayEmbeddings.jl's
   ``delay_fnn``, whose docstring says "number of" but which divides by the point count.
 """
@@ -27,7 +28,7 @@ from torchnlts._shape import (
     _work_dtype,
 )
 from torchnlts.embedding.delay import delay_embedding
-from torchnlts.neighbors.knn import _gather_neighbors, knn_search
+from torchnlts.neighbors.knn import _gather_neighbors, _nearest_noncoincident
 
 
 def hard_fnn(
@@ -58,9 +59,9 @@ def hard_fnn(
 
     Returns:
         Fraction in ``[0, 1]`` of the points whose nearest neighbor is false, shape ``[]`` (or ``[B]``), in the
-        input's floating dtype (the default dtype for integer input). Points whose Theiler window excludes every
-        candidate count in neither the numerator nor the denominator. ``NaN`` for a row containing NaN/inf, and
-        when every point is excluded.
+        input's floating dtype (the default dtype for integer input). A neighbor at distance 0 is replaced by the
+        second nearest. Points whose Theiler window excludes every candidate count in neither the numerator nor the
+        denominator. ``NaN`` for a row containing NaN/inf, and when every point is excluded.
 
     Raises:
         ValueError: If ``embedding_dim`` or ``delay`` is not a positive integer, ``theiler_window`` is not an
@@ -75,11 +76,7 @@ def hard_fnn(
     num_common = embedded_high.shape[-2]
     embedded_low = embedded_low[..., :num_common, :]
 
-    low_distance, neighbor_index = knn_search(
-        embedded_low, num_neighbors=1, theiler_window=theiler_window, norm_order=norm_order
-    )
-    low_distance = low_distance[..., 0]
-    neighbor_index = neighbor_index[..., 0]
+    low_distance, neighbor_index = _nearest_noncoincident(embedded_low, theiler_window, norm_order)
     valid = neighbor_index != -1
 
     neighbor_points = _gather_neighbors(embedded_high, neighbor_index, valid)
