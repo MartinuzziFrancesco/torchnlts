@@ -281,6 +281,58 @@ def test_sinkhorn_cost_matches_brute_force_regularized_objective():
     )
 
 
+def _unrolled_sinkhorn_cost(cost, reg, num_iters):
+    log_source = torch.log(torch.tensor(float(cost.shape[-2]), dtype=cost.dtype))
+    log_target = torch.log(torch.tensor(float(cost.shape[-1]), dtype=cost.dtype))
+    f = torch.zeros(cost.shape[:-1], dtype=cost.dtype)
+    g = torch.zeros(cost.shape[:-2] + cost.shape[-1:], dtype=cost.dtype)
+    for _ in range(num_iters):
+        f = reg * (-log_source - torch.logsumexp((g.unsqueeze(-2) - cost) / reg, dim=-1))
+        g = reg * (-log_target - torch.logsumexp((f.unsqueeze(-1) - cost) / reg, dim=-2))
+    return f.mean(dim=-1) + g.mean(dim=-1) + reg * (log_source + log_target)
+
+
+@pytest.mark.parametrize("reg", [0.5, 0.1])
+def test_sinkhorn_cost_value_and_gradient_match_unrolled_at_convergence(reg):
+    torch.manual_seed(19)
+    a = torch.randn(2, 20, 2, dtype=torch.float64, requires_grad=True)
+    b = torch.randn(2, 15, 2, dtype=torch.float64)
+    reg = torch.tensor(reg, dtype=torch.float64)
+    results = []
+    for cost_fn in (_unrolled_sinkhorn_cost, _sinkhorn_cost):
+        value = cost_fn(0.5 * torch.cdist(a, b) ** 2, reg, 500)
+        (gradient,) = torch.autograd.grad(value.sum(), a)
+        results.append((value, gradient))
+    assert torch.allclose(results[0][0], results[1][0], atol=1e-12)
+    assert torch.allclose(results[0][1], results[1][1], atol=1e-10)
+
+
+def test_sinkhorn_loss_gradcheck_converged():
+    torch.manual_seed(20)
+    a = torch.randn(6, 2, dtype=torch.float64, requires_grad=True)
+    b = torch.randn(7, 2, dtype=torch.float64)
+    assert torch.autograd.gradcheck(SinkhornLoss(reg=1.0, num_iters=500), (a, b))
+
+
+def test_sinkhorn_loss_tolerance_stops_early_and_matches_converged_value():
+    torch.manual_seed(21)
+    a = torch.randn(3, 20, 2, dtype=torch.float64)
+    b = torch.randn(3, 25, 2, dtype=torch.float64) + 0.5
+    converged = SinkhornLoss(reg=0.5, num_iters=500)(a, b)
+    assert torch.isclose(SinkhornLoss(reg=0.5, num_iters=10000, tolerance=1e-10)(a, b), converged, atol=1e-8)
+    truncated = SinkhornLoss(reg=0.5, num_iters=2)(a, b)
+    assert torch.equal(SinkhornLoss(reg=0.5, num_iters=2, tolerance=1e-30)(a, b), truncated)
+    assert torch.equal(
+        SinkhornLoss(reg=0.5, num_iters=500, tolerance=1e3)(a, b), SinkhornLoss(reg=0.5, num_iters=1)(a, b)
+    )
+
+
+@pytest.mark.parametrize("bad", [0.0, -1e-3, float("nan"), float("inf"), "1e-3", 1j, [1e-3, 1e-3]])
+def test_sinkhorn_loss_rejects_bad_tolerance(bad):
+    with pytest.raises(ValueError):
+        SinkhornLoss(reg=0.5, tolerance=bad)
+
+
 def test_sinkhorn_loss_rejects_non_positive_reg():
     with pytest.raises(ValueError):
         SinkhornLoss(reg=0.0)
