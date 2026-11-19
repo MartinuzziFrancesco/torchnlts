@@ -2,12 +2,15 @@
 
 Reference: Kantz, H. (1994), "A robust method to estimate the maximal Lyapunov exponent of a time series", Phys.
 Lett. A 185(1), 77-87, eq. 1-2; Kantz & Schreiber, "Nonlinear Time Series Analysis", 2nd ed., Cambridge University
-Press, 2004, Ch. 5. The trajectory is delay-embedded, each point's full epsilon-neighborhood is found outside a Theiler
-window (Rosenstein's estimator uses one nearest neighbor), and
-``S(k) = <ln( (1/|U_i|) * sum_{j in U_i} ||X_{i+k} - X_{j+k}|| )>_i`` is tracked as the neighborhood is evolved ``k``
-steps: the log of the *mean* neighborhood distance, averaged over reference points. The slope of ``S(k)`` over an
-early range of ``k`` estimates the largest Lyapunov exponent, through
-:func:`~torchnlts.lyapunov.rosenstein_lyapunov`.
+Press, 2004, Ch. 5, eq. 5.2. The trajectory is delay-embedded, each point's full epsilon-neighborhood is found in the
+embedding space outside a Theiler window (Rosenstein's estimator uses one nearest neighbor), and
+``S(k) = <ln( (1/|U_i|) * sum_{j in U_i} |s_{i+k} - s_{j+k}| )>_i`` is tracked as the neighborhood is evolved ``k``
+steps: the log of the *mean* neighborhood distance, averaged over reference points. Following the paper, the evolved
+distance ``|s_{i+k} - s_{j+k}|`` is taken on the first embedding coordinate (the sample ``x[i]`` of the delay vector
+``(x[i], x[i + delay], ...)``; the norm of its ``D`` components for a ``D``-dimensional trajectory), as in
+ChaosTools.jl's ``distance=FirstElement()``. ``distance="norm"`` instead uses the norm of the full delay vectors,
+``||X_{i+k} - X_{j+k}||``. The slope of ``S(k)`` over an early range of ``k`` estimates the largest Lyapunov exponent,
+through :func:`~torchnlts.lyapunov.rosenstein_lyapunov`.
 
 Differs from ChaosTools.jl's ``lyapunov_from_data`` at ``ntype=WithinRange(radius)``, which takes the log of each
 neighbor's distance before averaging (Parlitz's generalization): the mean of logs instead of the log of the mean.
@@ -44,10 +47,11 @@ def kantz_divergence(
     delay: int = 1,
     theiler_window: int = 0,
     norm_order: float = 2.0,
+    distance: str = "first",
 ) -> torch.Tensor:
     """Kantz's average log-neighborhood-divergence curve ``S(k)``.
 
-    Reference: Kantz (1994), Phys. Lett. A 185(1), 77-87, eq. 1-2.
+    Reference: Kantz (1994), Phys. Lett. A 185(1), 77-87; Kantz & Schreiber (2004), eq. 5.2.
 
     Gradient class: piecewise (see the module docstring).
 
@@ -62,6 +66,10 @@ def kantz_divergence(
         theiler_window: Embedded points with ``|i - j| <= theiler_window`` are not neighbors. Must be ``>= 0``, or a
             point would be its own neighbor.
         norm_order: Minkowski norm order of the neighborhood search and of the evolved-point distances.
+        distance: What the evolved distance at lag ``k`` is measured on. ``"first"``: the first embedding coordinate
+            (the first ``D`` columns of the delay vector, i.e. ``|x[i+k] - x[j+k]|`` for ``D = 1``), as in Kantz's
+            equation and ChaosTools.jl's ``FirstElement()``. ``"norm"``: the full delay vector. The neighborhood
+            search always uses the full delay vector.
 
     Returns:
         ``S(k)`` with shape ``[]`` or ``[K]`` for an unbatched trajectory, ``[B]`` or ``[K, B]`` for a batched one
@@ -74,8 +82,11 @@ def kantz_divergence(
     Raises:
         ValueError: If ``k_values`` is not a non-negative integer or a non-empty 1-D sequence of them, ``radius`` is
             not a real number ``>= 0``, ``embedding_dim`` or ``delay`` is not a positive integer or too large for the
-            trajectory, ``theiler_window`` is negative or not an integer, or the trajectory is complex.
+            trajectory, ``theiler_window`` is negative or not an integer, ``distance`` is not ``"first"`` or
+            ``"norm"``, or the trajectory is complex.
     """
+    if distance not in ("first", "norm"):
+        raise ValueError(f"distance must be 'first' or 'norm', got {distance!r}")
     k_list, swept = _as_int_list(k_values, "k_values", minimum=0)
     theiler_window = _require_self_exclusion(theiler_window, "Kantz's Lyapunov estimator")
     try:
@@ -95,21 +106,27 @@ def kantz_divergence(
     num_points = batched.shape[-2]
     max_k = max(k_list)
 
-    # The distance at lag k is the shifted slice [i+k, j+k] of the full pairwise matrix computed below.
-    distance = pairwise_distance(batched, norm_order=norm_order)
-    neighbor_mask = (distance <= radius_value) & theiler_window_mask(num_points, theiler_window, device=batched.device)
+    # The distance at lag k is the shifted slice [i+k, j+k] of a pairwise matrix computed once.
+    full_distance = pairwise_distance(batched, norm_order=norm_order)
+    if distance == "first" and embedding_dim > 1:
+        evolved_distance = pairwise_distance(batched[..., : raw.shape[-1]], norm_order=norm_order)
+    else:
+        evolved_distance = full_distance
+    neighbor_mask = (full_distance <= radius_value) & theiler_window_mask(
+        num_points, theiler_window, device=batched.device
+    )
 
     num_usable = 0 if max_k >= num_points else num_points - max_k
     active_neighbor_mask = neighbor_mask[..., :num_usable, :num_usable]
     neighbor_count = active_neighbor_mask.sum(dim=-1)
     row_valid = neighbor_count > 0
-    safe_neighbor_count = neighbor_count.clamp(min=1).to(distance.dtype)
+    safe_neighbor_count = neighbor_count.clamp(min=1).to(evolved_distance.dtype)
     row_valid_count = row_valid.sum(dim=-1)
 
     curve = []
     for k in k_list:
         k = min(k, num_points)
-        distance_at_k = distance[..., k : k + num_usable, k : k + num_usable]
+        distance_at_k = evolved_distance[..., k : k + num_usable, k : k + num_usable]
         masked_distance = torch.where(active_neighbor_mask, distance_at_k, torch.zeros_like(distance_at_k))
         mean_distance = masked_distance.sum(dim=-1) / safe_neighbor_count
         # Use a dummy operand of 1 at rows with no neighbors or zero mean distance so log's gradient stays finite.

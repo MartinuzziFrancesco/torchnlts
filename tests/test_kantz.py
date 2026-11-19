@@ -26,6 +26,45 @@ def test_kantz_divergence_hand_derived():
     assert torch.isclose(result, torch.tensor(expected, dtype=torch.float64))
 
 
+def test_kantz_divergence_first_hand_derived_embedding_dim_2():
+    # x = [0, 1, 0.5, 4, 9, 20], embedding_dim=2: X = (0,1) (1,.5) (.5,4) (4,9) (9,20). Only X0 and X1 are within
+    # radius 1.2 (L2 distance sqrt(1.25)). At k=1 the pair evolves to X1, X2: first coordinate |1 - 0.5| = 0.5,
+    # full vector sqrt(0.25 + 12.25) = sqrt(12.5). Both reference rows (0 and 1) give the same value.
+    trajectory = torch.tensor([0.0, 1.0, 0.5, 4.0, 9.0, 20.0], dtype=torch.float64)
+    first = kantz_divergence(trajectory, 1, radius=1.2, embedding_dim=2)
+    full = kantz_divergence(trajectory, 1, radius=1.2, embedding_dim=2, distance="norm")
+    assert torch.isclose(first, torch.tensor(math.log(0.5), dtype=torch.float64))
+    assert torch.isclose(full, torch.tensor(0.5 * math.log(12.5), dtype=torch.float64))
+
+
+def test_kantz_divergence_first_matches_numpy_loop_log_of_mean():
+    rng = numpy.random.default_rng(3)
+    series = rng.standard_normal((40, 2))
+    embedding_dim, delay, radius, theiler, k = 3, 2, 2.0, 2, 3
+    embedded = numpy.stack(
+        [numpy.concatenate([series[n + m * delay] for m in range(embedding_dim)]) for n in range(40 - 2 * delay)]
+    )
+    usable = len(embedded) - k
+    logs = []
+    for i in range(usable):
+        neighbors = [
+            j for j in range(usable) if abs(i - j) > theiler and numpy.linalg.norm(embedded[i] - embedded[j]) <= radius
+        ]
+        if neighbors:
+            mean = numpy.mean([numpy.linalg.norm(embedded[i + k, :2] - embedded[j + k, :2]) for j in neighbors])
+            logs.append(numpy.log(mean))
+    result = kantz_divergence(
+        torch.tensor(series), k, radius, embedding_dim=embedding_dim, delay=delay, theiler_window=theiler
+    )
+    assert len(logs) > 0
+    assert torch.isclose(result, torch.tensor(numpy.mean(logs)), atol=1e-12, rtol=0)
+
+
+def test_kantz_divergence_rejects_unknown_distance():
+    with pytest.raises(ValueError, match="distance"):
+        kantz_divergence(torch.arange(8.0), 1, radius=1.0, embedding_dim=1, distance="last")
+
+
 def test_kantz_divergence_batched_and_sweep_shapes():
     torch.manual_seed(0)
     trajectory = torch.randn(4, 40, 2, dtype=torch.float64)
@@ -226,6 +265,7 @@ def test_kantz_divergence_matches_independent_loop_for_delays_and_norms():
                 delay=delay,
                 theiler_window=theiler_window,
                 norm_order=norm_order,
+                distance="norm",
             )
             assert torch.allclose(result, torch.stack(expected, dim=1), atol=1e-12, rtol=0, equal_nan=True)
 
@@ -277,6 +317,7 @@ def test_kantz_divergence_disagrees_with_chaostools_jl():
     julia_divergence = torch.tensor(float(stdout.strip()), dtype=torch.float64)
     torch_divergence = kantz_divergence(
         torch.tensor(trajectory, dtype=torch.float64),
+        distance="norm",
         k_values=1,
         radius=1.5,
         embedding_dim=1,
