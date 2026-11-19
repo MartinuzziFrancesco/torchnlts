@@ -121,6 +121,33 @@ def _as_sweep(value, device) -> torch.Tensor:
         raise ValueError(f"sweep must be real numbers, got {value!r}") from None
 
 
+def _as_radius_sweep(
+    value, name: str, device=None, dtype=None, *, positive: bool = False, scalar: bool = False
+) -> torch.Tensor:
+    """A radius/temperature as a 0-d tensor, or a 1-d sweep unless ``scalar``; a tensor keeps its autograd graph.
+
+    The value check is skipped for a tensor wrapped by ``torch.vmap`` or ``torch.func`` (no concrete value).
+
+    Raises:
+        ValueError: If ``value`` is not real numeric, has more than one dimension (more than zero if ``scalar``),
+            or has an entry that is NaN, negative (or zero if ``positive``).
+    """
+    if isinstance(value, (str, bytes)) or value is None or _is_complex(value):
+        raise ValueError(f"{name} must be a real number or a 1-D sweep, got {value!r}")
+    try:
+        tensor = torch.as_tensor(value, dtype=dtype, device=device)
+    except (TypeError, ValueError, RuntimeError, OverflowError):
+        raise ValueError(f"{name} must be a real number or a 1-D sweep, got {value!r}") from None
+    if tensor.dim() > (0 if scalar else 1):
+        expected = "a scalar" if scalar else "a scalar or a 1-D sweep"
+        raise ValueError(f"{name} must be {expected}, got shape {tuple(tensor.shape)}")
+    if not torch._C._functorch.is_functorch_wrapped_tensor(tensor):
+        valid = (tensor > 0) if positive else (tensor >= 0)
+        if not bool(valid.all()):
+            raise ValueError(f"{name} must be {'> 0' if positive else '>= 0'} and not NaN, got {value!r}")
+    return tensor
+
+
 def _as_int_list(value, name: str, minimum: int = 1) -> tuple[list[int], bool]:
     """Validate an integer scalar or non-empty 1-D sweep of integers ``>= minimum``.
 
@@ -136,7 +163,7 @@ def _as_int_list(value, name: str, minimum: int = 1) -> tuple[list[int], bool]:
         raise ValueError(f"{name} must be integer-valued, got complex {value!r}")
     # float64 so a Python float like 1.00000001 is not rounded to an integer in float32.
     try:
-        value_tensor = torch.as_tensor(value, dtype=torch.float64)
+        value_tensor = torch.as_tensor(value.cpu() if torch.is_tensor(value) else value, dtype=torch.float64)
     except (TypeError, ValueError, RuntimeError, OverflowError):
         raise ValueError(f"{name} must be integer-valued, got {value!r}") from None
     if value_tensor.dim() > 1:

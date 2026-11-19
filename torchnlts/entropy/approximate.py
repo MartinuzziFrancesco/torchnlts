@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_int, _broadcast_over_matrix, _output_dtype
+from torchnlts._shape import _as_int, _as_radius_sweep, _broadcast_over_matrix, _output_dtype
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.entropy.sample import _mask_nonfinite_input
 from torchnlts.neighbors.distance import pairwise_distance
@@ -24,7 +24,7 @@ from torchnlts.neighbors.theiler import theiler_window_mask
 
 def _log_conditional_probability(embedded, radius, theiler_window: int, norm_order: float) -> torch.Tensor:
     distance = pairwise_distance(embedded, norm_order=norm_order)
-    radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
+    radius = _as_radius_sweep(radius, "radius", distance.device, distance.dtype)
     within_radius = distance <= _broadcast_over_matrix(radius, distance)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     conditional_probability = (within_radius & mask).sum(dim=-1).to(distance.dtype) / mask.sum(dim=-1)
@@ -43,7 +43,7 @@ def _log_soft_conditional_probability(
     embedded, temperature, theiler_window: int, kind: str, norm_order: float
 ) -> torch.Tensor:
     distance = pairwise_distance(embedded, norm_order=norm_order)
-    temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
+    temperature = _as_radius_sweep(temperature, "temperature", distance.device, distance.dtype, positive=True)
     weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     conditional_probability = torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=-1) / mask.sum(dim=-1)
@@ -85,7 +85,8 @@ def approximate_entropy(
 
     Raises:
         ValueError: If ``embedding_dim`` or ``delay`` is not a positive integer, ``theiler_window`` is not an integer,
-            ``norm_order`` is invalid, the trajectory is complex, or it is too short to embed.
+            ``radius`` is not a real scalar or 1-D sweep of values ``>= 0``, ``norm_order`` is invalid, the
+            trajectory is complex, or it is too short to embed.
     """
     embedding_dim = _as_int(embedding_dim, "embedding_dim")
     theiler_window = _as_int(theiler_window, "theiler_window")
@@ -130,7 +131,7 @@ def soft_approximate_entropy(
 
     Raises:
         ValueError: If ``embedding_dim`` or ``delay`` is not a positive integer, ``theiler_window`` is not an integer,
-            ``kind`` is unknown, ``temperature`` is not a positive real number or tensor, ``norm_order`` is invalid,
+            ``kind`` is unknown, ``temperature`` is not a positive real scalar or 1-D sweep, ``norm_order`` is invalid,
             the trajectory is complex, or it is too short to embed.
     """
     embedding_dim = _as_int(embedding_dim, "embedding_dim")

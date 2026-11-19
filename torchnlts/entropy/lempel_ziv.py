@@ -66,7 +66,8 @@ def lempel_ziv_complexity(trajectory, *, threshold="mean", normalize: bool = Fal
         ``NaN`` or ``inf`` gives ``-1`` (``normalize=False``) or ``NaN`` (``normalize=True``).
 
     Raises:
-        ValueError: If ``trajectory`` has a feature dim other than 1 or fewer than 2 time points.
+        ValueError: If ``trajectory`` has a feature dim other than 1 or fewer than 2 time points, or ``threshold``
+            is a string other than ``"mean"``.
     """
     tensor, ndim = _ensure_batched(trajectory)
     _require_univariate(tensor, "lempel_ziv_complexity")
@@ -78,6 +79,8 @@ def lempel_ziv_complexity(trajectory, *, threshold="mean", normalize: bool = Fal
 
     if threshold == "mean":
         cutoff = values.mean(dim=-1, keepdim=True)
+    elif isinstance(threshold, (str, bytes)):
+        raise ValueError("threshold must be 'mean' or a number")
     else:
         cutoff = torch.as_tensor(threshold, dtype=values.dtype, device=values.device)
     binary = (values >= cutoff).to(torch.int64)

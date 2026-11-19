@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _broadcast_over_matrix, _output_dtype, _work_dtype
+from torchnlts._shape import _as_radius_sweep, _broadcast_over_matrix, _output_dtype, _real_scalar, _work_dtype
 from torchnlts.entropy.sample import _mask_nonfinite_input, _matched_length_templates, _negative_log_ratio
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.theiler import _require_self_exclusion, theiler_window_mask
@@ -30,7 +30,7 @@ def _fuzzy_correlation(
     embedded: torch.Tensor, radius, fuzzy_power: float, theiler_window: int, norm_order: float
 ) -> torch.Tensor:
     distance = pairwise_distance(embedded, norm_order=norm_order)
-    radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
+    radius = _as_radius_sweep(radius, "radius", distance.device, distance.dtype, positive=True)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     # Substitute a placeholder on the zero diagonal before the power: its gradient is infinite for fuzzy_power < 1,
     # and the Chebyshev and Manhattan cdist backwards give NaN at zero distance.
@@ -85,8 +85,8 @@ def fuzzy_entropy(
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
-        radius: Membership divisor r, positive. Scalar or ``[R]`` tensor to sweep.
-        fuzzy_power: Membership exponent n; intended to be positive (not validated).
+        radius: Membership divisor r, ``> 0``. Scalar or ``[R]`` tensor to sweep.
+        fuzzy_power: Membership exponent n, ``> 0``.
         embedding_dim: Template length m.
         delay: Embedding lag.
         theiler_window: Theiler window over template start indices, ``>= 0``.
@@ -100,9 +100,12 @@ def fuzzy_entropy(
 
     Raises:
         ValueError: If ``embedding_dim`` or ``delay`` is not a positive integer, ``theiler_window`` is not an integer
-            ``>= 0``, the trajectory is complex, or the trajectory is too short to embed.
+            ``>= 0``, ``radius`` is not a real scalar or 1-D sweep of values ``> 0``, ``fuzzy_power`` is not a real
+            number ``> 0``, the trajectory is complex, or the trajectory is too short to embed.
     """
     theiler_window = _require_self_exclusion(theiler_window, "fuzzy entropy")
+    if not _real_scalar(fuzzy_power, "fuzzy_power") > 0:
+        raise ValueError(f"fuzzy_power must be > 0, got {fuzzy_power!r}")
     trajectory, nonfinite = _mask_nonfinite_input(trajectory)
     dtype = _output_dtype(trajectory)
     short_embed, long_embed = _matched_length_templates(trajectory.to(_work_dtype(dtype)), embedding_dim, delay)

@@ -17,6 +17,11 @@ import torch
 from torchnlts._shape import _real_scalar
 
 
+def _validate_kind(kind: str) -> None:
+    if kind not in ("gaussian", "exponential"):
+        raise ValueError(f"kind must be 'gaussian' or 'exponential', got {kind!r}")
+
+
 def _validate_temperature(temperature) -> None:
     if not torch.is_tensor(temperature):
         positive = _real_scalar(temperature, "temperature") > 0
@@ -52,8 +57,7 @@ def trajectory_kernel(
     Raises:
         ValueError: If ``kind`` is unknown, or ``temperature`` is complex, not a number or tensor, <= 0 or NaN.
     """
-    if kind not in ("gaussian", "exponential"):
-        raise ValueError(f"kind must be 'gaussian' or 'exponential', got {kind!r}")
+    _validate_kind(kind)
     _validate_temperature(temperature)
 
     # Finite placeholder for inf distances, 0 weight selected after: exp(-inf)'s backward w.r.t. temperature is NaN.

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _high_precision_dtype, _power_of_two_scale, _real_scalar
+from torchnlts._shape import _as_radius_sweep, _high_precision_dtype, _power_of_two_scale, _real_scalar
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
 
@@ -96,8 +96,8 @@ def _threshold_matrix(
 
     Raises:
         ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``, ``local_rate`` is given, ``scale`` is
-            given without ``epsilon`` or is not one of ``"max"``, ``"mean"``, ``"std"``, or a rate is outside
-            ``(0, 1]``.
+            given without ``epsilon`` or is not one of ``"max"``, ``"mean"``, ``"std"``, a rate is outside
+            ``(0, 1]``, or ``epsilon`` is not a real scalar ``>= 0``.
     """
     if sum(option is not None for option in (epsilon, recurrence_rate, local_rate)) != 1:
         raise ValueError("give exactly one of epsilon, recurrence_rate, local_rate")
@@ -105,6 +105,8 @@ def _threshold_matrix(
         raise ValueError(
             f"scale must be one of {_SCALES} and requires epsilon, got scale={scale!r}, epsilon={epsilon!r}"
         )
+    if epsilon is not None:
+        epsilon = _as_radius_sweep(epsilon, "epsilon", distance.device, distance.dtype, scalar=True)
     if recurrence_rate is not None:
         flat = distance.flatten(-2)
         threshold = _nan_quantile(flat, _rate(recurrence_rate, "recurrence_rate"), dim=-1)[..., None, None]
@@ -156,7 +158,8 @@ def hard_recurrence_matrix(
 
     Raises:
         ValueError: If not exactly one of ``epsilon``, ``recurrence_rate``, ``local_rate`` is given, ``scale`` is
-            invalid or given without ``epsilon``, or a rate is outside ``(0, 1]``.
+            invalid or given without ``epsilon``, a rate is outside ``(0, 1]``, or ``epsilon`` is not a real scalar
+            ``>= 0``.
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     return _threshold_matrix(distance, epsilon, recurrence_rate, local_rate, scale, self_distance=True)
