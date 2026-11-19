@@ -91,18 +91,23 @@ def _positive_scalar(value, name: str) -> torch.Tensor:
     return tensor.reshape(())
 
 
-def _sinkhorn_cost(cost: torch.Tensor, reg: torch.Tensor, num_iters: int) -> torch.Tensor:
+def _sinkhorn_cost(
+    cost: torch.Tensor, reg: torch.Tensor, num_iters: int, tolerance: float | None = None
+) -> torch.Tensor:
     """Entropy-regularized optimal transport objective ``<P, C> + reg * KL(P | a (x) b)`` at the optimal plan ``P``
     between two uniform empirical measures (Feydy et al. 2019, eq. 1).
 
-    The dual potentials come from ``num_iters`` log-domain Sinkhorn iterations (Peyre & Cuturi 2019, sec. 4.4),
-    unrolled and differentiated through directly; the objective is read off them by strong duality instead of
-    forming ``P``.
+    The dual potentials come from up to ``num_iters`` log-domain Sinkhorn iterations (Peyre & Cuturi 2019, sec. 4.4)
+    run without autograd, then one differentiable update of each potential from the detached other one; the gradient
+    is then the transport plan (envelope theorem, Feydy et al. 2019, sec. 3). The objective is read off the
+    potentials by strong duality instead of forming ``P``.
 
     Args:
         cost: Shape ``[..., num_source, num_target]``.
         reg: Entropic regularization strength, a scalar.
-        num_iters: Number of Sinkhorn iterations.
+        num_iters: Maximum number of Sinkhorn iterations.
+        tolerance: If given, stop once the largest absolute change of the source potential over the whole batch in
+            one iteration is at most ``tolerance``.
 
     Returns:
         Shape ``[...]``.
@@ -110,16 +115,28 @@ def _sinkhorn_cost(cost: torch.Tensor, reg: torch.Tensor, num_iters: int) -> tor
     num_source, num_target = cost.shape[-2], cost.shape[-1]
     log_num_source = torch.log(torch.tensor(float(num_source), dtype=cost.dtype, device=cost.device))
     log_num_target = torch.log(torch.tensor(float(num_target), dtype=cost.dtype, device=cost.device))
-    source_potential = torch.zeros(cost.shape[:-1], dtype=cost.dtype, device=cost.device)
-    target_potential = torch.zeros(cost.shape[:-2] + cost.shape[-1:], dtype=cost.dtype, device=cost.device)
-    for _ in range(num_iters):
-        source_potential = reg * (
-            -log_num_source - torch.logsumexp((target_potential.unsqueeze(-2) - cost) / reg, dim=-1)
-        )
-        target_potential = reg * (
-            -log_num_target - torch.logsumexp((source_potential.unsqueeze(-1) - cost) / reg, dim=-2)
-        )
-    return source_potential.mean(dim=-1) + target_potential.mean(dim=-1) + reg * (log_num_source + log_num_target)
+
+    def update_source(target_potential, cost):
+        return reg * (-log_num_source - torch.logsumexp((target_potential.unsqueeze(-2) - cost) / reg, dim=-1))
+
+    def update_target(source_potential, cost):
+        return reg * (-log_num_target - torch.logsumexp((source_potential.unsqueeze(-1) - cost) / reg, dim=-2))
+
+    with torch.no_grad():
+        target_potential = torch.zeros(cost.shape[:-2] + cost.shape[-1:], dtype=cost.dtype, device=cost.device)
+        source_potential = torch.zeros(cost.shape[:-1], dtype=cost.dtype, device=cost.device)
+        for _ in range(num_iters):
+            previous = source_potential
+            source_potential = update_source(target_potential, cost)
+            target_potential = update_target(source_potential, cost)
+            if tolerance is not None and bool((source_potential - previous).abs().max() <= tolerance):
+                break
+    # Each differentiable update has the full plan as gradient; averaging with the detached potentials keeps it once.
+    source_update = update_source(target_potential, cost)
+    target_update = update_target(source_potential, cost)
+    potentials = 0.5 * (source_update.mean(dim=-1) + source_potential.mean(dim=-1))
+    potentials = potentials + 0.5 * (target_update.mean(dim=-1) + target_potential.mean(dim=-1))
+    return potentials + reg * (log_num_source + log_num_target)
 
 
 class LyapunovLoss(torch.nn.Module):
@@ -380,28 +397,37 @@ class SinkhornLoss(torch.nn.Module):
     Willett (2023), NeurIPS. Like :class:`~torchnlts.sciml.AttractorLoss` with entropy-regularized optimal transport
     (cost ``0.5 * d^2`` for Euclidean ``d``) in place of MMD: ``OT(P, Q) - (OT(P, P) + OT(Q, Q)) / 2``.
 
-    Gradient class: smooth (a fixed number of unrolled ``exp``/``logsumexp`` iterations, differentiated through).
+    Gradient class: smooth (the transport plan, by the envelope theorem; the Sinkhorn iterations are not differentiated
+    through, so it is exact at convergence only).
 
     Args:
         reg: Entropic regularization strength, a single finite real number ``> 0`` (a Python or numpy number, or a
             one-element tensor). Smaller values approach the exact optimal transport cost but need more ``num_iters``
-            and lose numerical precision.
-        num_iters: Number of Sinkhorn iterations, ``>= 1``.
+            and lose numerical precision. The cost is ``0.5 * d^2``, so ``reg`` is in squared-distance units: take it
+            about 0.01 to 0.1 times the squared typical distance between points.
+        num_iters: Maximum number of Sinkhorn iterations, ``>= 1``.
+        tolerance: If given, a real number ``> 0``: stop early once the largest absolute change of the source
+            potential in one iteration, over the whole batch, is at most ``tolerance`` (in cost units). Each of the
+            three transport problems is stopped separately. The early stop is data-dependent, so it does not work
+            under ``torch.vmap``; leave it ``None`` there.
         reduction: ``"mean"``, ``"sum"`` or ``"none"``.
 
     Raises:
         ValueError: If ``reg`` is not a single finite real number ``> 0``, ``num_iters`` is not an integer
-            ``>= 1``, or ``reduction`` is not one of the three.
+            ``>= 1``, ``tolerance`` is not ``None`` or a real number ``> 0``, or ``reduction`` is not one of the three.
     """
 
-    def __init__(self, reg, *, num_iters: int = 50, reduction: str = "mean") -> None:
+    def __init__(self, reg, *, num_iters: int = 50, tolerance: float | None = None, reduction: str = "mean") -> None:
         super().__init__()
         reg_tensor = _positive_scalar(reg, "reg")
+        if tolerance is not None:
+            tolerance = float(_positive_scalar(tolerance, "tolerance"))
         num_iters = _as_int(num_iters, "num_iters")
         if num_iters < 1:
             raise ValueError(f"num_iters must be >= 1, got {num_iters}")
         self.register_buffer("reg", reg_tensor)
         self.num_iters = num_iters
+        self.tolerance = tolerance
         self.reduction = _check_reduction(reduction)
 
     def forward(self, predicted_trajectory, target_trajectory) -> torch.Tensor:
@@ -423,8 +449,8 @@ class SinkhornLoss(torch.nn.Module):
         predicted_cost = 0.5 * pairwise_distance(predicted, norm_order=2.0) ** 2
         target_cost = 0.5 * pairwise_distance(target, norm_order=2.0) ** 2
         cross_cost = 0.5 * pairwise_distance(predicted, other=target, norm_order=2.0) ** 2
-        pp = _sinkhorn_cost(predicted_cost, reg, self.num_iters)
-        qq = _sinkhorn_cost(target_cost, reg, self.num_iters)
-        pq = _sinkhorn_cost(cross_cost, reg, self.num_iters)
+        pp = _sinkhorn_cost(predicted_cost, reg, self.num_iters, self.tolerance)
+        qq = _sinkhorn_cost(target_cost, reg, self.num_iters, self.tolerance)
+        pq = _sinkhorn_cost(cross_cost, reg, self.num_iters, self.tolerance)
         divergence = _nan_rows(pq - 0.5 * (pp + qq), predicted_nonfinite | target_nonfinite, ndim)
         return _reduce(divergence, self.reduction)
