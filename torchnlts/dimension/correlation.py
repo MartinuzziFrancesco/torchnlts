@@ -124,5 +124,6 @@ def correlation_dimension(radius: torch.Tensor, correlation_sum: torch.Tensor) -
     Raises:
         ValueError: If ``radius``/``correlation_sum`` do not have the documented shapes with matching sweep lengths.
     """
+    correlation_sum = as_tensor(correlation_sum)
     log_radius = _safe_log(_as_sweep(radius, correlation_sum.device))
     return _ols_slope(log_radius, _safe_log(correlation_sum)).to(_output_dtype(correlation_sum))

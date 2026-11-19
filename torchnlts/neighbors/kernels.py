@@ -12,9 +12,11 @@ number (~1.2e-38), the temperature gradient can be infinite (``temperature**2`` 
 
 from __future__ import annotations
 
+import numpy
 import torch
 
 from torchnlts._shape import _real_scalar
+from torchnlts.convert import as_tensor
 
 
 def _validate_temperature(temperature) -> None:
@@ -54,7 +56,10 @@ def trajectory_kernel(
     """
     if kind not in ("gaussian", "exponential"):
         raise ValueError(f"kind must be 'gaussian' or 'exponential', got {kind!r}")
+    if isinstance(temperature, numpy.ndarray):
+        temperature = as_tensor(temperature)
     _validate_temperature(temperature)
+    distance = as_tensor(distance)
 
     # Finite placeholder for inf distances, 0 weight selected after: exp(-inf)'s backward w.r.t. temperature is NaN.
     finite = torch.isfinite(distance)

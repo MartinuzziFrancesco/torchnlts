@@ -34,6 +34,7 @@ from torchnlts._shape import (
     _safe_log,
     _safe_scale,
 )
+from torchnlts.convert import as_tensor
 
 
 def _variogram_single_lag(values: torch.Tensor, lag: int, power: float) -> torch.Tensor:
@@ -136,6 +137,7 @@ def variogram_dimension(lag, variogram: torch.Tensor, *, power: float = 2.0) -> 
             shapes with matching sweep lengths.
     """
     power = _validate_power(power)
+    variogram = as_tensor(variogram)
     log_lag = _safe_log(_as_sweep(lag, variogram.device))
     slope = _ols_slope(log_lag, _safe_log(variogram))
     # A NaN slope divided by a differentiable power would put NaN into its gradient.

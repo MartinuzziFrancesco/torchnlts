@@ -15,6 +15,7 @@ import torch
 import torch.nn.functional as functional
 
 from torchnlts._shape import _as_int, _shannon_entropy, _validate_square_matrix
+from torchnlts.convert import as_tensor
 from torchnlts.neighbors.theiler import theiler_window_mask
 
 _WINDOW_ELEMENT_BUDGET = 2**24
@@ -42,6 +43,7 @@ def recurrence_rate(recurrence: torch.Tensor, *, theiler_window: int = 0) -> tor
     Raises:
         ValueError: If ``recurrence`` is not a square matrix or ``theiler_window`` is not an integer.
     """
+    recurrence = as_tensor(recurrence)
     _validate_square_matrix(recurrence)
     weights = recurrence.to(torch.get_default_dtype()) if recurrence.dtype == torch.bool else recurrence
     mask = theiler_window_mask(recurrence.shape[-1], theiler_window, device=recurrence.device)
@@ -113,6 +115,7 @@ def _recurrence_time_histogram(recurrence: torch.Tensor, theiler_window: int) ->
     of each line's length, as in RecurrenceAnalysis.jl's ``rt_histogram``. All line lengths take part (no ``lmin``)
     and the Theiler window counts as white. Entry ``t`` counts the recurrence times equal to ``t``.
     """
+    recurrence = as_tensor(recurrence)
     theiler_window = _check_line_input(recurrence, theiler_window)
     lines = _columns_outside_window(recurrence, theiler_window)  # [..., column, row]
     num_points = lines.shape[-1]
@@ -141,6 +144,7 @@ def _qualifying_line_lengths(
         ``(histogram, lengths)``, long, both ``[..., num_points + 1 - lmin]`` (``lengths`` broadcastable against
         the histogram's last dim), or empty along the last dim if ``lmin`` exceeds every possible line length.
     """
+    recurrence = as_tensor(recurrence)
     lmin = _as_int(lmin, "lmin")
     if lmin < 1:
         raise ValueError(f"lmin must be >= 1, got {lmin}")
@@ -152,6 +156,7 @@ def _qualifying_line_lengths(
 
 def _line_point_fraction(recurrence: torch.Tensor, lmin: int, theiler_window: int, vertical: bool) -> torch.Tensor:
     """Fraction of recurrent points outside the Theiler window lying in lines of length >= ``lmin``."""
+    recurrence = as_tensor(recurrence)
     histogram, lengths = _qualifying_line_lengths(recurrence, lmin, theiler_window, vertical)
     numerator = (lengths * histogram).sum(dim=-1).to(torch.get_default_dtype())
     mask = theiler_window_mask(recurrence.shape[-1], theiler_window, device=recurrence.device)
@@ -165,6 +170,7 @@ def _average_line_length(histogram: torch.Tensor, lengths: torch.Tensor) -> torc
 
 
 def _max_line_length(histogram: torch.Tensor, lengths: torch.Tensor, recurrence: torch.Tensor) -> torch.Tensor:
+    recurrence = as_tensor(recurrence)
     if histogram.shape[-1] == 0:
         # No line can reach lmin, and amax has no identity for an empty reduction.
         return torch.zeros(recurrence.shape[:-2], dtype=torch.long, device=recurrence.device)
@@ -477,6 +483,7 @@ def windowed_rqa(
         ValueError: If ``measure`` is not callable, ``window_size`` or ``step`` is not an integer in range, or
             ``recurrence`` is not a square matrix.
     """
+    recurrence = as_tensor(recurrence)
     _validate_square_matrix(recurrence)
     if not callable(measure):
         raise ValueError(f"measure must be callable, got {measure!r}")
