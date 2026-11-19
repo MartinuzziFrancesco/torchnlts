@@ -259,3 +259,22 @@ def test_dispersion_entropy_nan_for_nonfinite_sample_outside_every_window(bad):
     assert torch.isnan(values[1]) and torch.isfinite(values[[0, 2]]).all()
     mapped = torch.vmap(lambda series: dispersion_entropy(series, num_classes=4, embedding_dim=2, delay=30))(batch)
     assert torch.allclose(values, mapped, equal_nan=True)
+
+
+def test_dispersion_entropy_large_pattern_space_matches_counter_entropy():
+    # 9 ** 10 = 3.5e9 bins would be allocated by a dense histogram.
+    import collections
+
+    series = pseudo_random_series(300, seed=3).to(torch.float64)
+    num_classes, embedding_dim = 9, 10
+    classes = _gaussian_cdf_classes(series.view(1, -1, 1), num_classes).view(-1, 1)
+    counts = collections.Counter(tuple(row.tolist()) for row in delay_embedding(classes, embedding_dim))
+    total = sum(counts.values())
+    expected = -sum(value / total * math.log(value / total) for value in counts.values())
+    result = dispersion_entropy(series, num_classes=num_classes, embedding_dim=embedding_dim)
+    assert result.item() == pytest.approx(expected, rel=1e-10)
+
+
+def test_dispersion_entropy_rejects_int64_overflow():
+    with pytest.raises(ValueError, match="int64"):
+        dispersion_entropy(pseudo_random_series(100, seed=3), num_classes=9, embedding_dim=21)

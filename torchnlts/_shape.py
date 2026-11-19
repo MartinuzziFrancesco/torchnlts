@@ -75,6 +75,16 @@ def _broadcast_over_matrix(value: torch.Tensor, matrix: torch.Tensor) -> torch.T
     return value.view(value.shape + (1,) * matrix.dim())
 
 
+def _stack_over_sweep(function, sweep: torch.Tensor) -> torch.Tensor:
+    """Stack ``function(value)`` over the entries of a scalar or ``[R]`` sweep as a leading ``R`` axis (none for a
+    scalar), so a sweep never materializes a ``[R, ..., T, T]`` tensor."""
+    if sweep.numel() == 0:
+        values = function(sweep.new_ones(())).unsqueeze(0)[:0]
+    else:
+        values = torch.stack([function(value) for value in sweep.reshape(-1)])
+    return values.reshape(sweep.shape + values.shape[1:])
+
+
 def _work_dtype(dtype: torch.dtype) -> torch.dtype:
     """Computation dtype for ``dtype``: default float for non-float input,
     float32 for half precision, else ``dtype`` itself.
@@ -415,3 +425,20 @@ def _pattern_counts(
     source = torch.ones_like(codes, dtype=dtype) if weights is None else weights.to(dtype)
     counts = torch.zeros((*codes.shape[:-1], num_patterns), dtype=dtype, device=codes.device)
     return counts.scatter_add(-1, codes, source)
+
+
+def _sparse_pattern_counts(
+    codes: torch.Tensor, weights: torch.Tensor | None = None, dtype: torch.dtype | None = None
+) -> torch.Tensor:
+    """Counts (or weight sums) of the distinct codes along the last dim, found by sorting.
+
+    Same arguments as :func:`_pattern_counts` without ``num_patterns``, so codes may be any int64 values. Returns
+    ``[..., N]``: one entry per distinct code (in sorted order) followed by zeros, which leave sums and entropies
+    unchanged. Memory is ``O(prod(batch) * N)``, and ``torch.vmap`` works.
+    """
+    if dtype is None:
+        dtype = torch.get_default_dtype() if weights is None else weights.dtype
+    codes, order = codes.sort(-1)
+    source = torch.ones_like(codes, dtype=dtype) if weights is None else weights.to(dtype).gather(-1, order)
+    new_run = torch.cat([torch.zeros_like(codes[..., :1]), (codes[..., 1:] != codes[..., :-1]).long()], dim=-1)
+    return torch.zeros_like(source).scatter_add(-1, new_run.cumsum(-1), source)

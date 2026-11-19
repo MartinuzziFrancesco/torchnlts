@@ -118,9 +118,10 @@ def linear_regions(sweep, values, *, tolerance: float = 0.25, saturation: float 
 def _largest(labels: torch.Tensor):
     """``(start, stop)`` point indices ``[B]`` of the most populated label of ``labels`` ``[R - 1, B]``."""
     ids = torch.arange(labels.shape[0], device=labels.device).view(-1, 1, 1)
-    counts = (labels.unsqueeze(0) == ids).sum(dim=1)  # [label, B]
+    matches = labels.unsqueeze(0) == ids
+    counts = matches.sum(dim=1)  # [label, B]
     best = counts.argmax(dim=0)
-    start = (labels.unsqueeze(0) == ids).long().argmax(dim=1).gather(0, best.unsqueeze(0)).squeeze(0)
+    start = matches.long().argmax(dim=1).gather(0, best.unsqueeze(0)).squeeze(0)
     stop = start + counts.gather(0, best.unsqueeze(0)).squeeze(0) + 1
     return start, stop
 

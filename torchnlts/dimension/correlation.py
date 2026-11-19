@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_sweep, _broadcast_over_matrix, _ols_slope, _output_dtype, _safe_log
+from torchnlts._shape import _as_sweep, _ols_slope, _output_dtype, _safe_log, _stack_over_sweep
 from torchnlts.convert import as_tensor
 from torchnlts.neighbors.distance import pairwise_distance
 from torchnlts.neighbors.kernels import trajectory_kernel
@@ -52,8 +52,8 @@ def correlation_sum(trajectory, radius, *, theiler_window: int = 0, norm_order: 
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    within_radius = distance <= _broadcast_over_matrix(radius, distance)
-    total = (within_radius & mask).sum(dim=(-2, -1)).to(distance.dtype) / mask.sum()
+    count = _stack_over_sweep(lambda value: ((distance <= value) & mask).sum(dim=(-2, -1)), radius)
+    total = count.to(distance.dtype) / mask.sum()
     return _nan_where_nonfinite(total, distance).to(_output_dtype(as_tensor(trajectory)))
 
 
@@ -90,9 +90,13 @@ def soft_correlation_sum(
     """
     distance = pairwise_distance(trajectory, norm_order=norm_order)
     temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
-    weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    total = torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()
+
+    def kernel_sum(value):
+        weight = trajectory_kernel(distance, value, kind=kind)
+        return torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1))
+
+    total = _stack_over_sweep(kernel_sum, temperature) / mask.sum()
     return _nan_where_nonfinite(total, distance).to(_output_dtype(as_tensor(trajectory)))
 
 

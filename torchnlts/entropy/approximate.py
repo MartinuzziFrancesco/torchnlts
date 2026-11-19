@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import torch
 
-from torchnlts._shape import _as_int, _broadcast_over_matrix, _output_dtype
+from torchnlts._shape import _as_int, _output_dtype, _stack_over_sweep
 from torchnlts.embedding.delay import delay_embedding
 from torchnlts.entropy.sample import _mask_nonfinite_input
 from torchnlts.neighbors.distance import pairwise_distance
@@ -25,10 +25,13 @@ from torchnlts.neighbors.theiler import theiler_window_mask
 def _log_conditional_probability(embedded, radius, theiler_window: int, norm_order: float) -> torch.Tensor:
     distance = pairwise_distance(embedded, norm_order=norm_order)
     radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
-    within_radius = distance <= _broadcast_over_matrix(radius, distance)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    conditional_probability = (within_radius & mask).sum(dim=-1).to(distance.dtype) / mask.sum(dim=-1)
-    return torch.log(conditional_probability).mean(dim=-1)
+
+    def mean_log_match(value):
+        conditional_probability = ((distance <= value) & mask).sum(dim=-1).to(distance.dtype) / mask.sum(dim=-1)
+        return torch.log(conditional_probability).mean(dim=-1)
+
+    return _stack_over_sweep(mean_log_match, radius)
 
 
 def _mean_log(probability: torch.Tensor) -> torch.Tensor:
@@ -44,10 +47,13 @@ def _log_soft_conditional_probability(
 ) -> torch.Tensor:
     distance = pairwise_distance(embedded, norm_order=norm_order)
     temperature = torch.as_tensor(temperature, dtype=distance.dtype, device=distance.device)
-    weight = trajectory_kernel(distance, _broadcast_over_matrix(temperature, distance), kind=kind)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
-    conditional_probability = torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=-1) / mask.sum(dim=-1)
-    return _mean_log(conditional_probability)
+
+    def mean_log_kernel(value):
+        weight = trajectory_kernel(distance, value, kind=kind)
+        return _mean_log(torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=-1) / mask.sum(dim=-1))
+
+    return _stack_over_sweep(mean_log_kernel, temperature)
 
 
 def approximate_entropy(

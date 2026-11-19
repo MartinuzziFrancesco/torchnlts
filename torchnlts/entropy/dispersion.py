@@ -24,10 +24,10 @@ from torchnlts._shape import (
     _as_int,
     _ensure_batched,
     _output_dtype,
-    _pattern_counts,
     _require_univariate,
     _restore_shape_preserving,
     _shannon_entropy,
+    _sparse_pattern_counts,
     _work_dtype,
 )
 from torchnlts.embedding.delay import delay_embedding
@@ -63,8 +63,7 @@ def dispersion_entropy(
             pandas Series/DataFrame.
         num_classes: Number of classes c, at least 2. The paper recommends ``2 < c < 9``; the default 6 is the
             follow-up paper's choice.
-        embedding_dim: Pattern length m. The pattern histogram has ``num_classes ** embedding_dim`` bins, so memory
-            grows with that product rather than with the trajectory length.
+        embedding_dim: Pattern length m; ``num_classes ** embedding_dim`` must fit in int64.
         delay: Embedding lag d; the paper recommends 1.
         normalize: Divide by ``log(num_classes ** embedding_dim)`` so the result lies in ``[0, 1]``.
 
@@ -78,7 +77,7 @@ def dispersion_entropy(
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1, ``num_classes`` is not an integer ``>= 2``,
             ``embedding_dim`` or ``delay`` is not a positive integer, or ``trajectory`` is too short for them (see
-            :func:`torchnlts.embedding.delay_embedding`).
+            :func:`torchnlts.embedding.delay_embedding`), or ``num_classes ** embedding_dim`` exceeds int64.
     """
     num_classes = _as_int(num_classes, "num_classes")
     if num_classes < 2:
@@ -91,6 +90,9 @@ def dispersion_entropy(
     # Restore the caller's [T]/[T, 1]/[B, T, 1] shape so delay_embedding does not treat an unbatched input as batched.
     classes = _restore_shape_preserving(classes, ndim)
     embedded = delay_embedding(classes, embedding_dim, delay=delay)
+    num_patterns = num_classes**embedding_dim
+    if num_patterns > torch.iinfo(torch.int64).max:
+        raise ValueError(f"num_classes ** embedding_dim must fit in int64, got {num_classes}**{embedding_dim}")
 
     # Zero variance gives NaN classes; substitute a dummy class before the int64 cast, which is undefined for NaN.
     # Codes must be integers: float codes collide once num_classes**embedding_dim exceeds 2**24.
@@ -99,8 +101,7 @@ def dispersion_entropy(
     weights = num_classes ** torch.arange(embedding_dim - 1, -1, -1, dtype=torch.int64, device=embedded.device)
     codes = ((embedded - 1) * weights).sum(dim=-1)
 
-    num_patterns = num_classes**embedding_dim
-    counts = _pattern_counts(codes, num_patterns, dtype=tensor.dtype)
+    counts = _sparse_pattern_counts(codes, dtype=tensor.dtype)
     entropy = _shannon_entropy(counts / counts.sum(dim=-1, keepdim=True))
     # NaN is applied to the whole entropy as a tensor op, which keeps this torch.vmap-compatible.
     entropy = torch.where(has_nan, torch.full_like(entropy, float("nan")), entropy)

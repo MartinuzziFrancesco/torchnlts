@@ -29,6 +29,7 @@ from torchnlts._shape import (
     _real_scalar,
     _require_univariate,
     _shannon_entropy,
+    _sparse_pattern_counts,
     _work_dtype,
 )
 from torchnlts.convert import as_tensor
@@ -80,8 +81,14 @@ def _pattern_weights(embedded: torch.Tensor, weighting: str, amplitude_weight: f
     return amplitude_weight * level + (1 - amplitude_weight) * change
 
 
-def _probabilities(trajectory, embedding_dim: int, delay: int, weighting, amplitude_weight, name: str) -> torch.Tensor:
-    """:func:`~torchnlts.entropy.ordinal_pattern_probabilities` in the working dtype (float32 for half input)."""
+def _probabilities(
+    trajectory, embedding_dim: int, delay: int, weighting, amplitude_weight, name: str, dense: bool = True
+) -> torch.Tensor:
+    """:func:`~torchnlts.entropy.ordinal_pattern_probabilities` in the working dtype (float32 for half input).
+
+    With ``dense=False`` the last dim holds only the occurring patterns (``[..., N]``, zero padded), not all
+    ``embedding_dim!``; fine for entropies.
+    """
     tensor, _ = _ensure_batched(trajectory)
     _require_univariate(tensor, name)
     amplitude_weight = _validate_weighting(weighting, amplitude_weight, embedding_dim)
@@ -92,13 +99,22 @@ def _probabilities(trajectory, embedding_dim: int, delay: int, weighting, amplit
     invalid = nonfinite[..., None]
     if weighting is not None:
         codes = _ordinal_pattern_codes(work)
-        sums = _pattern_counts(codes, num_patterns, _pattern_weights(work, weighting, amplitude_weight))
+        pattern_weights = _pattern_weights(work, weighting, amplitude_weight)
+        sums = (
+            _pattern_counts(codes, num_patterns, pattern_weights)
+            if dense
+            else _sparse_pattern_counts(codes, pattern_weights)
+        )
         total = sums.sum(dim=-1, keepdim=True)
         invalid = invalid | (total == 0)
         probability = sums / torch.where(invalid, torch.ones_like(total), total)
     else:
         codes = _ordinal_pattern_codes(embedded)
-        counts = _pattern_counts(codes, num_patterns, dtype=work.dtype)
+        counts = (
+            _pattern_counts(codes, num_patterns, dtype=work.dtype)
+            if dense
+            else _sparse_pattern_counts(codes, dtype=work.dtype)
+        )
         probability = counts / counts.sum(dim=-1, keepdim=True)
     return torch.where(invalid, torch.full_like(probability, float("nan")), probability)
 
@@ -136,9 +152,11 @@ def ordinal_pattern_probabilities(
 
     Returns:
         Probabilities over the ``embedding_dim!`` ordinal patterns, shape ``[embedding_dim!]`` or
-        ``[B, embedding_dim!]``, summing to 1 along the last dimension. A row is entirely ``NaN`` if it contains
-        ``NaN`` or ``inf`` or, with a weighting, if its total weight is 0 (e.g. a constant trajectory under
-        ``"variance"``); such rows do not affect the gradient of other rows.
+        ``[B, embedding_dim!]`` (a dense histogram, so memory grows factorially with ``embedding_dim``;
+        :func:`~torchnlts.entropy.permutation_entropy` does not allocate it), summing to 1 along the last
+        dimension. A row is entirely ``NaN`` if it contains ``NaN`` or ``inf`` or, with a weighting, if its total
+        weight is 0 (e.g. a constant trajectory under ``"variance"``); such rows do not affect the gradient of other
+        rows.
 
     Raises:
         ValueError: If ``trajectory`` has a feature dim other than 1, ``embedding_dim`` or ``delay`` is not a positive
@@ -189,7 +207,9 @@ def permutation_entropy(
     Raises:
         ValueError: As :func:`~torchnlts.entropy.ordinal_pattern_probabilities`.
     """
-    probability = _probabilities(trajectory, embedding_dim, delay, weighting, amplitude_weight, "permutation_entropy")
+    probability = _probabilities(
+        trajectory, embedding_dim, delay, weighting, amplitude_weight, "permutation_entropy", dense=False
+    )
     entropy = _shannon_entropy(probability)
     if normalize:
         entropy = entropy / math.log(math.factorial(embedding_dim))

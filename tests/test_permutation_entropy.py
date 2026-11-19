@@ -18,7 +18,12 @@ import torch
 
 from tests.conftest import run_julia
 from torchnlts.embedding.delay import delay_embedding
-from torchnlts.entropy.permutation import _ordinal_pattern_codes, ordinal_pattern_probabilities, permutation_entropy
+from torchnlts.entropy.permutation import (
+    _ordinal_pattern_codes,
+    _pattern_weights,
+    ordinal_pattern_probabilities,
+    permutation_entropy,
+)
 
 
 def test_permutation_entropy_hand_derived():
@@ -257,3 +262,32 @@ def test_univariate_error_names_the_called_function():
         permutation_entropy(trajectory)
     with pytest.raises(ValueError, match="^ordinal_pattern_probabilities only supports"):
         ordinal_pattern_probabilities(trajectory)
+
+
+@pytest.mark.parametrize("weighting", [None, "variance", "amplitude"])
+def test_permutation_entropy_large_embedding_dim_matches_counter_entropy(weighting):
+    # embedding_dim=12 would need a 479M-bin histogram (several GB) if one were allocated.
+    import collections
+
+    series = torch.randn(200, dtype=torch.float64, generator=torch.Generator().manual_seed(0))
+    embedding_dim = 12
+    patterns = [tuple(torch.argsort(window, stable=True).tolist()) for window in delay_embedding(series, embedding_dim)]
+    if weighting is None:
+        sums = collections.Counter(patterns)
+    else:
+        sums = collections.Counter()
+        weights = _pattern_weights(delay_embedding(series, embedding_dim), weighting, 0.5)
+        for pattern, weight in zip(patterns, weights.tolist(), strict=True):
+            sums[pattern] += weight
+    total = sum(sums.values())
+    expected = -sum(value / total * math.log(value / total) for value in sums.values())
+    assert permutation_entropy(series, embedding_dim=embedding_dim, weighting=weighting).item() == pytest.approx(
+        expected, rel=1e-10
+    )
+
+
+def test_permutation_entropy_sparse_counts_match_dense_probabilities():
+    series = torch.randn(2, 120, 1, dtype=torch.float64, generator=torch.Generator().manual_seed(1))
+    probability = ordinal_pattern_probabilities(series, embedding_dim=5)
+    expected = -(probability * torch.where(probability > 0, probability, torch.ones_like(probability)).log()).sum(-1)
+    torch.testing.assert_close(permutation_entropy(series, embedding_dim=5), expected)
