@@ -16,7 +16,7 @@ import math
 import pytest
 import torch
 
-from tests.conftest import assert_first_row_gradients_unaffected, run_julia
+from tests.conftest import assert_first_row_gradients_unaffected, pseudo_random_series, run_julia
 from torchnlts.entropy.sample import _matched_length_templates, sample_entropy, soft_sample_entropy
 
 NONFINITE = [float("nan"), float("inf"), -float("inf")]
@@ -183,6 +183,33 @@ def test_soft_sample_entropy_gradcheck_temperature():
         return soft_sample_entropy(trajectory, temperature=t, embedding_dim=2)
 
     assert torch.autograd.gradcheck(entropy, (temperature,))
+
+
+def test_soft_sample_entropy_chebyshev_tie_gradient_is_finite_on_integer_data():
+    # Distinct tied coordinates are different functions of the input, so a pick-one subgradient need not equal
+    # the central difference there; only finiteness is guaranteed.
+    series = torch.floor((pseudo_random_series(40, seed=3) + 1) * 2).clamp(max=3).requires_grad_()
+    soft_sample_entropy(series, 0.8).backward()
+    assert torch.isfinite(series.grad).all()
+
+
+def test_soft_sample_entropy_chebyshev_tie_of_identical_columns_matches_central_difference():
+    # Regression: torch.cdist credited both tied coordinates, doubling the gradient; here they are the same function.
+    series = pseudo_random_series(40, seed=5)
+
+    def entropy(values):
+        return soft_sample_entropy(torch.stack([values, values], dim=-1), 0.8, embedding_dim=1)
+
+    trajectory = series.clone().requires_grad_()
+    entropy(trajectory).backward()
+    eps = 1e-6
+    central_difference = torch.empty_like(series)
+    for i in range(len(series)):
+        bumped_up, bumped_down = series.clone(), series.clone()
+        bumped_up[i] += eps
+        bumped_down[i] -= eps
+        central_difference[i] = (entropy(bumped_up) - entropy(bumped_down)) / (2 * eps)
+    assert torch.allclose(trajectory.grad, central_difference, atol=1e-6)
 
 
 def test_sample_entropy_matches_complexitymeasures_jl():

@@ -29,7 +29,8 @@ def pairwise_distance(
 
     Reference: Grassberger & Procaccia (1983), Physica D 9(1-2), eq. 1-2.
 
-    Gradient class: exact (non-differentiable only at zero distance).
+    Gradient class: exact (non-differentiable only at zero distance; at a Chebyshev tie one tied coordinate
+    carries the gradient).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
@@ -69,7 +70,10 @@ def pairwise_distance(
     other_batched = torch.where(other_nonfinite[..., None], torch.zeros_like(other_batched), other_batched)
     # The default matmul path loses float32 precision for points sharing a large offset.
     # Exact power-of-two scaling keeps cdist from overflowing; skipped below norm_order=1, where it can't overflow.
-    if norm_order < 1:
+    # Chebyshev takes the difference of one selected coordinate, which needs no scaling.
+    if norm_order == float("inf") and batched.shape[-1] > 0:
+        distance = _chebyshev_distance(batched, other_batched)
+    elif norm_order < 1:
         distance = torch.cdist(batched, other_batched, p=norm_order)
     else:
         scale = _power_of_two_scale(batched, other_batched)
@@ -79,6 +83,22 @@ def pairwise_distance(
         distance = scaled_distance * 4 * scale
     distance = distance.masked_fill(nonfinite.unsqueeze(-1) | other_nonfinite.unsqueeze(-2), float("nan"))
     return _restore_batch(distance, ndim)
+
+
+def _chebyshev_distance(trajectory: torch.Tensor, other: torch.Tensor) -> torch.Tensor:
+    """Chebyshev distance differentiating only the first maximal coordinate (``cdist`` credits every tied one)."""
+    with torch.no_grad():
+        best = torch.zeros(trajectory.shape[:2] + other.shape[1:2], dtype=torch.long, device=trajectory.device)
+        best_value = torch.full(best.shape, -1.0, dtype=trajectory.dtype, device=trajectory.device)
+        for coordinate in range(trajectory.shape[-1]):
+            value = (trajectory[:, :, None, coordinate] - other[:, None, :, coordinate]).abs()
+            update = value > best_value
+            best = torch.where(update, coordinate, best)
+            best_value = torch.where(update, value, best_value)
+    index = best.unsqueeze(-1)
+    selected = trajectory.unsqueeze(2).expand(-1, -1, other.shape[1], -1).gather(-1, index).squeeze(-1)
+    other_selected = other.unsqueeze(1).expand(-1, trajectory.shape[1], -1, -1).gather(-1, index).squeeze(-1)
+    return (selected - other_selected).abs()
 
 
 def _validate_norm_order(norm_order) -> float:

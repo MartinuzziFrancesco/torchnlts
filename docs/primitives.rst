@@ -351,7 +351,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``SampleEntropy``; its B(r) counts one extra neighbour taken from the untruncated embedding at ``delay=1``, so the values agree only when no such match exists, which the test arranges with far outliers at the end of the series; it also returns ``NaN`` rather than ``inf`` when A(r)=0)
 
    * - :doc:`soft_sample_entropy <generated/torchnlts.entropy.soft_sample_entropy>`
-     - smooth (except at exact Chebyshev-distance ties, see docstring)
+     - smooth (a subgradient at exact Chebyshev-distance ties, see docstring)
      - `Richman & Moorman (2000) <https://doi.org/10.1152/ajpheart.2000.278.6.H2039>`__, eq. 1-3 (kernel-relaxed via ``trajectory_kernel``)
      - none (built on ``soft_correlation_sum``, which is validated against its radius=0 hard limit)
 
@@ -361,7 +361,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``ApproximateEntropy``; matches at ``embedding_dim >= 2``. At ``embedding_dim=1`` that package returns ``phi(1)`` alone, a non-Pincus definition, and a test pins the disagreement)
 
    * - :doc:`soft_approximate_entropy <generated/torchnlts.entropy.soft_approximate_entropy>`
-     - smooth (except at exact Chebyshev-distance ties, see docstring)
+     - smooth (a subgradient at exact Chebyshev-distance ties, see docstring)
      - `Pincus (1991) <https://doi.org/10.1073/pnas.88.6.2297>`__, eq. 1-4 (kernel-relaxed via ``trajectory_kernel``)
      - none (checked against ``approximate_entropy``'s radius=0 hard limit)
 
@@ -391,7 +391,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``multiscale(RegularDownsampling, SampleEntropy)``; inherits ``sample_entropy``'s boundary-handling deviation, neutralized the same way at every scale)
 
    * - :doc:`soft_multiscale_entropy <generated/torchnlts.entropy.soft_multiscale_entropy>`
-     - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
+     - smooth (inherits ``soft_sample_entropy``'s, including its subgradient at exact Chebyshev-distance ties)
      - `Costa, Goldberger & Peng (2002) <https://doi.org/10.1103/PhysRevLett.89.068102>`__, the unnumbered coarse-graining formula on p. 2 (kernel-relaxed via ``soft_sample_entropy``)
      - none (built on ``soft_sample_entropy`` and ``coarse_grain``; gradcheck on both temperature and trajectory)
 
@@ -401,7 +401,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``multiscale(CompositeDownsampling, SampleEntropy)``; matches to 2e-16. Julia truncates every offset series to the common length ``(N - s + 1) // s``, this function keeps each offset's natural length ``(N - offset) // s``; the test uses a length where both agree. Inherits ``sample_entropy``'s boundary-handling deviation, neutralized with far outliers at the end of the series)
 
    * - :doc:`soft_composite_multiscale_entropy <generated/torchnlts.entropy.soft_composite_multiscale_entropy>`
-     - smooth (inherits ``soft_sample_entropy``'s, including its Chebyshev-tie caveat)
+     - smooth (inherits ``soft_sample_entropy``'s, including its subgradient at exact Chebyshev-distance ties)
      - `Wu, Wu, Lin, Wang & Lee (2013) <https://doi.org/10.3390/e15031069>`__ (kernel-relaxed via ``soft_sample_entropy``)
      - none (composition of ``coarse_grain`` offsets and ``soft_sample_entropy``; gradcheck on both temperature and trajectory)
 
@@ -426,7 +426,7 @@ with none gives an all-False matrix) and work under ``torch.vmap``.
      - `ComplexityMeasures.jl <https://github.com/JuliaDynamics/ComplexityMeasures.jl>`__ (``Tsallis``; exact match including negative ``q``. Inside Julia's ``q ≈ 1`` tolerance window with ``k!=1``, Julia drops ``k``, unlike its general-formula branch just outside the window; this function returns ``k`` times Shannon entropy there. A test pins the difference)
 
    * - :doc:`fuzzy_entropy <generated/torchnlts.entropy.fuzzy_entropy>`
-     - smooth, except a systematic (not measure-zero) Chebyshev-distance tie for any flattened length-2 template, and (outside the always-zero univariate ``embedding_dim=1`` short-template case, handled exactly) an inherent singularity at exactly coincident templates for ``0 < fuzzy_power < 1`` -- see docstring
+     - smooth, except (outside the always-zero univariate ``embedding_dim=1`` short-template case, handled exactly) an inherent singularity at exactly coincident templates for ``0 < fuzzy_power < 1`` -- see docstring
      - `Chen, Wang, Xie & Yu (2007) <https://doi.org/10.1109/TNSRE.2007.897025>`__, eq. 2-10
      - `EntropyHub <https://github.com/MattWillFlood/EntropyHub>`__ (``FuzzEn``, ``Fx='default'``; exact match, and a test re-derives the paper's formula by hand. No Julia comparison exists: ``ComplexityMeasures.jl`` has no fuzzy entropy estimator)
 

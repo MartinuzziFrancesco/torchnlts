@@ -124,8 +124,8 @@ def soft_sample_entropy(
     """Kernel-weighted sample entropy, a smooth stand-in for the hard threshold.
 
     Gradient class: smooth (a relaxation of :func:`~torchnlts.entropy.sample_entropy` built on
-    :func:`~torchnlts.dimension.soft_correlation_sum`), except at ties in the default Chebyshev (``norm_order=inf``)
-    distance, where the max-norm itself is not differentiable (a measure-zero case in random data).
+    :func:`~torchnlts.dimension.soft_correlation_sum`). At an exact tie in the default Chebyshev (``norm_order=inf``)
+    distance one tied coordinate carries the gradient (a subgradient).
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.

@@ -33,7 +33,7 @@ def _fuzzy_correlation(
     radius = torch.as_tensor(radius, dtype=distance.dtype, device=distance.device)
     mask = theiler_window_mask(distance.shape[-1], theiler_window, device=distance.device)
     # Substitute a placeholder on the zero diagonal before the power: its gradient is infinite for fuzzy_power < 1,
-    # and the Chebyshev and Manhattan cdist backwards give NaN at zero distance.
+    # and the Manhattan cdist backward gives NaN at zero distance.
     safe_distance = torch.where(mask, distance, torch.ones_like(distance))
     weight = _fuzzy_membership(safe_distance, _broadcast_over_matrix(radius, distance), fuzzy_power)
     return torch.where(mask, weight, torch.zeros_like(weight)).sum(dim=(-2, -1)) / mask.sum()
@@ -70,18 +70,11 @@ def fuzzy_entropy(
     :func:`~torchnlts.entropy.sample_entropy`. ``theiler_window`` generalizes the paper's self-match exclusion as in
     that function. Matches EntropyHub's ``FuzzEn`` (``Fx='default'``).
 
-    Gradient class: smooth (the membership is continuous), with two exceptions:
-
-    1. Mean removal turns every template of flattened length 2 (``embedding_dim * D`` or ``(embedding_dim + 1) * D``;
-       for ``D = 1``, ``embedding_dim`` 1 or 2) into ``(v, -v)``, a systematic tie in the default Chebyshev max.
-       ``torch.cdist``'s backward then sums over the tied components, so the gradient is wrong by a factor tied to their
-       number (forward values are exact). ``norm_order=2.0`` or a flattened length other than 2 on both branches avoids
-       it.
-    2. For ``0 < fuzzy_power < 1``, ``distance ** fuzzy_power`` has an infinite slope at distance 0, which reaches
-       autograd as ``NaN`` under Chebyshev and Manhattan distances (not Euclidean). The masked diagonal and the
-       ``D = 1``, ``embedding_dim = 1`` short templates (all zero) are handled; any other unmasked pair of exactly
-       coincident templates (e.g. a window and its neighbor in an arithmetic progression) still gives a ``NaN``
-       gradient for non-Euclidean ``norm_order``.
+    Gradient class: smooth (the membership is continuous), except that for ``0 < fuzzy_power < 1``,
+    ``distance ** fuzzy_power`` has an infinite slope at distance 0, which reaches autograd as ``NaN`` under Chebyshev
+    and Manhattan distances (not Euclidean). The masked diagonal and the ``D = 1``, ``embedding_dim = 1`` short
+    templates (all zero) are handled; any other unmasked pair of exactly coincident templates (e.g. a window and its
+    neighbor in an arithmetic progression) still gives a ``NaN`` gradient for non-Euclidean ``norm_order``.
 
     Args:
         trajectory: Shape ``[T]``, ``[T, D]``, or ``[B, T, D]``. A tensor, numpy array, or pandas Series/DataFrame.
