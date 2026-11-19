@@ -68,3 +68,19 @@ def _gather_neighbors(target: torch.Tensor, index: torch.Tensor, valid: torch.Te
     """
     safe_index = torch.where(valid, index, torch.zeros_like(index))
     return torch.take_along_dim(target, safe_index.unsqueeze(-1), dim=-2)
+
+
+def _nearest_noncoincident(
+    points: torch.Tensor, theiler_window: int, norm_order: float
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Nearest-neighbor ``(distance, index)`` ``[..., T]`` of ``points`` ``[..., T, D]``.
+
+    A nearest neighbor at distance 0 is replaced by the second nearest (as in Cao's method); the second may
+    also be at distance 0.
+    """
+    distances, indices = knn_search(points, num_neighbors=2, theiler_window=theiler_window, norm_order=norm_order)
+    use_second = distances[..., 0] == 0
+    return (
+        torch.where(use_second, distances[..., 1], distances[..., 0]),
+        torch.where(use_second, indices[..., 1], indices[..., 0]),
+    )
